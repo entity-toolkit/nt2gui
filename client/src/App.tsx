@@ -2,10 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import {
   Layout,
   Model,
-  Action,
   TabNode,
   IJsonModel,
-  IJsonRowNode,
   TabSetNode,
   BorderNode,
   ITabSetRenderValues,
@@ -96,12 +94,6 @@ const json: IJsonModel = {
 const App = () => {
   const [model, setModel] = useState<Model>(Model.fromJson(json));
 
-  const updateModelLayout = (newLayout: IJsonRowNode) => {
-    const new_model = model.toJson();
-    new_model.layout = newLayout;
-    setModel(Model.fromJson(new_model));
-  };
-
   // const requestServer = async (endpoint: string) => {
   //   const response = await fetch(`${endpoint}`);
   //   return response.json();
@@ -114,6 +106,12 @@ const App = () => {
       },
       body: JSON.stringify(data),
     });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(`Request failed: ${response.status} ${message}`);
+    }
+
     return response.json();
   };
 
@@ -128,20 +126,34 @@ const App = () => {
   };
 
   useEffect(() => {
-    postServer(`${SERVER_URL}/model_init`, model.toJson()).then((data) => {
-      if (data.model !== null) {
-        updateModelLayout(data.model);
-        console.log("retrieved model from server");
-      } else {
+    const bootstrapModel = async () => {
+      try {
+        const response = await fetch(`${SERVER_URL}/model_init`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch stored model: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.model !== null) {
+          setModel(Model.fromJson(data.model));
+          console.log("retrieved model from server");
+          return;
+        }
+
+        const initResponse = await postServer(
+          `${SERVER_URL}/model_init`,
+          model.toJson(),
+        );
+
+        setModel(Model.fromJson(initResponse.model));
         console.log("initialized model on server");
+      } catch (error) {
+        console.error("Error initializing model:", error);
       }
-    });
-    //   requestServer(`${SERVER_URL}/get_model`).then((data) => {
-    //     const new_model = model.toJson();
-    //     new_model.layout = data;
-    //     setModel(Model.fromJson(new_model));
-    //     console.log(data, new_model);
-    //   });
+    };
+
+    bootstrapModel();
   }, []);
   // console.log(model);
 

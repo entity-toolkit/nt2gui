@@ -9,6 +9,7 @@
     "dev:server": "python3 -m flask --app server/index.py run --reload"
   },
   "dependencies": {
+    "flexlayout-react": "^0.8.17",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

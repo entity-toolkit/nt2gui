@@ -4,7 +4,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask import request, Response
 import json
-from model import Model, TabsetNode, TabNode
+from model import Model
 
 
 app = Flask(__name__)
@@ -23,8 +23,16 @@ def hello_world():
     return json.dumps({"message": state["model"].to_json()})
 
 
-@app.route("/model_init", methods=["POST"])
+@app.route("/model_init", methods=["GET", "POST"])
 def init_model():
+    if request.method == "GET":
+        return json.dumps(
+            {
+                "message": "Model initialized" if state["model"] else "Model not initialized",
+                "model": state["model"].to_json() if state["model"] else None,
+            }
+        )
+
     if state["model"] is not None:
         app.logger.info("Model already initialized")
         return json.dumps(
@@ -35,11 +43,11 @@ def init_model():
         )
     else:
         data = request.json
-        state["model"] = Model().from_json(data["layout"])
+        state["model"] = Model().from_json(data)
         return json.dumps(
             {
                 "message": "Model initialized",
-                "model": None,
+                "model": state["model"].to_json(),
             }
         )
 
@@ -48,12 +56,13 @@ def init_model():
 def sync_model():
     data = request.json
     if state["model"] is None:
+        app.logger.error("Attempted to sync before initialization")
         return Response("Model not initialized", status=500)
-    state["model"] = Model().from_json(data["layout"])
+    state["model"] = Model().from_json(data)
     return json.dumps(
         {
             "message": "Model synchronized",
-            "model": None,
+            "model": state["model"].to_json(),
         }
     )
 

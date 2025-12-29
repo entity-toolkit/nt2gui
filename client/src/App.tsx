@@ -134,19 +134,8 @@ const App = () => {
     const component = node.getComponent();
     switch (component) {
       case "panel":
-        const node_id = node.getId();
-        if (!plotters[node_id]) {
-          setPlotters({
-            ...plotters,
-            [node_id]: {
-              plotType: PlotType.None,
-              dataType: DataType.None,
-            },
-          });
-        }
         return (
           <Panel
-            key={crypto.randomUUID()}
             node={node}
             plotters={plotters}
             onDataTypeChange={onDataTypeChange}
@@ -166,10 +155,64 @@ const App = () => {
   ) => {
     if (node instanceof TabSetNode) {
       renderValues.stickyButtons.push(
-        <AddTabButton model={model} node={node} />,
+        <AddTabButton
+          key={`add-tab-${node.getId()}`}
+          model={model}
+          node={node}
+        />,
       );
     }
   };
+
+  useEffect(() => {
+    const syncPlottersWithModel = () => {
+      const modelJson = model.toJson();
+      const panelIds = new Set<string>();
+
+      const collectPanelIds = (node: any) => {
+        if (!node) return;
+
+        if (node.type === "tab" && node.component === "panel" && node.id) {
+          panelIds.add(node.id);
+        }
+
+        if (Array.isArray(node.children)) {
+          node.children.forEach(collectPanelIds);
+        }
+      };
+
+      collectPanelIds(modelJson.layout);
+      modelJson.borders?.forEach((border: any) =>
+        collectPanelIds(border),
+      );
+
+      setPlotters((prevPlotters) => {
+        let hasChanges = false;
+        const updatedPlotters = { ...prevPlotters };
+
+        panelIds.forEach((id) => {
+          if (!updatedPlotters[id]) {
+            hasChanges = true;
+            updatedPlotters[id] = {
+              plotType: PlotType.None,
+              dataType: DataType.None,
+            };
+          }
+        });
+
+        Object.keys(updatedPlotters).forEach((id) => {
+          if (!panelIds.has(id)) {
+            hasChanges = true;
+            delete updatedPlotters[id];
+          }
+        });
+
+        return hasChanges ? updatedPlotters : prevPlotters;
+      });
+    };
+
+    syncPlottersWithModel();
+  }, [model]);
 
   return (
     <>
@@ -181,8 +224,10 @@ const App = () => {
         //   console.log("onAction: ", action);
         //   return action;
         // }}
-        onModelChange={(model: Model) => {
-          syncModelLayout(model.toJson());
+        onModelChange={(updatedModel: Model) => {
+          const jsonModel = updatedModel.toJson();
+          setModel(Model.fromJson(jsonModel));
+          syncModelLayout(jsonModel);
         }}
         onRenderTabSet={onRenderTabSet}
         realtimeResize={true}

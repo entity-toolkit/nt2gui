@@ -9,7 +9,6 @@ import {
 const AddTabButton = (props: { model: Model; node: TabSetNode }) => (
   <>
     <button
-      key={crypto.randomUUID()}
       title="Add"
       className="flexlayout__tab_toolbar_button"
       onClick={() => {

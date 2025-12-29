@@ -1,14 +1,15 @@
 export enum DataType {
-  None = 'none',
-  Fields = 'fields',
-  Particles = 'particles',
+  None = "none",
+  Fields = "fields",
+  Particles = "particles",
 }
 
 export enum PlotType {
-  None = 'none',
-  Line = 'line',
-  Pseudocolor = 'pseudocolor',
-};
+  None = "none",
+  Line = "line",
+  Scatter = "scatter",
+  Pseudocolor = "pseudocolor",
+}
 
 export interface IPlotter {
   plotType: PlotType;

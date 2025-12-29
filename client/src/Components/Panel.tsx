@@ -1,6 +1,7 @@
 import { TabNode } from "flexlayout-react";
 import PickPlotter from "./PickPlotter";
 import PickDatatype from "./PickDatatype";
+import Plot from "./Plot";
 
 import { IPlotters, PlotType, DataType } from "../global";
 
@@ -18,8 +19,10 @@ const Panel = (props: IPanelProps) => {
     <div className="panel">
       {node_plotter?.dataType === DataType.None ? (
         <PickDatatype {...props} />
-      ) : (
+      ) : node_plotter?.plotType === PlotType.None ? (
         <PickPlotter {...props} />
+      ) : (
+        <Plot {...props} />
       )}
     </div>
   );

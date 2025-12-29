@@ -21,6 +21,11 @@ const PickPlotter = (props: IPickPlotterProps) => {
         value="2D pseudocolor"
         onClick={() => props.onPlotTypeChange(node_id, PlotType.Pseudocolor)}
       />
+      <input
+        type="button"
+        value="2D scatter"
+        onClick={() => props.onPlotTypeChange(node_id, PlotType.Scatter)}
+      />
     </div>
   );
 };

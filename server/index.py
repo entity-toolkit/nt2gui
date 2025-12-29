@@ -28,7 +28,9 @@ def init_model():
     if request.method == "GET":
         return json.dumps(
             {
-                "message": "Model initialized" if state["model"] else "Model not initialized",
+                "message": (
+                    "Model initialized" if state["model"] else "Model not initialized"
+                ),
                 "model": state["model"].to_json() if state["model"] else None,
             }
         )
@@ -42,7 +44,9 @@ def init_model():
             }
         )
     else:
-        data = request.json
+        data = request.json.get("model", {})
+        if not data:
+            app.logger.info("No model data provided, initializing empty model")
         state["model"] = Model().from_json(data)
         return json.dumps(
             {

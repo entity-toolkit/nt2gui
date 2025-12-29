@@ -7,92 +7,69 @@ import {
   TabSetNode,
   BorderNode,
   ITabSetRenderValues,
-  Actions,
-  DockLocation,
-  AddIcon,
 } from "flexlayout-react";
-import "./App.css";
-import "flexlayout-react/style/underline.css";
 import "flexlayout-react/style/dark.css";
+
+import { IPlotters, PlotType, DataType } from "./global";
+
+import AddTabButton from "./Components/AddTabButton";
+import Panel from "./Components/Panel";
+
+import "./App.css";
 
 const SERVER_URL = "http://localhost:5000";
 
-const json: IJsonModel = {
-  global: {
-    splitterEnableHandle: true,
-    tabEnablePopout: true,
-    tabSetMinWidth: 130,
-    tabSetMinHeight: 100,
-    tabSetEnableTabScrollbar: true,
-    borderMinSize: 100,
-    borderEnableTabScrollbar: true,
-  },
-  borders: [
-    {
-      type: "border",
-      location: "bottom",
-      children: [
-        {
-          type: "tab",
-          name: "JSON",
-          component: "json",
-          enableClose: false,
-        },
-      ],
-    },
-  ],
-  layout: {
-    type: "row",
-    // id: "#7fb9a2f8-e17c-40e9-80ef-b6803cee5a89",
-    children: [],
-    // children: [
-    //   {
-    //     type: "tabset",
-    //     id: "#8a57d328-59d7-4b39-81f9-74fd1db98f20",
-    //     weight: 1,
-    //     children: [
-    //       {
-    //         type: "tab",
-    //         id: "#2bae5b3a-04d0-4a34-bc24-edcfd5a153bd",
-    //         name: "left",
-    //         component: "placeholder",
-    //       },
-    //     ],
-    //   },
-    //   {
-    //     type: "tabset",
-    //     id: "#94fd82c2-c7a4-4b8f-9bb6-3549ff248c00",
-    //     weight: 1,
-    //     children: [
-    //       {
-    //         type: "tab",
-    //         id: "#18636ae8-4178-450d-a0a8-2059c04b5370",
-    //         name: "center",
-    //         component: "placeholder",
-    //       },
-    //     ],
-    //     active: true,
-    //   },
-    //   {
-    //     type: "tabset",
-    //     id: "#868a8f84-31cc-4c06-99d5-11af8ddde846",
-    //     weight: 1,
-    //     children: [
-    //       {
-    //         type: "tab",
-    //         id: "#aed2e05e-2dd1-49ee-af42-d464b7bacba1",
-    //         name: "right",
-    //         component: "placeholder",
-    //       },
-    //     ],
-    //   },
-    // ],
-  },
-  popouts: {},
-};
-
 const App = () => {
-  const [model, setModel] = useState<Model>(Model.fromJson(json));
+  const init_json: IJsonModel = {
+    global: {
+      splitterEnableHandle: true,
+      tabEnablePopout: false,
+      tabSetMinWidth: 130,
+      tabSetMinHeight: 100,
+      tabSetEnableTabScrollbar: true,
+      borderMinSize: 100,
+      borderEnableTabScrollbar: true,
+    },
+    borders: [
+      {
+        type: "border",
+        location: "bottom",
+        children: [
+          {
+            type: "tab",
+            name: "JSON",
+            component: "json",
+            enableClose: false,
+          },
+        ],
+      },
+    ],
+    layout: {
+      type: "row",
+      children: [],
+    },
+    popouts: {},
+  };
+  const [model, setModel] = useState<Model>(Model.fromJson(init_json));
+  const [plotters, setPlotters] = useState<IPlotters>({});
+  const onPlotTypeChange = (node_id: string, newPlotType: PlotType) => {
+    setPlotters({
+      ...plotters,
+      [node_id]: {
+        ...plotters[node_id],
+        plotType: newPlotType,
+      },
+    });
+  };
+  const onDataTypeChange = (node_id: string, newDataType: DataType) => {
+    setPlotters({
+      ...plotters,
+      [node_id]: {
+        ...plotters[node_id],
+        dataType: newDataType,
+      },
+    });
+  };
 
   // const requestServer = async (endpoint: string) => {
   //   const response = await fetch(`${endpoint}`);
@@ -137,17 +114,14 @@ const App = () => {
 
         if (data.model !== null) {
           setModel(Model.fromJson(data.model));
-          console.log("retrieved model from server");
           return;
         }
 
-        const initResponse = await postServer(
-          `${SERVER_URL}/model_init`,
-          model.toJson(),
-        );
+        const initResponse = await postServer(`${SERVER_URL}/model_init`, {
+          model: model.toJson(),
+        });
 
         setModel(Model.fromJson(initResponse.model));
-        console.log("initialized model on server");
       } catch (error) {
         console.error("Error initializing model:", error);
       }
@@ -155,20 +129,34 @@ const App = () => {
 
     bootstrapModel();
   }, []);
-  // console.log(model);
-
-  // const model = Model.fromJson(json);
-  const nextAddIndex = useRef<number>(1);
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     switch (component) {
       case "panel":
-        return <div className="panel">{node.getName()}</div>;
+        const node_id = node.getId();
+        if (!plotters[node_id]) {
+          setPlotters({
+            ...plotters,
+            [node_id]: {
+              plotType: PlotType.None,
+              dataType: DataType.None,
+            },
+          });
+        }
+        return (
+          <Panel
+            key={crypto.randomUUID()}
+            node={node}
+            plotters={plotters}
+            onDataTypeChange={onDataTypeChange}
+            onPlotTypeChange={onPlotTypeChange}
+          />
+        );
       case "json":
         return <ModelJson model={model} />;
       default:
-        return <div>{"unknown component " + component}</div>;
+        return <div>{`unknown component: ${component}`}</div>;
     }
   };
 
@@ -178,28 +166,7 @@ const App = () => {
   ) => {
     if (node instanceof TabSetNode) {
       renderValues.stickyButtons.push(
-        <button
-          key="Add"
-          title="Add"
-          className="flexlayout__tab_toolbar_button"
-          onClick={() => {
-            console.log("Add button clicked on", node.getId(), model);
-            model.doAction(
-              Actions.addNode(
-                {
-                  component: "panel",
-                  name: "Added " + nextAddIndex.current++,
-                },
-                node.getId(),
-                DockLocation.CENTER,
-                -1,
-                true,
-              ),
-            );
-          }}
-        >
-          <AddIcon />
-        </button>,
+        <AddTabButton model={model} node={node} />,
       );
     }
   };

@@ -10,3 +10,9 @@
   align-items: center;
   box-sizing: border-box;
 }
+
+.add-plot-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

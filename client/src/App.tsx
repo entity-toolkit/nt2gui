@@ -1,16 +1,28 @@
-import { Layout, Model, TabNode, TabSetNode, BorderNode, ITabSetRenderValues } from "flexlayout-react";
+import {
+  Layout,
+  Model,
+  TabNode,
+  TabSetNode,
+  BorderNode,
+  ITabSetRenderValues,
+} from "flexlayout-react";
 import "flexlayout-react/style/dark.css";
 
 import { IUiState } from "./global";
-import AddTabButton from "./Components/AddTabButton";
-import Panel from "./Components/Panel";
+import AddTabButton from "./components/AddTabButton";
+import Panel from "./components/Panel";
 import { useUiState } from "./hooks/useUiState";
 
 import "./App.css";
 
 const App = () => {
-  const { model, plotters, onDataTypeChange, onPlotTypeChange, handleModelChange } =
-    useUiState();
+  const {
+    model,
+    plotters,
+    onDataTypeChange,
+    onPlotTypeChange,
+    handleModelChange,
+  } = useUiState();
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -37,7 +49,11 @@ const App = () => {
   ) => {
     if (node instanceof TabSetNode) {
       renderValues.stickyButtons.push(
-        <AddTabButton key={`add-tab-${node.getId()}`} model={model} node={node} />,
+        <AddTabButton
+          key={`add-tab-${node.getId()}`}
+          model={model}
+          node={node}
+        />,
       );
     }
   };

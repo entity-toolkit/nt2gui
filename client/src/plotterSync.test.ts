@@ -53,7 +53,9 @@ describe("reconcilePlotters", () => {
   });
 
   it("returns the same reference when no changes are needed", () => {
-    const initial = { "panel-1": { plotType: PlotType.None, dataType: DataType.None } };
+    const initial = {
+      "panel-1": { plotType: PlotType.None, dataType: DataType.None },
+    };
     const next = reconcilePlotters(initial, new Set(["panel-1"]));
 
     expect(next).toBe(initial);

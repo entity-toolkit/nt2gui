@@ -31,9 +31,12 @@ export const fetchExistingUiState = async (): Promise<IUiState | null> => {
 export const initializeUiState = async (
   initialUiState: IUiState,
 ): Promise<IUiState> => {
-  const response = await postJson<ServerModelResponse>(`${SERVER_URL}/model_init`, {
-    model: initialUiState,
-  });
+  const response = await postJson<ServerModelResponse>(
+    `${SERVER_URL}/model_init`,
+    {
+      model: initialUiState,
+    },
+  );
 
   if (!response.model) {
     throw new Error("Server did not return a model during initialization");

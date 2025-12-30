@@ -10,7 +10,9 @@ import {
 } from "../services/uiStateService";
 
 export const useUiState = () => {
-  const [model, setModel] = useState<Model>(Model.fromJson(initialUiState.layout));
+  const [model, setModel] = useState<Model>(
+    Model.fromJson(initialUiState.layout),
+  );
   const [plotters, setPlotters] = useState<IPlotters>(initialUiState.plotters);
 
   const persistState = useCallback(

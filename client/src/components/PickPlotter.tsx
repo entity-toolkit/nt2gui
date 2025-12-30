@@ -14,7 +14,7 @@ const PickPlotter = (props: IPickPlotterProps) => {
       <input
         type="button"
         value="1D plot"
-        onClick={() => props.onPlotTypeChange(node_id, PlotType.Line)}
+        disabled
       />
       <input
         type="button"
@@ -24,8 +24,9 @@ const PickPlotter = (props: IPickPlotterProps) => {
       <input
         type="button"
         value="2D scatter"
-        onClick={() => props.onPlotTypeChange(node_id, PlotType.Scatter)}
+        disabled
       />
+      <small className="helper-text">Additional plot types are coming soon.</small>
     </div>
   );
 };

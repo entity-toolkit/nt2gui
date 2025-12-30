@@ -35,4 +35,10 @@ export const initialLayout: IJsonModel = {
 export const initialUiState: IUiState = {
   layout: initialLayout,
   plotters: {},
+  timeline: {
+    current: 0,
+    min: 0,
+    max: 100,
+    step: 1,
+  },
 };

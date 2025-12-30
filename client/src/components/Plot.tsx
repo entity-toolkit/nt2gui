@@ -1,12 +1,24 @@
 import { TabNode } from "flexlayout-react";
 
-import { IPlotters, PlotType, DataType } from "../global";
+import {
+  IPlotters,
+  PlotType,
+  DataType,
+  IPseudocolorConfig,
+  defaultPseudocolorConfig,
+} from "../global";
+
+import PseudocolorControls from "./PseudocolorControls";
 
 interface IPlotProps {
   node: TabNode;
   plotters: IPlotters;
   onDataTypeChange: (node_id: string, newDataType: DataType) => void;
   onPlotTypeChange: (node_id: string, newPlotType: PlotType) => void;
+  onPseudocolorConfigChange: (
+    node_id: string,
+    config: IPseudocolorConfig,
+  ) => void;
 }
 
 const Plot = (props: IPlotProps) => {
@@ -14,10 +26,39 @@ const Plot = (props: IPlotProps) => {
   const node_plotter = props.plotters[node_id];
   const node_datatype = node_plotter?.dataType;
   const node_plottype = node_plotter?.plotType;
+
+  const isPseudocolor =
+    node_datatype === DataType.Fields && node_plottype === PlotType.Pseudocolor;
+
+  const pseudocolorConfig =
+    node_plotter?.pseudocolorConfig ?? defaultPseudocolorConfig;
+
   return (
     <div className="plot">
-      <h3>Plot Type: {node_datatype}</h3>
-      <h3>Data Type: {node_plottype}</h3>
+      <div className="plot-header">
+        <div>
+          <div className="plot-heading">Plot setup</div>
+          <div className="plot-meta">
+            <span className="badge">{node_datatype}</span>
+            <span className="badge">{node_plottype}</span>
+          </div>
+        </div>
+      </div>
+      <div className="plot-body">
+        {isPseudocolor ? (
+          <PseudocolorControls
+            config={pseudocolorConfig}
+            onChange={(config) => props.onPseudocolorConfigChange(node_id, config)}
+          />
+        ) : (
+          <div className="coming-soon">
+            <div className="coming-soon__title">Plot configuration coming soon</div>
+            <div className="coming-soon__subtitle">
+              Backend-driven rendering will appear here once the plotting mode is enabled.
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

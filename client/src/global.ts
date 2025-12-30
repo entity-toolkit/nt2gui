@@ -13,9 +13,26 @@ export enum PlotType {
   Pseudocolor = "pseudocolor",
 }
 
+export interface ITimeline {
+  current: number;
+  min: number;
+  max: number;
+  step: number;
+}
+
+export interface IPseudocolorConfig {
+  field: string;
+  xCoordinate: string;
+  yCoordinate: string;
+  vmin?: number;
+  vmax?: number;
+  colorMap: string;
+}
+
 export interface IPlotter {
   plotType: PlotType;
   dataType: DataType;
+  pseudocolorConfig?: IPseudocolorConfig;
 }
 
 export interface IPlotters {
@@ -25,4 +42,14 @@ export interface IPlotters {
 export interface IUiState {
   layout: IJsonModel;
   plotters: IPlotters;
+  timeline: ITimeline;
 }
+
+export const defaultPseudocolorConfig: IPseudocolorConfig = {
+  field: "",
+  xCoordinate: "",
+  yCoordinate: "",
+  vmin: undefined,
+  vmax: undefined,
+  colorMap: "viridis",
+};

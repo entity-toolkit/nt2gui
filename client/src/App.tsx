@@ -11,6 +11,7 @@ import "flexlayout-react/style/dark.css";
 import { IUiState } from "./global";
 import AddTabButton from "./components/AddTabButton";
 import Panel from "./components/Panel";
+import TimelineControls from "./components/TimelineControls";
 import { useUiState } from "./hooks/useUiState";
 
 import "./App.css";
@@ -19,8 +20,11 @@ const App = () => {
   const {
     model,
     plotters,
+    timeline,
     onDataTypeChange,
     onPlotTypeChange,
+    onPseudocolorConfigChange,
+    onTimelineChange,
     handleModelChange,
   } = useUiState();
 
@@ -34,6 +38,7 @@ const App = () => {
             plotters={plotters}
             onDataTypeChange={onDataTypeChange}
             onPlotTypeChange={onPlotTypeChange}
+            onPseudocolorConfigChange={onPseudocolorConfigChange}
           />
         );
       case "json":
@@ -59,16 +64,28 @@ const App = () => {
   };
 
   return (
-    <>
-      <div id="content"></div>
-      <Layout
-        model={model}
-        factory={factory}
-        onModelChange={(updatedModel: Model) => handleModelChange(updatedModel)}
-        onRenderTabSet={onRenderTabSet}
-        realtimeResize={true}
-      />
-    </>
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="app-branding">
+          <div className="brand-mark" aria-hidden="true" />
+          <div>
+            <div className="brand-title">NT2 Visualizer</div>
+            <div className="brand-subtitle">Backend-driven scientific plots</div>
+          </div>
+        </div>
+        <TimelineControls timeline={timeline} onTimelineChange={onTimelineChange} />
+      </header>
+      <div className="layout-container">
+        <div id="content"></div>
+        <Layout
+          model={model}
+          factory={factory}
+          onModelChange={(updatedModel: Model) => handleModelChange(updatedModel)}
+          onRenderTabSet={onRenderTabSet}
+          realtimeResize={true}
+        />
+      </div>
+    </div>
   );
 };
 

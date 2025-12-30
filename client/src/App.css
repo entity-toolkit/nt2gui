@@ -23,6 +23,12 @@
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  position: relative;
+}
+
+.layout-container .flexlayout__layout {
+  position: absolute;
+  inset: 0;
 }
 
 .panel {

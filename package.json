@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
-    "dev:server": "python3 -m flask --app server/index.py run --reload"
+    "dev:server": "python3 -m flask --app server/index.py run --reload",
+    "test": "vitest"
   },
   "dependencies": {
     "flexlayout-react": "^0.8.17",
@@ -24,6 +25,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "prettier": "^3.7.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^3.0.5"
   }
 }

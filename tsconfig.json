@@ -16,7 +16,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "types": [
-      "vite/client"
+      "vite/client",
+      "vitest"
     ]
   },
   "include": [

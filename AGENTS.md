@@ -4,6 +4,10 @@
 - The frontend is a react-based vite app written in typescript which uses flex-layout for to display multiple panels with selectable plots.
 - The UI state should be synchronized with the server which must keep track of it and potentially recover at initialization.
 
+# Data format on the backend
+- The data will consist of two different types: fields (multi-D arrays with 1D/2D or 3D coordinates at different timesteps represented with an xarray dataset), and particles (pandas dataframe containing particle species index, coordinates, ids, velocities, and corresponding timesteps etc.).
+- Fields have names and the user should be able to combine them (and, potentially, the coordinates) to create new variables.
+
 # Guidelines
 - Use both react typescript and Python best-practices.
 - Run `pip install -r requirements` to install python requirements and use `npm i` to install node requirements.

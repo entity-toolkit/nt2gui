@@ -44,7 +44,8 @@ def init_model():
             }
         )
     else:
-        data = request.json.get("model", {})
+        payload = request.json or {}
+        data = payload.get("model", {})
         if not data:
             app.logger.info("No model data provided, initializing empty model")
         state["model"] = Model().from_json(data)
@@ -58,7 +59,8 @@ def init_model():
 
 @app.route("/model_sync", methods=["POST"])
 def sync_model():
-    data = request.json
+    payload = request.json or {}
+    data = payload.get("model", {})
     if state["model"] is None:
         app.logger.error("Attempted to sync before initialization")
         return Response("Model not initialized", status=500)

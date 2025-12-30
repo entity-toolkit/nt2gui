@@ -1,3 +1,5 @@
+import { IJsonModel } from "flexlayout-react";
+
 export enum DataType {
   None = "none",
   Fields = "fields",
@@ -18,4 +20,9 @@ export interface IPlotter {
 
 export interface IPlotters {
   [key: string]: IPlotter;
+}
+
+export interface IUiState {
+  layout: IJsonModel;
+  plotters: IPlotters;
 }

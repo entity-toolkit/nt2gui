@@ -1,0 +1,112 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.menubar {
+  display: flex;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-toolbar);
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.menubar__items {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.menubar__button {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: linear-gradient(135deg, #0f172a, #0c1220);
+  color: #e5e7eb;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.menubar__button:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+  transform: translateY(-1px);
+}
+
+.menubar__button:active {
+  transform: translateY(0);
+}
+
+.timeline-bar {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  width: 100%;
+}
+
+.layout-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
+  width: 100%;
+}
+
+.layout-container .flexlayout__layout {
+  position: absolute;
+  inset: 0;
+}
+
+.panel {
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.add-plot-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 320px;
+}
+
+.add-plot-menu input[type="button"] {
+  padding: 12px 14px;
+  background: #111827;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-plot-menu input[type="button"]:hover:enabled {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.add-plot-menu input[type="button"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.helper-text {
+  color: var(--color-muted);
+  font-size: 12px;
+}

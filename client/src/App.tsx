@@ -15,8 +15,6 @@ import Menubar from "./components/Menubar";
 import TimelineControls from "./components/TimelineControls";
 import { useUiState } from "./hooks/useUiState";
 
-import "./App.css";
-
 const App = () => {
   const {
     model,

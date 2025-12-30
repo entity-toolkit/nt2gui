@@ -9,3 +9,4 @@
 - Run `pip install -r requirements` to install python requirements and use `npm i` to install node requirements.
 - use `npm run dev` to run both the server and the client concurrently.
 - The state of UI must be fully reproducible and synchronized with the server.
+- Run tests with `npm run test`, in the most error-prone routines -- always add unit tests.

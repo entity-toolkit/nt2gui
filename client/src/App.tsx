@@ -65,14 +65,7 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div className="app-branding">
-          <div className="brand-mark" aria-hidden="true" />
-          <div>
-            <div className="brand-title">NT2 Visualizer</div>
-            <div className="brand-subtitle">Backend-driven scientific plots</div>
-          </div>
-        </div>
+      <header className="timeline-bar">
         <TimelineControls timeline={timeline} onTimelineChange={onTimelineChange} />
       </header>
       <div className="layout-container">

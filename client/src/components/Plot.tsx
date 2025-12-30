@@ -36,28 +36,33 @@ const Plot = (props: IPlotProps) => {
   return (
     <div className="plot">
       <div className="plot-header">
-        <div>
-          <div className="plot-heading">Plot setup</div>
-          <div className="plot-meta">
-            <span className="badge">{node_datatype}</span>
-            <span className="badge">{node_plottype}</span>
-          </div>
+        <div className="plot-meta">
+          <span className="badge">{node_datatype}</span>
+          <span className="badge">{node_plottype}</span>
         </div>
       </div>
       <div className="plot-body">
-        {isPseudocolor ? (
-          <PseudocolorControls
-            config={pseudocolorConfig}
-            onChange={(config) => props.onPseudocolorConfigChange(node_id, config)}
-          />
-        ) : (
-          <div className="coming-soon">
-            <div className="coming-soon__title">Plot configuration coming soon</div>
-            <div className="coming-soon__subtitle">
-              Backend-driven rendering will appear here once the plotting mode is enabled.
-            </div>
+        <div className="plot-figure">
+          <div className="plot-figure__placeholder">
+            <span className="plot-figure__tag">Awaiting render</span>
+            <div>Backend rendering will drop the image preview here.</div>
           </div>
-        )}
+        </div>
+        <div className="plot-config">
+          {isPseudocolor ? (
+            <PseudocolorControls
+              config={pseudocolorConfig}
+              onChange={(config) => props.onPseudocolorConfigChange(node_id, config)}
+            />
+          ) : (
+            <div className="coming-soon">
+              <div className="coming-soon__title">Plot configuration coming soon</div>
+              <div className="coming-soon__subtitle">
+                Backend-driven rendering will appear here once the plotting mode is enabled.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -3,11 +3,16 @@
   width: 100%;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100%;
+  overflow-x: hidden;
   background: #0b101a;
   color: #f5f7fb;
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -27,6 +32,7 @@
   overflow: hidden;
   min-height: 0;
   position: relative;
+  width: 100%;
 }
 
 .layout-container .flexlayout__layout {
@@ -85,18 +91,13 @@
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .plot-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.plot-heading {
-  font-size: 18px;
-  font-weight: 700;
 }
 
 .plot-meta {
@@ -123,16 +124,58 @@
   gap: 14px;
 }
 
+.plot-figure {
+  height: 360px;
+  border-radius: 12px;
+  border: 1px dashed #243049;
+  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05), transparent 35%),
+    radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.08), transparent 40%),
+    #0b1220;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+}
+
+.plot-figure__placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.plot-figure__tag {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-weight: 600;
+}
+
+.plot-config {
+  background: #0b1220;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .pseudocolor-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .form-control {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .form-control label {
@@ -142,7 +185,7 @@
 
 .form-control input,
 .form-control select {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid #1f2937;
   background: #0b1220;
@@ -175,10 +218,26 @@
   margin-top: 6px;
 }
 
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-section__title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
 .timeline-controls {
   width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr;
   row-gap: 10px;

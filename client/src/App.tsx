@@ -11,6 +11,7 @@ import "flexlayout-react/style/dark.css";
 import { IUiState } from "./global";
 import AddTabButton from "./components/AddTabButton";
 import Panel from "./components/Panel";
+import Menubar from "./components/Menubar";
 import TimelineControls from "./components/TimelineControls";
 import { useUiState } from "./hooks/useUiState";
 
@@ -65,6 +66,7 @@ const App = () => {
 
   return (
     <div className="app-shell">
+      <Menubar />
       <header className="timeline-bar">
         <TimelineControls timeline={timeline} onTimelineChange={onTimelineChange} />
       </header>

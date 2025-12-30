@@ -18,6 +18,46 @@
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
+.menubar {
+  display: flex;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid #1d2533;
+  background: #0e1524;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.menubar__items {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.menubar__button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: linear-gradient(135deg, #0f172a, #0c1220);
+  color: #e5e7eb;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.menubar__button:hover {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  transform: translateY(-1px);
+}
+
+.menubar__button:active {
+  transform: translateY(0);
+}
+
 .timeline-bar {
   padding: 14px 20px;
   border-bottom: 1px solid #1d2533;

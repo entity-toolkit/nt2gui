@@ -1,5 +1,5 @@
 import { TabNode } from "flexlayout-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 
 import {
   IPlotters,
@@ -41,9 +41,11 @@ const Plot = (props: IPlotProps) => {
   );
 
   const [imageSource, setImageSource] = useState<string | null>(null);
-  const [renderedTime, setRenderedTime] = useState<number | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!isPseudocolor) {
@@ -72,11 +74,9 @@ const Plot = (props: IPlotProps) => {
     renderPseudocolor(props.activeSimulationId, pseudocolorConfig, props.timeline.current)
       .then((result) => {
         setImageSource(`data:image/png;base64,${result.image}`);
-        setRenderedTime(result.timestamp);
       })
       .catch((error: Error) => {
         setImageSource(null);
-        setRenderedTime(null);
         setRenderError(error.message ?? "Failed to render plot");
       })
       .finally(() => {
@@ -89,6 +89,38 @@ const Plot = (props: IPlotProps) => {
     pseudocolorConfig,
   ]);
 
+  useEffect(() => {
+    if (!menuPosition) return;
+
+    const closeMenu = () => setMenuPosition(null);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    };
+
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("contextmenu", closeMenu);
+    window.addEventListener("resize", closeMenu);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("contextmenu", closeMenu);
+      window.removeEventListener("resize", closeMenu);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuPosition]);
+
+  const openContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    if (!isPseudocolor) {
+      return;
+    }
+
+    setMenuPosition({ x: event.clientX, y: event.clientY });
+  };
+
   return (
     <div className="plot">
       <div className="plot-header">
@@ -98,7 +130,7 @@ const Plot = (props: IPlotProps) => {
         </div>
       </div>
       <div className="plot-body">
-        <div className="plot-figure">
+        <div className="plot-figure" onContextMenu={openContextMenu}>
           {!isPseudocolor ? (
             <div className="plot-figure__placeholder">
               <span className="plot-figure__tag">Pick a renderer</span>
@@ -111,12 +143,11 @@ const Plot = (props: IPlotProps) => {
           ) : imageSource ? (
             <div className="plot-figure__preview">
               <img src={imageSource} alt="Pseudocolor render" />
-              <div className="plot-figure__meta">
-                <span className="plot-figure__tag">
-                  t = {renderedTime?.toFixed(3) ?? props.timeline.current.toFixed(3)}
-                </span>
-                {isRendering && <span className="plot-figure__status">Refreshing…</span>}
-              </div>
+              {isRendering && (
+                <div className="plot-figure__status plot-figure__status--floating">
+                  Refreshing…
+                </div>
+              )}
             </div>
           ) : (
             <div className="plot-figure__placeholder">
@@ -129,27 +160,32 @@ const Plot = (props: IPlotProps) => {
             </div>
           )}
         </div>
-        <div className="plot-config">
-          {isPseudocolor ? (
+        <div className="plot-hint">
+          Right-click the plot to configure fields, coordinates, colormap, and
+          ranges.
+        </div>
+      </div>
+
+      {menuPosition && (
+        <div className="plot-contextmenu__overlay">
+          <div
+            className="plot-contextmenu"
+            style={{ top: menuPosition.y, left: menuPosition.x }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="plot-contextmenu__header">Pseudocolor settings</div>
             <PseudocolorControls
               config={pseudocolorConfig}
               onChange={(config) =>
                 props.onPseudocolorConfigChange(node_id, config)
               }
             />
-          ) : (
-            <div className="coming-soon">
-              <div className="coming-soon__title">
-                Plot configuration coming soon
-              </div>
-              <div className="coming-soon__subtitle">
-                Backend-driven rendering will appear here once the plotting mode
-                is enabled.
-              </div>
+            <div className="plot-contextmenu__footer">
+              Right-click anywhere on the plot to reopen this menu.
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

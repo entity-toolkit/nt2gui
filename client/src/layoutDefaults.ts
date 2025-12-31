@@ -11,20 +11,20 @@ export const initialLayout: IJsonModel = {
     borderMinSize: 100,
     borderEnableTabScrollbar: true,
   },
-  borders: [
-    {
-      type: "border",
-      location: "bottom",
-      children: [
-        {
-          type: "tab",
-          name: "JSON",
-          component: "json",
-          enableClose: false,
-        },
-      ],
-    },
-  ],
+  // borders: [
+  //   {
+  //     type: "border",
+  //     location: "bottom",
+  //     children: [
+  //       {
+  //         type: "tab",
+  //         name: "JSON",
+  //         component: "json",
+  //         enableClose: false,
+  //       },
+  //     ],
+  //   },
+  // ],
   layout: {
     type: "row",
     children: [],

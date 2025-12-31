@@ -1,8 +1,6 @@
 import { ISimulation, ITimeline } from "../global";
 import TimelineControls from "./TimelineControls";
 
-const formatLabel = (value: number) => value.toFixed(2);
-
 interface FooterBarProps {
   timeline: ITimeline;
   onTimelineChange: (timeline: ITimeline) => void;
@@ -20,16 +18,20 @@ const FooterBar = ({
 }: FooterBarProps) => {
   return (
     <footer className="footer-bar" aria-label="Timeline and simulations">
-      <section className="footer__section footer__timeline" aria-label="Global timeline">
-        <div className="footer__section-header">
-          <h2 className="footer__title">Timeline</h2>
-          <span className="footer__status">Current: {formatLabel(timeline.current)}</span>
-        </div>
-        <TimelineControls timeline={timeline} onTimelineChange={onTimelineChange} />
+      <section
+        className="footer__section footer__timeline"
+        aria-label="Global timeline"
+      >
+        <TimelineControls
+          timeline={timeline}
+          onTimelineChange={onTimelineChange}
+        />
       </section>
-      <section className="footer__section footer__simulations" aria-live="polite">
+      <section
+        className="footer__section footer__simulations"
+        aria-live="polite"
+      >
         <div className="footer__section-header">
-          <h2 className="footer__title">Loaded simulations</h2>
           {isLoading && <span className="footer__status">Loading…</span>}
         </div>
         {simulations.length === 0 ? (

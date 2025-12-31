@@ -1,8 +1,9 @@
 import { SERVER_URL } from "../config";
-import { ISimulation } from "../global";
+import { ISimulation, ITimeline } from "../global";
 
-type SimulationResponse = {
+export type SimulationResponse = {
   simulations: ISimulation[];
+  timeline?: ITimeline;
 };
 
 const checkResponse = async (response: Response) => {
@@ -12,14 +13,14 @@ const checkResponse = async (response: Response) => {
   }
 };
 
-export const fetchSimulations = async (): Promise<ISimulation[]> => {
+export const fetchSimulations = async (): Promise<SimulationResponse> => {
   const response = await fetch(`${SERVER_URL}/simulations`);
   await checkResponse(response);
   const data: SimulationResponse = await response.json();
-  return data.simulations ?? [];
+  return { simulations: data.simulations ?? [], timeline: data.timeline };
 };
 
-export const addSimulation = async (path: string): Promise<ISimulation[]> => {
+export const addSimulation = async (path: string): Promise<SimulationResponse> => {
   const response = await fetch(`${SERVER_URL}/simulations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -27,16 +28,16 @@ export const addSimulation = async (path: string): Promise<ISimulation[]> => {
   });
   await checkResponse(response);
   const data: SimulationResponse = await response.json();
-  return data.simulations ?? [];
+  return { simulations: data.simulations ?? [], timeline: data.timeline };
 };
 
 export const unloadSimulation = async (
   id: string,
-): Promise<ISimulation[]> => {
+): Promise<SimulationResponse> => {
   const response = await fetch(`${SERVER_URL}/simulations/${id}`, {
     method: "DELETE",
   });
   await checkResponse(response);
   const data: SimulationResponse = await response.json();
-  return data.simulations ?? [];
+  return { simulations: data.simulations ?? [], timeline: data.timeline };
 };

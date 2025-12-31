@@ -32,6 +32,7 @@ export interface IPseudocolorConfig {
 export interface IPlotter {
   plotType: PlotType;
   dataType: DataType;
+  simulationId?: string;
   pseudocolorConfig?: IPseudocolorConfig;
 }
 

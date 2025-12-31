@@ -12,9 +12,25 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
   timeline,
   onTimelineChange,
 }) => {
+  const [draftValue, setDraftValue] = React.useState<number>(timeline.current);
+
+  React.useEffect(() => {
+    setDraftValue(timeline.current);
+  }, [timeline.current]);
+
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextValue = Number(event.target.value);
-    onTimelineChange({ ...timeline, current: nextValue });
+    setDraftValue(nextValue);
+  };
+
+  const commitTimeline = () => {
+    if (draftValue === timeline.current) return;
+
+    onTimelineChange({ ...timeline, current: draftValue });
+  };
+
+  const handleKeyUp = () => {
+    commitTimeline();
   };
 
   return (
@@ -25,14 +41,17 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
         min={timeline.min}
         max={timeline.max}
         step={timeline.step}
-        value={timeline.current}
+        value={draftValue}
         onChange={handleChange}
+        onMouseUp={commitTimeline}
+        onTouchEnd={commitTimeline}
+        onKeyUp={handleKeyUp}
       />
       <div className="timeline-range">
         <span>{formatLabel(timeline.min)}</span>
         <div className="timeline-labels">
           <span className="timeline-title">
-            Time: {formatLabel(timeline.current)}
+            Time: {formatLabel(draftValue)}
           </span>
         </div>
         <span>{formatLabel(timeline.max)}</span>

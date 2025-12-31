@@ -24,11 +24,12 @@ const App = () => {
     onDataTypeChange,
     onPlotTypeChange,
     onPseudocolorConfigChange,
+    onPlotSimulationChange,
     onTimelineChange,
     handleModelChange,
   } = useUiState();
   const { simulations, isLoading, addSimulation, unloadSimulation } =
-    useSimulations();
+    useSimulations({ onTimelineUpdate: onTimelineChange });
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -38,9 +39,12 @@ const App = () => {
           <Panel
             node={node}
             plotters={plotters}
+            timeline={timeline}
+            simulations={simulations}
             onDataTypeChange={onDataTypeChange}
             onPlotTypeChange={onPlotTypeChange}
             onPseudocolorConfigChange={onPseudocolorConfigChange}
+            onPlotSimulationChange={onPlotSimulationChange}
           />
         );
       case "json":

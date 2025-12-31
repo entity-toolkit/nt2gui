@@ -3,17 +3,27 @@ import PickPlotter from "./PickPlotter";
 import PickDatatype from "./PickDatatype";
 import Plot from "./Plot";
 
-import { IPlotters, PlotType, DataType, IPseudocolorConfig } from "../global";
+import {
+  IPlotters,
+  PlotType,
+  DataType,
+  IPseudocolorConfig,
+  ITimeline,
+  ISimulation,
+} from "../global";
 
 interface IPanelProps {
   node: TabNode;
   plotters: IPlotters;
+  timeline: ITimeline;
+  simulations: ISimulation[];
   onDataTypeChange: (node_id: string, newDataType: DataType) => void;
   onPlotTypeChange: (node_id: string, newPlotType: PlotType) => void;
   onPseudocolorConfigChange: (
     node_id: string,
     config: IPseudocolorConfig,
   ) => void;
+  onPlotSimulationChange: (node_id: string, simulationId?: string) => void;
 }
 
 const Panel = (props: IPanelProps) => {
@@ -37,9 +47,12 @@ const Panel = (props: IPanelProps) => {
         <Plot
           node={props.node}
           plotters={props.plotters}
+          timeline={props.timeline}
+          simulations={props.simulations}
           onDataTypeChange={props.onDataTypeChange}
           onPlotTypeChange={props.onPlotTypeChange}
           onPseudocolorConfigChange={props.onPseudocolorConfigChange}
+          onPlotSimulationChange={props.onPlotSimulationChange}
         />
       )}
     </div>

@@ -65,6 +65,7 @@ export const useUiState = () => {
         return {
           ...prev,
           [nodeId]: {
+            ...existing,
             plotType: newPlotType,
             dataType: existing?.dataType ?? DataType.None,
             pseudocolorConfig:
@@ -91,6 +92,7 @@ export const useUiState = () => {
         return {
           ...prev,
           [nodeId]: {
+            ...existing,
             plotType: existing?.plotType ?? PlotType.None,
             dataType: newDataType,
             pseudocolorConfig: existing?.pseudocolorConfig,
@@ -104,8 +106,10 @@ export const useUiState = () => {
   const handleModelChange = useCallback(
     (updatedModel: Model) => {
       const jsonModel = updatedModel.toJson();
-      setModel(Model.fromJson(jsonModel));
       persistState(jsonModel, plotters, timeline);
+      setModel((previous) =>
+        previous === updatedModel ? previous : updatedModel,
+      );
     },
     [persistState, plotters, timeline],
   );
@@ -168,6 +172,26 @@ export const useUiState = () => {
     [applyPlotterChange],
   );
 
+  const onPlotSimulationChange = useCallback(
+    (nodeId: string, simulationId?: string) => {
+      applyPlotterChange((prev) => {
+        const existing = prev[nodeId];
+        if (!existing || existing.simulationId === simulationId) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [nodeId]: {
+            ...existing,
+            simulationId,
+          },
+        };
+      });
+    },
+    [applyPlotterChange],
+  );
+
   const onTimelineChange = useCallback(
     (nextTimeline: ITimeline) => {
       setTimeline(() => {
@@ -186,6 +210,7 @@ export const useUiState = () => {
       onDataTypeChange,
       onPlotTypeChange,
       onPseudocolorConfigChange,
+      onPlotSimulationChange,
       onTimelineChange,
       handleModelChange,
     }),
@@ -197,6 +222,7 @@ export const useUiState = () => {
       onDataTypeChange,
       onPlotTypeChange,
       onPseudocolorConfigChange,
+      onPlotSimulationChange,
       onTimelineChange,
     ],
   );

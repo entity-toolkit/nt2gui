@@ -1,22 +1,41 @@
 import { useCallback, useEffect, useState } from "react";
-import { ISimulation } from "../global";
-import { addSimulation, fetchSimulations, unloadSimulation } from "../services/simulationService";
+import { ISimulation, ITimeline } from "../global";
+import {
+  addSimulation,
+  fetchSimulations,
+  unloadSimulation,
+  SimulationResponse,
+} from "../services/simulationService";
 
-export const useSimulations = () => {
+type UseSimulationsOptions = {
+  onTimelineUpdate?: (timeline: ITimeline) => void;
+};
+
+export const useSimulations = (options?: UseSimulationsOptions) => {
   const [simulations, setSimulations] = useState<ISimulation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const applyResponse = useCallback(
+    (response: SimulationResponse) => {
+      setSimulations(response.simulations ?? []);
+      if (response.timeline) {
+        options?.onTimelineUpdate?.(response.timeline);
+      }
+    },
+    [options?.onTimelineUpdate],
+  );
 
   const refreshSimulations = useCallback(async () => {
     setIsLoading(true);
     try {
       const fetched = await fetchSimulations();
-      setSimulations(fetched);
+      applyResponse(fetched);
     } catch (error) {
       console.error("Failed to fetch simulations", error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyResponse]);
 
   useEffect(() => {
     refreshSimulations();
@@ -32,27 +51,27 @@ export const useSimulations = () => {
     setIsLoading(true);
     try {
       const next = await addSimulation(trimmedPath);
-      setSimulations(next);
+      applyResponse(next);
     } catch (error) {
       console.error("Failed to add simulation", error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyResponse]);
 
   const handleUnloadSimulation = useCallback(async (id: string) => {
     setIsLoading(true);
     try {
       const next = await unloadSimulation(id);
-      setSimulations(next);
+      applyResponse(next);
     } catch (error) {
       console.error("Failed to unload simulation", error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyResponse]);
 
   return {
     simulations,

@@ -21,20 +21,42 @@ def serialize_simulations() -> list[dict[str, str]]:
     return [simulation.to_json() for simulation in state["simulations"]]
 
 
+def get_model() -> Model:
+    if state["model"] is None:
+        state["model"] = Model()
+    return state["model"]
+
+
+def get_simulation(simulation_id: str) -> Simulation | None:
+    for simulation in state["simulations"]:
+        if simulation.id == simulation_id:
+            return simulation
+    return None
+
+
+def current_timeline() -> dict[str, Any]:
+    return get_model().get_timeline()
+
+
 def load_simulation(path: str) -> dict[str, Any]:
     if any(simulation.path == path for simulation in state["simulations"]):
         app.logger.info("Simulation already loaded: %s", path)
         return {
             "message": "Simulation already loaded",
             "simulations": serialize_simulations(),
+            "timeline": get_model().get_timeline(),
         }
 
     simulation = Simulation(path)
     state["simulations"].append(simulation)
 
+    model = get_model()
+    model.set_timeline(simulation.timeline)
+
     return {
         "message": "Simulation added",
         "simulations": serialize_simulations(),
+        "timeline": model.get_timeline(),
     }
 
 
@@ -98,7 +120,9 @@ def sync_model():
 @app.route("/simulations", methods=["GET", "POST"])
 def manage_simulations():
     if request.method == "GET":
-        return json.dumps({"simulations": serialize_simulations()})
+        return json.dumps(
+            {"simulations": serialize_simulations(), "timeline": current_timeline()}
+        )
 
     payload = request.json or {}
     path = payload.get("path")
@@ -114,14 +138,39 @@ def unload_simulation(simulation_id: str):
     for index, simulation in enumerate(simulations):
         if simulation.id == simulation_id:
             simulations.pop(index)
+            if not simulations:
+                get_model().set_timeline(get_model().default_timeline)
             return json.dumps(
                 {
                     "message": "Simulation removed",
                     "simulations": serialize_simulations(),
+                    "timeline": current_timeline(),
                 }
             )
 
     return Response("Simulation not found", status=404)
+
+
+@app.route("/simulations/<simulation_id>/render/pseudocolor", methods=["POST"])
+def render_pseudocolor(simulation_id: str):
+    simulation = get_simulation(simulation_id)
+    if simulation is None:
+        return Response("Simulation not found", status=404)
+
+    payload = request.json or {}
+    config = payload.get("config", {})
+    time_value = payload.get("time")
+
+    if time_value is None:
+        return Response("Time value is required", status=400)
+
+    try:
+        render_result = simulation.render_pseudocolor(config, float(time_value))
+    except (KeyError, ValueError) as error:
+        app.logger.error("Failed to render pseudocolor: %s", error)
+        return Response(str(error), status=400)
+
+    return json.dumps(render_result)
 
 
 # @app.route("/get_model")

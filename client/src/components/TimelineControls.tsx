@@ -6,7 +6,7 @@ interface TimelineControlsProps {
   onTimelineChange: (timeline: ITimeline) => void;
 }
 
-const formatLabel = (value: number) => `${value.toFixed(0)} fs`;
+const formatLabel = (value: number) => `${value.toFixed(2)}`;
 
 const TimelineControls: React.FC<TimelineControlsProps> = ({
   timeline,
@@ -19,10 +19,6 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
 
   return (
     <div className="timeline-controls" aria-label="Global timeline">
-      <div className="timeline-labels">
-        <span className="timeline-title">Timeline</span>
-        <span className="timeline-value">{formatLabel(timeline.current)}</span>
-      </div>
       <input
         className="timeline-slider"
         type="range"
@@ -34,6 +30,11 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
       />
       <div className="timeline-range">
         <span>{formatLabel(timeline.min)}</span>
+        <div className="timeline-labels">
+          <span className="timeline-title">
+            Time: {formatLabel(timeline.current)}
+          </span>
+        </div>
         <span>{formatLabel(timeline.max)}</span>
       </div>
     </div>

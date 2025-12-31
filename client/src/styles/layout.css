@@ -11,7 +11,6 @@
 .menubar {
   display: flex;
   align-items: center;
-  padding: 12px 18px;
   border-bottom: 1px solid var(--color-border-strong);
   background: var(--color-toolbar);
   width: 100%;
@@ -21,14 +20,12 @@
 
 .menubar__items {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
 }
 
 .menubar__button {
   padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
+  border: none;
   background: linear-gradient(135deg, #0f172a, #0c1220);
   color: #e5e7eb;
   font-weight: 600;
@@ -39,16 +36,16 @@
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     transform 0.1s ease;
+  border-right: 1px solid var(--color-border-strong);
 }
 
 .menubar__button:hover {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-soft);
-  transform: translateY(-1px);
+  background: #1e293b;
 }
 
 .menubar__button:active {
-  transform: translateY(0);
+  text-decoration: underline;
+  background: #1e293b;
 }
 
 .timeline-bar {
@@ -74,7 +71,6 @@
 }
 
 .panel {
-  height: 100%;
   display: flex;
   align-items: stretch;
   justify-content: center;

@@ -1,11 +1,5 @@
 .plot {
   width: 100%;
-  max-width: 860px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: var(--shadow-elevated);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -20,7 +14,6 @@
 .plot-meta {
   display: flex;
   gap: 8px;
-  margin-top: 6px;
 }
 
 .badge {

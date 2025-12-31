@@ -1,0 +1,99 @@
+/* FlexLayout theming to align with the app shell */
+.flexlayout__layout {
+  --color-background: var(--color-bg);
+  --color-base: var(--color-bg);
+  --color-1: var(--color-subtle);
+  --color-2: var(--color-border);
+  --color-3: #111827;
+  --color-4: var(--color-border);
+  --color-5: #2c3544;
+  --color-6: #111827;
+  --color-text: var(--color-text);
+  --color-tabset-background: var(--color-subtle);
+  --color-tabset-background-selected: var(--color-subtle);
+  --color-tabset-header-background: var(--color-subtle);
+  --color-tabset-header: var(--color-text);
+  --color-tab-selected: var(--color-text);
+  --color-tab-selected-background: rgba(37, 99, 235, 0.14);
+  --color-tab-unselected: var(--color-muted);
+  --color-tab-unselected-background: transparent;
+  --color-tab-textbox: var(--color-text);
+  --color-tab-textbox-background: var(--color-subtle);
+  --color-border-tab-selected: var(--color-border);
+  --color-border-tab-unselected: var(--color-border);
+  --color-border-divider-line: var(--color-border);
+  --color-border-background: var(--color-subtle);
+  --color-tab-content: var(--color-bg);
+  --color-splitter: var(--color-border);
+  --color-splitter-hover: var(--color-accent);
+  --color-splitter-drag: var(--color-accent);
+  --color-toolbar-button-hover: rgba(255, 255, 255, 0.08);
+  --color-overflow: var(--color-muted);
+}
+
+.flexlayout__tabset_tabbar_outer {
+  background: var(--color-subtle);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.flexlayout__tabset_tabbar_inner {
+  gap: 8px;
+  align-items: center;
+}
+
+.flexlayout__tab_button {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-muted);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.flexlayout__tab_button--selected {
+  background: linear-gradient(
+    135deg,
+    rgba(37, 99, 235, 0.12),
+    rgba(37, 99, 235, 0.06)
+  );
+  border-color: var(--color-border);
+  color: var(--color-text);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.flexlayout__tab_button:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.flexlayout__tab_button_content {
+  font-weight: 600;
+}
+
+.flexlayout__tab_button_trailing {
+  visibility: hidden;
+  border-radius: 6px;
+}
+
+.flexlayout__tab_button:hover .flexlayout__tab_button_trailing,
+.flexlayout__tab_button--selected .flexlayout__tab_button_trailing {
+  visibility: visible;
+}
+
+.flexlayout__tab_toolbar {
+  gap: 0.5em;
+}
+
+.flexlayout__splitter {
+  background-color: var(--color-border);
+}
+
+.flexlayout__splitter:hover {
+  background-color: var(--color-accent);
+}

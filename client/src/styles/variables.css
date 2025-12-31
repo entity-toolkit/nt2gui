@@ -1,0 +1,17 @@
+:root {
+  --color-bg: #0b101a;
+  --color-surface: #0f172a;
+  --color-subtle: #0b1220;
+  --color-toolbar: #0e1524;
+  --color-border: #1f2937;
+  --color-border-strong: #1d2533;
+  --color-text: #f5f7fb;
+  --color-muted: #9ca3af;
+  --color-accent: #2563eb;
+  --color-accent-soft: #2563eb33;
+  --shadow-elevated: 0 16px 48px #00000040;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+}

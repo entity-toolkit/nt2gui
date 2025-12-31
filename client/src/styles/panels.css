@@ -1,0 +1,110 @@
+.plot {
+  width: 100%;
+  max-width: 860px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.plot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.plot-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  background: #111827;
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.plot-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.plot-figure {
+  height: 360px;
+  border-radius: var(--radius-md);
+  border: 1px dashed #243049;
+  background:
+    radial-gradient(
+      circle at 20% 20%,
+      rgba(59, 130, 246, 0.05),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 80% 30%,
+      rgba(16, 185, 129, 0.08),
+      transparent 40%
+    ),
+    var(--color-bg);
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+}
+
+.plot-figure__placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.plot-figure__tag {
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(59, 130, 246, 0.1);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-weight: 600;
+}
+
+.plot-config {
+  background: var(--color-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coming-soon {
+  padding: 18px;
+  border-radius: var(--radius-md);
+  border: 1px dashed #374151;
+  background: rgba(55, 65, 81, 0.15);
+}
+
+.coming-soon__title {
+  font-weight: 600;
+}
+
+.coming-soon__subtitle {
+  color: var(--color-muted);
+  font-size: 14px;
+  margin-top: 6px;
+}

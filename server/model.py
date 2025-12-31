@@ -10,7 +10,18 @@ class Model:
         data = data or {}
         layout = deepcopy(data.get("layout", {}))
         plotters = deepcopy(data.get("plotters", {}))
-        return {"layout": layout, "plotters": plotters}
+        timeline = deepcopy(
+            data.get(
+                "timeline",
+                {
+                    "current": 0,
+                    "min": 0,
+                    "max": 100,
+                    "step": 1,
+                },
+            )
+        )
+        return {"layout": layout, "plotters": plotters, "timeline": timeline}
 
     def to_json(self) -> dict[str, Any]:
         return deepcopy(self._json_data)

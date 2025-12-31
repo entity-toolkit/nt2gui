@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Model } from "flexlayout-react";
-import { DataType, IPlotters, IUiState, PlotType } from "../global";
+import {
+  DataType,
+  IPlotters,
+  IUiState,
+  ITimeline,
+  IPseudocolorConfig,
+  PlotType,
+  defaultPseudocolorConfig,
+} from "../global";
 import { initialUiState } from "../layoutDefaults";
 import { collectPanelIds, reconcilePlotters } from "../plotterSync";
 import {
@@ -14,10 +22,19 @@ export const useUiState = () => {
     Model.fromJson(initialUiState.layout),
   );
   const [plotters, setPlotters] = useState<IPlotters>(initialUiState.plotters);
+  const [timeline, setTimeline] = useState<ITimeline>(initialUiState.timeline);
 
   const persistState = useCallback(
-    (layoutJson: IUiState["layout"], plotterState: IPlotters) => {
-      persistUiState({ layout: layoutJson, plotters: plotterState });
+    (
+      layoutJson: IUiState["layout"],
+      plotterState: IPlotters,
+      timelineState: ITimeline,
+    ) => {
+      persistUiState({
+        layout: layoutJson,
+        plotters: plotterState,
+        timeline: timelineState,
+      });
     },
     [],
   );
@@ -30,11 +47,11 @@ export const useUiState = () => {
           return prev;
         }
 
-        persistState(model.toJson(), next);
+        persistState(model.toJson(), next, timeline);
         return next;
       });
     },
-    [model, persistState],
+    [model, persistState, timeline],
   );
 
   const onPlotTypeChange = useCallback(
@@ -50,6 +67,12 @@ export const useUiState = () => {
           [nodeId]: {
             plotType: newPlotType,
             dataType: existing?.dataType ?? DataType.None,
+            pseudocolorConfig:
+              newPlotType === PlotType.Pseudocolor
+                ? (existing?.pseudocolorConfig ?? {
+                    ...defaultPseudocolorConfig,
+                  })
+                : existing?.pseudocolorConfig,
           },
         };
       });
@@ -70,6 +93,7 @@ export const useUiState = () => {
           [nodeId]: {
             plotType: existing?.plotType ?? PlotType.None,
             dataType: newDataType,
+            pseudocolorConfig: existing?.pseudocolorConfig,
           },
         };
       });
@@ -81,9 +105,9 @@ export const useUiState = () => {
     (updatedModel: Model) => {
       const jsonModel = updatedModel.toJson();
       setModel(Model.fromJson(jsonModel));
-      persistState(jsonModel, plotters);
+      persistState(jsonModel, plotters, timeline);
     },
-    [persistState, plotters],
+    [persistState, plotters, timeline],
   );
 
   useEffect(() => {
@@ -93,12 +117,14 @@ export const useUiState = () => {
         if (restoredState?.layout) {
           setModel(Model.fromJson(restoredState.layout));
           setPlotters(restoredState.plotters ?? {});
+          setTimeline(restoredState.timeline ?? initialUiState.timeline);
           return;
         }
 
         const serverState = await initializeUiState(initialUiState);
         setModel(Model.fromJson(serverState.layout));
         setPlotters(serverState.plotters ?? {});
+        setTimeline(serverState.timeline ?? initialUiState.timeline);
       } catch (error) {
         console.error("Error initializing model:", error);
       }
@@ -117,19 +143,61 @@ export const useUiState = () => {
         return prevPlotters;
       }
 
-      persistState(modelJson, reconciledPlotters);
+      persistState(modelJson, reconciledPlotters, timeline);
       return reconciledPlotters;
     });
-  }, [model, persistState]);
+  }, [model, persistState, timeline]);
+
+  const onPseudocolorConfigChange = useCallback(
+    (nodeId: string, config: IPseudocolorConfig) => {
+      applyPlotterChange((prev) => {
+        const existing = prev[nodeId];
+        if (!existing) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [nodeId]: {
+            ...existing,
+            pseudocolorConfig: config,
+          },
+        };
+      });
+    },
+    [applyPlotterChange],
+  );
+
+  const onTimelineChange = useCallback(
+    (nextTimeline: ITimeline) => {
+      setTimeline(() => {
+        persistState(model.toJson(), plotters, nextTimeline);
+        return nextTimeline;
+      });
+    },
+    [model, persistState, plotters],
+  );
 
   return useMemo(
     () => ({
       model,
       plotters,
+      timeline,
       onDataTypeChange,
       onPlotTypeChange,
+      onPseudocolorConfigChange,
+      onTimelineChange,
       handleModelChange,
     }),
-    [handleModelChange, model, plotters, onDataTypeChange, onPlotTypeChange],
+    [
+      handleModelChange,
+      model,
+      plotters,
+      timeline,
+      onDataTypeChange,
+      onPlotTypeChange,
+      onPseudocolorConfigChange,
+      onTimelineChange,
+    ],
   );
 };

@@ -2,8 +2,12 @@ import numpy as np
 import xarray as xr
 
 
+from uuid import uuid4
+
+
 class Simulation:
     def __init__(self, path: str) -> None:
+        self.id = uuid4().hex
         self.path = path
 
         self._t = np.linspace(0, 1, 50)
@@ -21,7 +25,10 @@ class Simulation:
 
     @property
     def fields(self) -> xr.Dataset:
-        return self.fields
+        return self._fields
+
+    def to_json(self) -> dict:
+        return {"id": self.id, "path": self.path}
 
     @property
     def t(self) -> np.ndarray:

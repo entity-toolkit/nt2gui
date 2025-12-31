@@ -14,6 +14,7 @@ import Panel from "./components/Panel";
 import Menubar from "./components/Menubar";
 import TimelineControls from "./components/TimelineControls";
 import { useUiState } from "./hooks/useUiState";
+import { useSimulations } from "./hooks/useSimulations";
 
 const App = () => {
   const {
@@ -26,6 +27,8 @@ const App = () => {
     onTimelineChange,
     handleModelChange,
   } = useUiState();
+  const { simulations, isLoading, addSimulation, unloadSimulation } =
+    useSimulations();
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -64,7 +67,12 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <Menubar />
+      <Menubar
+        onAddSimulation={addSimulation}
+        simulations={simulations}
+        onUnloadSimulation={unloadSimulation}
+        isLoading={isLoading}
+      />
       <header className="timeline-bar">
         <TimelineControls timeline={timeline} onTimelineChange={onTimelineChange} />
       </header>

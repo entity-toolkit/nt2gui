@@ -4,7 +4,6 @@ from flask import Flask
 from flask_cors import CORS
 from flask import request, Response
 import json
-from tkinter import filedialog, Tk
 from model import Model
 from fakeloader import Simulation
 
@@ -105,20 +104,6 @@ def manage_simulations():
     path = payload.get("path")
     if not path:
         return Response("Simulation path is required", status=400)
-
-    return json.dumps(load_simulation(path))
-
-
-@app.route("/simulations/select", methods=["POST"])
-def select_simulation():
-    root = Tk()
-    root.withdraw()
-    root.attributes("-topmost", True)
-    path = filedialog.askdirectory(title="Select simulation directory")
-    root.destroy()
-
-    if not path:
-        return Response("No directory selected", status=400)
 
     return json.dumps(load_simulation(path))
 

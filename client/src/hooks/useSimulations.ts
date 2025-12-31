@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ISimulation } from "../global";
-import {
-  fetchSimulations,
-  selectSimulationDirectory,
-  unloadSimulation,
-} from "../services/simulationService";
+import { addSimulation, fetchSimulations, unloadSimulation } from "../services/simulationService";
 
 export const useSimulations = () => {
   const [simulations, setSimulations] = useState<ISimulation[]>([]);
@@ -26,13 +22,20 @@ export const useSimulations = () => {
     refreshSimulations();
   }, [refreshSimulations]);
 
-  const handleAddSimulation = useCallback(async () => {
+  const handleAddSimulation = useCallback(async (path: string) => {
+    const trimmedPath = path.trim();
+    if (!trimmedPath) {
+      console.error("Simulation path is required");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const next = await selectSimulationDirectory();
+      const next = await addSimulation(trimmedPath);
       setSimulations(next);
     } catch (error) {
       console.error("Failed to add simulation", error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -45,6 +48,7 @@ export const useSimulations = () => {
       setSimulations(next);
     } catch (error) {
       console.error("Failed to unload simulation", error);
+      throw error;
     } finally {
       setIsLoading(false);
     }

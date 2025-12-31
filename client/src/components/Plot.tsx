@@ -121,12 +121,6 @@ const Plot = (props: IPlotProps) => {
 
   return (
     <div className="plot">
-      <div className="plot-header">
-        <div className="plot-meta">
-          <span className="badge">{node_datatype}</span>
-          <span className="badge">{node_plottype}</span>
-        </div>
-      </div>
       <div className="plot-body">
         <div className="plot-figure" onContextMenu={openContextMenu}>
           {!isPseudocolor ? (
@@ -161,6 +155,13 @@ const Plot = (props: IPlotProps) => {
         <div className="plot-hint">
           Right-click the plot to configure fields, coordinates, colormap, and
           ranges.
+        </div>
+      </div>
+
+      <div className="plot-footer">
+        <div className="plot-meta">
+          <span className="badge">{node_datatype}</span>
+          <span className="badge">{node_plottype}</span>
         </div>
       </div>
 

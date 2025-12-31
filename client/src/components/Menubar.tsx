@@ -13,10 +13,7 @@ interface MenubarProps {
   isLoading: boolean;
 }
 
-const Menubar = ({
-  onAddSimulation,
-  isLoading,
-}: MenubarProps) => {
+const Menubar = ({ onAddSimulation, isLoading }: MenubarProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [pathInput, setPathInput] = useState("");
   const [error, setError] = useState("");
@@ -95,7 +92,10 @@ const Menubar = ({
                   ×
                 </button>
               </div>
-              <p id="simulation-modal-description" className="modal__description">
+              <p
+                id="simulation-modal-description"
+                className="modal__description"
+              >
                 Enter the directory path on the server to load the simulation.
               </p>
               <form className="modal__form" onSubmit={handleSubmit}>
@@ -133,7 +133,7 @@ const Menubar = ({
               </form>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </nav>
   );

@@ -60,9 +60,10 @@ const Plot = (props: IPlotProps) => {
   const [imageSource, setImageSource] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [menuPosition, setMenuPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!isPseudocolor) {
@@ -88,7 +89,11 @@ const Plot = (props: IPlotProps) => {
     setIsRendering(true);
     setRenderError(null);
 
-    renderPseudocolor(selectedSimulationId, pseudocolorConfig, props.timeline.current)
+    renderPseudocolor(
+      selectedSimulationId,
+      pseudocolorConfig,
+      props.timeline.current,
+    )
       .then((result) => {
         setImageSource(`data:image/png;base64,${result.image}`);
       })

@@ -41,37 +41,43 @@ export const useSimulations = (options?: UseSimulationsOptions) => {
     refreshSimulations();
   }, [refreshSimulations]);
 
-  const handleAddSimulation = useCallback(async (path: string) => {
-    const trimmedPath = path.trim();
-    if (!trimmedPath) {
-      console.error("Simulation path is required");
-      return;
-    }
+  const handleAddSimulation = useCallback(
+    async (path: string) => {
+      const trimmedPath = path.trim();
+      if (!trimmedPath) {
+        console.error("Simulation path is required");
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      const next = await addSimulation(trimmedPath);
-      applyResponse(next);
-    } catch (error) {
-      console.error("Failed to add simulation", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [applyResponse]);
+      setIsLoading(true);
+      try {
+        const next = await addSimulation(trimmedPath);
+        applyResponse(next);
+      } catch (error) {
+        console.error("Failed to add simulation", error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [applyResponse],
+  );
 
-  const handleUnloadSimulation = useCallback(async (id: string) => {
-    setIsLoading(true);
-    try {
-      const next = await unloadSimulation(id);
-      applyResponse(next);
-    } catch (error) {
-      console.error("Failed to unload simulation", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [applyResponse]);
+  const handleUnloadSimulation = useCallback(
+    async (id: string) => {
+      setIsLoading(true);
+      try {
+        const next = await unloadSimulation(id);
+        applyResponse(next);
+      } catch (error) {
+        console.error("Failed to unload simulation", error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [applyResponse],
+  );
 
   return {
     simulations,

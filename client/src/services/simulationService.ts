@@ -20,7 +20,9 @@ export const fetchSimulations = async (): Promise<SimulationResponse> => {
   return { simulations: data.simulations ?? [], timeline: data.timeline };
 };
 
-export const addSimulation = async (path: string): Promise<SimulationResponse> => {
+export const addSimulation = async (
+  path: string,
+): Promise<SimulationResponse> => {
   const response = await fetch(`${SERVER_URL}/simulations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

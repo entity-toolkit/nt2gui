@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import base64
@@ -83,7 +84,12 @@ class Simulation:
         y_vals = self._fields.coords.get(y_coordinate, self.y)
 
         fig, ax = plt.subplots(figsize=(5, 4), dpi=120)
-        extent = [float(x_vals.min()), float(x_vals.max()), float(y_vals.min()), float(y_vals.max())]
+        extent = (
+            float(x_vals.min()),
+            float(x_vals.max()),
+            float(y_vals.min()),
+            float(y_vals.max()),
+        )
         im = ax.imshow(
             values,
             origin="lower",

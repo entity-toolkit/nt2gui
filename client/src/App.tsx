@@ -71,16 +71,15 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <Menubar
-        onAddSimulation={addSimulation}
-        isLoading={isLoading}
-      />
+      <Menubar onAddSimulation={addSimulation} isLoading={isLoading} />
       <div className="layout-container">
         <div id="content"></div>
         <Layout
           model={model}
           factory={factory}
-          onModelChange={(updatedModel: Model) => handleModelChange(updatedModel)}
+          onModelChange={(updatedModel: Model) =>
+            handleModelChange(updatedModel)
+          }
           onRenderTabSet={onRenderTabSet}
           realtimeResize={true}
         />

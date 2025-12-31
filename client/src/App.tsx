@@ -48,7 +48,9 @@ const App = () => {
           />
         );
       case "json":
-        return <ModelJson uiState={{ layout: model.toJson(), plotters }} />;
+        return (
+          <ModelJson uiState={{ layout: model.toJson(), plotters, timeline }} />
+        );
       default:
         return <div>{`unknown component: ${component}`}</div>;
     }

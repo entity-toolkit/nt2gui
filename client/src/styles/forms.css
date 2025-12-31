@@ -22,6 +22,10 @@
   flex-wrap: wrap;
 }
 
+.form-row--nowrap {
+  flex-wrap: nowrap;
+}
+
 .form-control {
   display: flex;
   flex-direction: row;

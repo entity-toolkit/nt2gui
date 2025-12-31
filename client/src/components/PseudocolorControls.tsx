@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { defaultPseudocolorConfig, IPseudocolorConfig } from "../global";
 
 interface PseudocolorControlsProps {
@@ -13,6 +13,22 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
   onChange,
 }) => {
   const defaults = useMemo(() => defaultPseudocolorConfig, []);
+
+  useEffect(() => {
+    const updates: Partial<IPseudocolorConfig> = {};
+
+    if (!config.xCoordinate) {
+      updates.xCoordinate = defaults.xCoordinate;
+    }
+
+    if (!config.yCoordinate) {
+      updates.yCoordinate = defaults.yCoordinate;
+    }
+
+    if (Object.keys(updates).length) {
+      onChange({ ...config, ...updates });
+    }
+  }, [config, defaults.xCoordinate, defaults.yCoordinate, onChange]);
   const handleInputChange = <K extends keyof IPseudocolorConfig>(
     key: K,
     value: IPseudocolorConfig[K],
@@ -38,7 +54,7 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       </div>
 
       <div className="form-section">
-        <div className="form-row">
+        <div className="form-row form-row--nowrap">
           <div className="form-control">
             <label htmlFor="x-coordinate">X</label>
             <input
@@ -63,7 +79,7 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       </div>
 
       <div className="form-section">
-        <div className="form-row">
+        <div className="form-row form-row--nowrap">
           <div className="form-control">
             <label htmlFor="vmin">vmin</label>
             <input

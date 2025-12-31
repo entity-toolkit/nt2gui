@@ -5,6 +5,7 @@ from flask_cors import CORS
 from flask import request, Response
 import json
 from model import Model
+from fakeloader import Simulation
 
 
 app = Flask(__name__)
@@ -13,7 +14,28 @@ app.logger.setLevel(logging.INFO)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 
-state: dict[str, Any] = {"model": None}
+state: dict[str, Any] = {"model": None, "simulations": []}
+
+
+def serialize_simulations() -> list[dict[str, str]]:
+    return [simulation.to_json() for simulation in state["simulations"]]
+
+
+def load_simulation(path: str) -> dict[str, Any]:
+    if any(simulation.path == path for simulation in state["simulations"]):
+        app.logger.info("Simulation already loaded: %s", path)
+        return {
+            "message": "Simulation already loaded",
+            "simulations": serialize_simulations(),
+        }
+
+    simulation = Simulation(path)
+    state["simulations"].append(simulation)
+
+    return {
+        "message": "Simulation added",
+        "simulations": serialize_simulations(),
+    }
 
 
 @app.route("/")
@@ -71,6 +93,35 @@ def sync_model():
             "model": state["model"].to_json(),
         }
     )
+
+
+@app.route("/simulations", methods=["GET", "POST"])
+def manage_simulations():
+    if request.method == "GET":
+        return json.dumps({"simulations": serialize_simulations()})
+
+    payload = request.json or {}
+    path = payload.get("path")
+    if not path:
+        return Response("Simulation path is required", status=400)
+
+    return json.dumps(load_simulation(path))
+
+
+@app.route("/simulations/<simulation_id>", methods=["DELETE"])
+def unload_simulation(simulation_id: str):
+    simulations = state["simulations"]
+    for index, simulation in enumerate(simulations):
+        if simulation.id == simulation_id:
+            simulations.pop(index)
+            return json.dumps(
+                {
+                    "message": "Simulation removed",
+                    "simulations": serialize_simulations(),
+                }
+            )
+
+    return Response("Simulation not found", status=404)
 
 
 # @app.route("/get_model")

@@ -45,6 +45,11 @@ export interface IUiState {
   timeline: ITimeline;
 }
 
+export interface ISimulation {
+  id: string;
+  path: string;
+}
+
 export const defaultPseudocolorConfig: IPseudocolorConfig = {
   field: "",
   xCoordinate: "",

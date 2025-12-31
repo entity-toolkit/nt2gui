@@ -104,8 +104,10 @@ export const useUiState = () => {
   const handleModelChange = useCallback(
     (updatedModel: Model) => {
       const jsonModel = updatedModel.toJson();
-      setModel(Model.fromJson(jsonModel));
       persistState(jsonModel, plotters, timeline);
+      setModel((previous) =>
+        previous === updatedModel ? previous : updatedModel,
+      );
     },
     [persistState, plotters, timeline],
   );

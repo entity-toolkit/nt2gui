@@ -28,7 +28,7 @@ const App = () => {
     handleModelChange,
   } = useUiState();
   const { simulations, isLoading, addSimulation, unloadSimulation } =
-    useSimulations();
+    useSimulations({ onTimelineUpdate: onTimelineChange });
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -38,6 +38,8 @@ const App = () => {
           <Panel
             node={node}
             plotters={plotters}
+            timeline={timeline}
+            activeSimulationId={simulations[0]?.id ?? null}
             onDataTypeChange={onDataTypeChange}
             onPlotTypeChange={onPlotTypeChange}
             onPseudocolorConfigChange={onPseudocolorConfigChange}

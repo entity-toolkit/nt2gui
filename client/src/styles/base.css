@@ -10,7 +10,12 @@ body {
   width: 100%;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family:
+    "Inter",
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 #root {

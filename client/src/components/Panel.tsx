@@ -10,7 +10,10 @@ interface IPanelProps {
   plotters: IPlotters;
   onDataTypeChange: (node_id: string, newDataType: DataType) => void;
   onPlotTypeChange: (node_id: string, newPlotType: PlotType) => void;
-  onPseudocolorConfigChange: (node_id: string, config: IPseudocolorConfig) => void;
+  onPseudocolorConfigChange: (
+    node_id: string,
+    config: IPseudocolorConfig,
+  ) => void;
 }
 
 const Panel = (props: IPanelProps) => {

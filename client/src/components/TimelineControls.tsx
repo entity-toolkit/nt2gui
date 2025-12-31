@@ -8,7 +8,10 @@ interface TimelineControlsProps {
 
 const formatLabel = (value: number) => `${value.toFixed(0)} fs`;
 
-const TimelineControls: React.FC<TimelineControlsProps> = ({ timeline, onTimelineChange }) => {
+const TimelineControls: React.FC<TimelineControlsProps> = ({
+  timeline,
+  onTimelineChange,
+}) => {
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextValue = Number(event.target.value);
     onTimelineChange({ ...timeline, current: nextValue });

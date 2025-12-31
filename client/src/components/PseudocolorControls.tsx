@@ -8,9 +8,15 @@ interface PseudocolorControlsProps {
 
 const colorMaps = ["viridis", "plasma", "cividis", "turbo", "magma"];
 
-const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({ config, onChange }) => {
+const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
+  config,
+  onChange,
+}) => {
   const defaults = useMemo(() => defaultPseudocolorConfig, []);
-  const handleInputChange = <K extends keyof IPseudocolorConfig>(key: K, value: IPseudocolorConfig[K]) => {
+  const handleInputChange = <K extends keyof IPseudocolorConfig>(
+    key: K,
+    value: IPseudocolorConfig[K],
+  ) => {
     onChange({ ...config, [key]: value });
   };
 
@@ -68,7 +74,12 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({ config, onCha
               type="number"
               placeholder={defaults.vmin?.toString() ?? "auto"}
               value={config.vmin ?? ""}
-              onChange={(e) => handleInputChange("vmin", e.target.value === "" ? undefined : Number(e.target.value))}
+              onChange={(e) =>
+                handleInputChange(
+                  "vmin",
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
             />
           </div>
           <div className="form-control">
@@ -78,7 +89,12 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({ config, onCha
               type="number"
               placeholder={defaults.vmax?.toString() ?? "auto"}
               value={config.vmax ?? ""}
-              onChange={(e) => handleInputChange("vmax", e.target.value === "" ? undefined : Number(e.target.value))}
+              onChange={(e) =>
+                handleInputChange(
+                  "vmax",
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
             />
           </div>
         </div>

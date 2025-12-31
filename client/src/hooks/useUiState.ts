@@ -30,7 +30,11 @@ export const useUiState = () => {
       plotterState: IPlotters,
       timelineState: ITimeline,
     ) => {
-      persistUiState({ layout: layoutJson, plotters: plotterState, timeline: timelineState });
+      persistUiState({
+        layout: layoutJson,
+        plotters: plotterState,
+        timeline: timelineState,
+      });
     },
     [],
   );
@@ -65,7 +69,9 @@ export const useUiState = () => {
             dataType: existing?.dataType ?? DataType.None,
             pseudocolorConfig:
               newPlotType === PlotType.Pseudocolor
-                ? existing?.pseudocolorConfig ?? { ...defaultPseudocolorConfig }
+                ? (existing?.pseudocolorConfig ?? {
+                    ...defaultPseudocolorConfig,
+                  })
                 : existing?.pseudocolorConfig,
           },
         };

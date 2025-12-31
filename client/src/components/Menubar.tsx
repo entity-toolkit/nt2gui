@@ -1,6 +1,12 @@
 import React from "react";
 
-const menuItems = ["Add simulation", "Save state", "Load state", "Settings", "Help"];
+const menuItems = [
+  "Add simulation",
+  "Save state",
+  "Load state",
+  "Settings",
+  "Help",
+];
 
 const Menubar = () => {
   return (

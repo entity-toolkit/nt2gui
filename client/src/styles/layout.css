@@ -35,7 +35,10 @@
   font-size: 13px;
   letter-spacing: 0.1px;
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
 }
 
 .menubar__button:hover {

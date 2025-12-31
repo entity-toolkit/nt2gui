@@ -16,12 +16,10 @@ const PickDatatype = (props: IPickDatatypeProps) => {
         value="fields"
         onClick={() => props.onDataTypeChange(node_id, DataType.Fields)}
       />
-      <input
-        type="button"
-        value="particles"
-        disabled
-      />
-      <small className="helper-text">Particle plots will be available soon.</small>
+      <input type="button" value="particles" disabled />
+      <small className="helper-text">
+        Particle plots will be available soon.
+      </small>
     </div>
   );
 };

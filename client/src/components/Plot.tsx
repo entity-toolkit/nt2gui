@@ -52,13 +52,18 @@ const Plot = (props: IPlotProps) => {
           {isPseudocolor ? (
             <PseudocolorControls
               config={pseudocolorConfig}
-              onChange={(config) => props.onPseudocolorConfigChange(node_id, config)}
+              onChange={(config) =>
+                props.onPseudocolorConfigChange(node_id, config)
+              }
             />
           ) : (
             <div className="coming-soon">
-              <div className="coming-soon__title">Plot configuration coming soon</div>
+              <div className="coming-soon__title">
+                Plot configuration coming soon
+              </div>
               <div className="coming-soon__subtitle">
-                Backend-driven rendering will appear here once the plotting mode is enabled.
+                Backend-driven rendering will appear here once the plotting mode
+                is enabled.
               </div>
             </div>
           )}

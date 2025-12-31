@@ -17,20 +17,22 @@
 }
 
 .form-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .form-control {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 .form-control label {
   color: #cbd5e1;
   font-size: 13px;
+  min-width: 72px;
 }
 
 .form-control input,
@@ -41,6 +43,7 @@
   background: var(--color-subtle);
   color: #e5e7eb;
   font-size: 14px;
+  flex: 1;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;

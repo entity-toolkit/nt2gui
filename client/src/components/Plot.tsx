@@ -100,13 +100,11 @@ const Plot = (props: IPlotProps) => {
     };
 
     window.addEventListener("click", closeMenu);
-    window.addEventListener("contextmenu", closeMenu);
     window.addEventListener("resize", closeMenu);
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("click", closeMenu);
-      window.removeEventListener("contextmenu", closeMenu);
       window.removeEventListener("resize", closeMenu);
       window.removeEventListener("keydown", handleKeyDown);
     };

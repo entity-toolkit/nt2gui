@@ -12,7 +12,7 @@ import { IUiState } from "./global";
 import AddTabButton from "./components/AddTabButton";
 import Panel from "./components/Panel";
 import Menubar from "./components/Menubar";
-import TimelineControls from "./components/TimelineControls";
+import FooterBar from "./components/FooterBar";
 import { useUiState } from "./hooks/useUiState";
 import { useSimulations } from "./hooks/useSimulations";
 
@@ -69,13 +69,8 @@ const App = () => {
     <div className="app-shell">
       <Menubar
         onAddSimulation={addSimulation}
-        simulations={simulations}
-        onUnloadSimulation={unloadSimulation}
         isLoading={isLoading}
       />
-      <header className="timeline-bar">
-        <TimelineControls timeline={timeline} onTimelineChange={onTimelineChange} />
-      </header>
       <div className="layout-container">
         <div id="content"></div>
         <Layout
@@ -86,6 +81,13 @@ const App = () => {
           realtimeResize={true}
         />
       </div>
+      <FooterBar
+        timeline={timeline}
+        onTimelineChange={onTimelineChange}
+        simulations={simulations}
+        onUnloadSimulation={unloadSimulation}
+        isLoading={isLoading}
+      />
     </div>
   );
 };

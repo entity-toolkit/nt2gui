@@ -49,62 +49,90 @@
   background: #1e293b;
 }
 
-.menubar__simulations {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  padding: 10px 12px;
+.footer-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  padding: 14px 20px;
   border-top: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  width: 100%;
   box-sizing: border-box;
 }
 
-.menubar__simulations-header {
+.footer__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.footer__section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: 600;
+  gap: 10px;
+}
+
+.footer__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
   color: #e5e7eb;
 }
 
-.menubar__status {
+.footer__status {
   font-size: 12px;
   color: var(--color-muted);
 }
 
-.menubar__empty {
+.footer__timeline .timeline-controls {
+  background: #0c1626;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.footer__simulations {
+  background: #0f172a;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.simulations__empty {
   color: var(--color-muted);
   font-size: 13px;
   margin: 0;
 }
 
-.menubar__simulation-list {
+.simulations__list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.menubar__simulation-item {
+.simulations__item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #0f172a;
+  background: #0b1220;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
 }
 
-.menubar__simulation-path {
+.simulations__path {
   color: #e5e7eb;
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.menubar__unload {
+.simulations__unload {
   background: transparent;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -114,16 +142,9 @@
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.menubar__unload:hover {
+.simulations__unload:hover {
   background: rgba(252, 165, 165, 0.1);
   border-color: #fca5a5;
-}
-
-.timeline-bar {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  width: 100%;
 }
 
 .layout-container {

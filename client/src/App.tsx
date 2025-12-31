@@ -24,6 +24,7 @@ const App = () => {
     onDataTypeChange,
     onPlotTypeChange,
     onPseudocolorConfigChange,
+    onPlotSimulationChange,
     onTimelineChange,
     handleModelChange,
   } = useUiState();
@@ -39,10 +40,11 @@ const App = () => {
             node={node}
             plotters={plotters}
             timeline={timeline}
-            activeSimulationId={simulations[0]?.id ?? null}
+            simulations={simulations}
             onDataTypeChange={onDataTypeChange}
             onPlotTypeChange={onPlotTypeChange}
             onPseudocolorConfigChange={onPseudocolorConfigChange}
+            onPlotSimulationChange={onPlotSimulationChange}
           />
         );
       case "json":

@@ -1,5 +1,11 @@
 import { TabNode } from "flexlayout-react";
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type MouseEvent,
+} from "react";
 
 import {
   IPlotters,
@@ -8,6 +14,7 @@ import {
   IPseudocolorConfig,
   defaultPseudocolorConfig,
   ITimeline,
+  ISimulation,
 } from "../global";
 
 import PseudocolorControls from "./PseudocolorControls";
@@ -17,13 +24,14 @@ interface IPlotProps {
   node: TabNode;
   plotters: IPlotters;
   timeline: ITimeline;
-  activeSimulationId: string | null;
+  simulations: ISimulation[];
   onDataTypeChange: (node_id: string, newDataType: DataType) => void;
   onPlotTypeChange: (node_id: string, newPlotType: PlotType) => void;
   onPseudocolorConfigChange: (
     node_id: string,
     config: IPseudocolorConfig,
   ) => void;
+  onPlotSimulationChange: (node_id: string, simulationId?: string) => void;
 }
 
 const Plot = (props: IPlotProps) => {
@@ -40,6 +48,15 @@ const Plot = (props: IPlotProps) => {
     [node_plotter?.pseudocolorConfig],
   );
 
+  const firstSimulationId = props.simulations[0]?.id;
+  const selectedSimulationId = useMemo(() => {
+    const matching = props.simulations.find(
+      (simulation) => simulation.id === node_plotter?.simulationId,
+    );
+
+    return matching?.id ?? firstSimulationId ?? null;
+  }, [firstSimulationId, node_plotter?.simulationId, props.simulations]);
+
   const [imageSource, setImageSource] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -52,7 +69,7 @@ const Plot = (props: IPlotProps) => {
       return;
     }
 
-    if (!props.activeSimulationId) {
+    if (!selectedSimulationId) {
       setRenderError("Load a simulation to render pseudocolor plots.");
       setImageSource(null);
       return;
@@ -71,7 +88,7 @@ const Plot = (props: IPlotProps) => {
     setIsRendering(true);
     setRenderError(null);
 
-    renderPseudocolor(props.activeSimulationId, pseudocolorConfig, props.timeline.current)
+    renderPseudocolor(selectedSimulationId, pseudocolorConfig, props.timeline.current)
       .then((result) => {
         setImageSource(`data:image/png;base64,${result.image}`);
       })
@@ -84,9 +101,38 @@ const Plot = (props: IPlotProps) => {
       });
   }, [
     isPseudocolor,
-    props.activeSimulationId,
+    selectedSimulationId,
     props.timeline.current,
     pseudocolorConfig,
+  ]);
+
+  useEffect(() => {
+    if (!isPseudocolor) {
+      return;
+    }
+
+    const matchingSimulation = props.simulations.find(
+      (simulation) => simulation.id === node_plotter?.simulationId,
+    );
+
+    if (matchingSimulation) {
+      return;
+    }
+
+    if (!props.simulations.length) {
+      if (node_plotter?.simulationId) {
+        props.onPlotSimulationChange(node_id, undefined);
+      }
+      return;
+    }
+
+    props.onPlotSimulationChange(node_id, props.simulations[0].id);
+  }, [
+    isPseudocolor,
+    node_id,
+    node_plotter?.simulationId,
+    props.onPlotSimulationChange,
+    props.simulations,
   ]);
 
   useEffect(() => {
@@ -173,6 +219,35 @@ const Plot = (props: IPlotProps) => {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="plot-contextmenu__header">Pseudocolor settings</div>
+            <div className="form-section">
+              <div className="form-section__title">Simulation</div>
+              <div className="form-row">
+                <div className="form-control">
+                  <label htmlFor="simulation-select">Source</label>
+                  <select
+                    id="simulation-select"
+                    value={selectedSimulationId ?? ""}
+                    onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                      props.onPlotSimulationChange(
+                        node_id,
+                        event.target.value || undefined,
+                      )
+                    }
+                    disabled={!props.simulations.length}
+                  >
+                    {props.simulations.length === 0 ? (
+                      <option value="">No simulations loaded</option>
+                    ) : (
+                      props.simulations.map((simulation) => (
+                        <option key={simulation.id} value={simulation.id}>
+                          {simulation.path}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+            </div>
             <PseudocolorControls
               config={pseudocolorConfig}
               onChange={(config) =>

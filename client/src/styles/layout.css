@@ -24,10 +24,6 @@
   flex-wrap: wrap;
 }
 
-.menubar__file-input {
-  display: none;
-}
-
 .menubar__button {
   padding: 8px 12px;
   border: none;

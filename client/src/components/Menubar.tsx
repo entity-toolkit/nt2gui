@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import { ISimulation } from "../global";
 
 const menuItems = [
@@ -10,7 +10,7 @@ const menuItems = [
 ];
 
 interface MenubarProps {
-  onAddSimulation: (path: string) => void;
+  onAddSimulation: () => void | Promise<void>;
   simulations: ISimulation[];
   onUnloadSimulation: (id: string) => void;
   isLoading: boolean;
@@ -22,42 +22,10 @@ const Menubar = ({
   onUnloadSimulation,
   isLoading,
 }: MenubarProps) => {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (fileInputRef.current) {
-      fileInputRef.current.setAttribute("webkitdirectory", "true");
-      fileInputRef.current.setAttribute("directory", "true");
-    }
-  }, []);
-
-  const handleSelectDirectory = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleMenuClick = (item: string) => {
     if (item === "Add simulation") {
-      handleSelectDirectory();
+      onAddSimulation();
     }
-  };
-
-  const handleDirectoryPicked = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) {
-      return;
-    }
-
-    const firstFile = files[0] as File & { webkitRelativePath?: string };
-    const relativePath = firstFile.webkitRelativePath ?? "";
-    const selectedDirectory = relativePath.split("/")[0] || firstFile.name;
-
-    if (selectedDirectory) {
-      onAddSimulation(selectedDirectory);
-    }
-
-    event.target.value = "";
   };
 
   return (
@@ -73,12 +41,6 @@ const Menubar = ({
             {item}
           </button>
         ))}
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="menubar__file-input"
-          onChange={handleDirectoryPicked}
-        />
       </div>
       <div className="menubar__simulations" aria-live="polite">
         <div className="menubar__simulations-header">

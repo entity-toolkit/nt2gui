@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ISimulation } from "../global";
 import {
-  addSimulation,
   fetchSimulations,
+  selectSimulationDirectory,
   unloadSimulation,
 } from "../services/simulationService";
 
@@ -26,20 +26,17 @@ export const useSimulations = () => {
     refreshSimulations();
   }, [refreshSimulations]);
 
-  const handleAddSimulation = useCallback(
-    async (path: string) => {
-      setIsLoading(true);
-      try {
-        const next = await addSimulation(path);
-        setSimulations(next);
-      } catch (error) {
-        console.error("Failed to add simulation", error);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [],
-  );
+  const handleAddSimulation = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const next = await selectSimulationDirectory();
+      setSimulations(next);
+    } catch (error) {
+      console.error("Failed to add simulation", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const handleUnloadSimulation = useCallback(async (id: string) => {
     setIsLoading(true);

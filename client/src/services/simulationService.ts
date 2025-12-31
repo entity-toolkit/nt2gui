@@ -30,6 +30,15 @@ export const addSimulation = async (path: string): Promise<ISimulation[]> => {
   return data.simulations ?? [];
 };
 
+export const selectSimulationDirectory = async (): Promise<ISimulation[]> => {
+  const response = await fetch(`${SERVER_URL}/simulations/select`, {
+    method: "POST",
+  });
+  await checkResponse(response);
+  const data: SimulationResponse = await response.json();
+  return data.simulations ?? [];
+};
+
 export const unloadSimulation = async (
   id: string,
 ): Promise<ISimulation[]> => {

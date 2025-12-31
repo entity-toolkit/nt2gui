@@ -4,6 +4,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask import request, Response
 import json
+from tkinter import filedialog, Tk
 from model import Model
 from fakeloader import Simulation
 
@@ -19,6 +20,23 @@ state: dict[str, Any] = {"model": None, "simulations": []}
 
 def serialize_simulations() -> list[dict[str, str]]:
     return [simulation.to_json() for simulation in state["simulations"]]
+
+
+def load_simulation(path: str) -> dict[str, Any]:
+    if any(simulation.path == path for simulation in state["simulations"]):
+        app.logger.info("Simulation already loaded: %s", path)
+        return {
+            "message": "Simulation already loaded",
+            "simulations": serialize_simulations(),
+        }
+
+    simulation = Simulation(path)
+    state["simulations"].append(simulation)
+
+    return {
+        "message": "Simulation added",
+        "simulations": serialize_simulations(),
+    }
 
 
 @app.route("/")
@@ -88,24 +106,21 @@ def manage_simulations():
     if not path:
         return Response("Simulation path is required", status=400)
 
-    if any(simulation.path == path for simulation in state["simulations"]):
-        app.logger.info("Simulation already loaded: %s", path)
-        return json.dumps(
-            {
-                "message": "Simulation already loaded",
-                "simulations": serialize_simulations(),
-            }
-        )
+    return json.dumps(load_simulation(path))
 
-    simulation = Simulation(path)
-    state["simulations"].append(simulation)
 
-    return json.dumps(
-        {
-            "message": "Simulation added",
-            "simulations": serialize_simulations(),
-        }
-    )
+@app.route("/simulations/select", methods=["POST"])
+def select_simulation():
+    root = Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    path = filedialog.askdirectory(title="Select simulation directory")
+    root.destroy()
+
+    if not path:
+        return Response("No directory selected", status=400)
+
+    return json.dumps(load_simulation(path))
 
 
 @app.route("/simulations/<simulation_id>", methods=["DELETE"])

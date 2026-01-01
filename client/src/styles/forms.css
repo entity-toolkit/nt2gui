@@ -20,6 +20,7 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: stretch;
 }
 
 .form-row--nowrap {
@@ -31,12 +32,14 @@
   flex-direction: row;
   align-items: center;
   gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .form-control label {
   color: #cbd5e1;
   font-size: 13px;
-  min-width: 72px;
+  min-width: 60px;
 }
 
 .form-control input,

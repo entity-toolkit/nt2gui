@@ -54,7 +54,7 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       </div>
 
       <div className="form-section">
-        <div className="form-row form-row--nowrap">
+        <div className="form-row">
           <div className="form-control">
             <label htmlFor="x-coordinate">X</label>
             <input
@@ -79,7 +79,7 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       </div>
 
       <div className="form-section">
-        <div className="form-row form-row--nowrap">
+        <div className="form-row">
           <div className="form-control">
             <label htmlFor="vmin">vmin</label>
             <input

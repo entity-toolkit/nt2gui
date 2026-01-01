@@ -143,8 +143,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  min-width: 320px;
-  max-width: 420px;
+  min-width: min(320px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
   background: #0f172a;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

@@ -43,8 +43,12 @@ const PseudocolorPreview = ({ render, isRefreshing }: PseudocolorPreviewProps) =
   const gradientId = useId();
 
   const { width: imageWidth, height: imageHeight } = render.imageSize;
-  const innerWidth = imageWidth;
-  const innerHeight = imageHeight;
+  const xRange = render.extent.xMax - render.extent.xMin;
+  const yRange = render.extent.yMax - render.extent.yMin;
+  const extentAspect = Math.abs(yRange / Math.max(Math.abs(xRange), Number.EPSILON));
+  const sourceArea = Math.max(imageWidth * imageHeight, 1);
+  const innerWidth = Math.sqrt(sourceArea / extentAspect);
+  const innerHeight = innerWidth * extentAspect;
   const outerWidth = innerWidth + margin.left + margin.right;
   const outerHeight = innerHeight + margin.top + margin.bottom;
 

@@ -109,6 +109,21 @@ class Simulation:
         x_ticklabels = [label.get_text() for label in ax.get_xticklabels()]
         y_ticklabels = [label.get_text() for label in ax.get_yticklabels()]
 
+        def _filter_ticks(positions, labels, lower, upper):
+            tolerance = abs(upper - lower) * 1e-9
+            filtered_positions = []
+            filtered_labels = []
+
+            for position, label in zip(positions, labels):
+                if lower - tolerance <= position <= upper + tolerance:
+                    filtered_positions.append(position)
+                    filtered_labels.append(label)
+
+            return filtered_positions, filtered_labels
+
+        x_ticks, x_ticklabels = _filter_ticks(x_ticks, x_ticklabels, extent[0], extent[1])
+        y_ticks, y_ticklabels = _filter_ticks(y_ticks, y_ticklabels, extent[2], extent[3])
+
         colorbar_ticks = [float(tick) for tick in colorbar.get_ticks()]
         colorbar_ticklabels = [
             label.get_text() for label in colorbar.ax.get_yticklabels()

@@ -4,6 +4,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_hex
 import base64
 from io import BytesIO
 
@@ -138,6 +139,8 @@ class Simulation:
             colorbar_ticks, colorbar_ticklabels, vmin, vmax
         )
 
+        colors = [to_hex(im.get_cmap()(i / 127)) for i in range(128)]
+
         colorbar.remove()
         ax.set_axis_off()
         ax.set_position((0, 0, 1, 1))
@@ -168,6 +171,7 @@ class Simulation:
                 "labels": colorbar_ticklabels,
                 "vmin": float(vmin),
                 "vmax": float(vmax),
+                "colors": colors,
             },
             "colorMap": im.get_cmap().name,
         }

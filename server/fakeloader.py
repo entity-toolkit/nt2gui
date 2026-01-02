@@ -121,8 +121,12 @@ class Simulation:
 
             return filtered_positions, filtered_labels
 
-        x_ticks, x_ticklabels = _filter_ticks(x_ticks, x_ticklabels, extent[0], extent[1])
-        y_ticks, y_ticklabels = _filter_ticks(y_ticks, y_ticklabels, extent[2], extent[3])
+        x_ticks, x_ticklabels = _filter_ticks(
+            x_ticks, x_ticklabels, extent[0], extent[1]
+        )
+        y_ticks, y_ticklabels = _filter_ticks(
+            y_ticks, y_ticklabels, extent[2], extent[3]
+        )
 
         vmin, vmax = im.get_clim()
 
@@ -136,7 +140,7 @@ class Simulation:
 
         colorbar.remove()
         ax.set_axis_off()
-        ax.set_position([0, 0, 1, 1])
+        ax.set_position((0, 0, 1, 1))
 
         fig.canvas.draw()
         image_width, image_height = fig.canvas.get_width_height()

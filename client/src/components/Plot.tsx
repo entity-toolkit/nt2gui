@@ -19,7 +19,10 @@ import {
 
 import PseudocolorControls from "./PseudocolorControls";
 import PseudocolorPreview from "./PseudocolorPreview";
-import { PseudocolorResponse, renderPseudocolor } from "../services/renderService";
+import {
+  PseudocolorResponse,
+  renderPseudocolor,
+} from "../services/renderService";
 
 interface IPlotProps {
   node: TabNode;
@@ -68,7 +71,9 @@ const Plot = (props: IPlotProps) => {
 
   const simulationLabel = selectedSimulation?.path ?? "No simulation";
 
-  const [renderData, setRenderData] = useState<PseudocolorResponse | null>(null);
+  const [renderData, setRenderData] = useState<PseudocolorResponse | null>(
+    null,
+  );
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{

@@ -3,6 +3,7 @@
 - The backend is written in Python with Flask and handles the data analysis and post-processing, and UI persistency.
 - The frontend is a react-based vite app written in typescript which uses flex-layout for to display multiple panels with selectable plots.
 - The UI state should be synchronized with the server which must keep track of it and potentially recover at initialization.
+- Plots are shaded on the server side, but the axes as well as the colorbars (if applicable) are reconstructed on the client-side using d3 elements.
 
 # Data format on the backend
 - The data will consist of two different types: fields (multi-D arrays with 1D/2D or 3D coordinates at different timesteps represented with an xarray dataset), and particles (pandas dataframe containing particle species index, coordinates, ids, velocities, and corresponding timesteps etc.).

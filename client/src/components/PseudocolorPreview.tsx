@@ -1,10 +1,4 @@
-import {
-  axisBottom,
-  axisLeft,
-  axisRight,
-  scaleLinear,
-  select,
-} from "d3";
+import { axisBottom, axisLeft, axisRight, scaleLinear, select } from "d3";
 import {
   interpolateCividis,
   interpolateMagma,
@@ -36,7 +30,10 @@ const tickFormatter = (labels: string[]) =>
     return labels[index] ?? "";
   };
 
-const PseudocolorPreview = ({ render, isRefreshing }: PseudocolorPreviewProps) => {
+const PseudocolorPreview = ({
+  render,
+  isRefreshing,
+}: PseudocolorPreviewProps) => {
   const xAxisRef = useRef<SVGGElement | null>(null);
   const yAxisRef = useRef<SVGGElement | null>(null);
   const colorbarAxisRef = useRef<SVGGElement | null>(null);
@@ -45,7 +42,9 @@ const PseudocolorPreview = ({ render, isRefreshing }: PseudocolorPreviewProps) =
   const { width: imageWidth, height: imageHeight } = render.imageSize;
   const xRange = render.extent.xMax - render.extent.xMin;
   const yRange = render.extent.yMax - render.extent.yMin;
-  const extentAspect = Math.abs(yRange / Math.max(Math.abs(xRange), Number.EPSILON));
+  const extentAspect = Math.abs(
+    yRange / Math.max(Math.abs(xRange), Number.EPSILON),
+  );
   const sourceArea = Math.max(imageWidth * imageHeight, 1);
   const innerWidth = Math.sqrt(sourceArea / extentAspect);
   const innerHeight = innerWidth * extentAspect;

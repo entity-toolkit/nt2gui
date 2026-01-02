@@ -1,4 +1,11 @@
-import { axisBottom, axisLeft, axisRight, scaleLinear, select } from "d3";
+import {
+  axisBottom,
+  axisLeft,
+  axisRight,
+  scaleLinear,
+  select,
+  NumberValue,
+} from "d3";
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { PseudocolorResponse } from "../services/renderService";
 
@@ -11,7 +18,7 @@ const margin = { top: 16, right: 78, bottom: 44, left: 54 };
 const colorbarWidth = 14;
 
 const tickFormatter = (labels: string[]) =>
-  function formatTick(_value: number, index: number) {
+  function formatTick(_value: NumberValue, index: number) {
     return labels[index] ?? "";
   };
 
@@ -50,7 +57,7 @@ const PseudocolorPreview = ({
       .tickValues(render.xTicks.positions)
       .tickFormat(tickFormatter(render.xTicks.labels));
 
-    const selection = select(xAxisRef.current);
+    const selection = select(xAxisRef.current!);
     selection.call(xAxis);
     selection.selectAll("text").attr("fill", "#cbd5e1").attr("font-size", 12);
     selection.selectAll("line").attr("stroke", "#475569");
@@ -72,7 +79,7 @@ const PseudocolorPreview = ({
       .tickValues(render.yTicks.positions)
       .tickFormat(tickFormatter(render.yTicks.labels));
 
-    const selection = select(yAxisRef.current);
+    const selection = select(yAxisRef.current!);
     selection.call(yAxis);
     selection.selectAll("text").attr("fill", "#cbd5e1").attr("font-size", 12);
     selection.selectAll("line").attr("stroke", "#475569");
@@ -94,7 +101,7 @@ const PseudocolorPreview = ({
       .tickValues(render.colorbar.ticks)
       .tickFormat(tickFormatter(render.colorbar.labels));
 
-    const selection = select(colorbarAxisRef.current);
+    const selection = select(colorbarAxisRef.current!);
     selection.call(colorbarAxis);
     selection.selectAll("text").attr("fill", "#cbd5e1").attr("font-size", 12);
     selection.selectAll("line").attr("stroke", "#475569");

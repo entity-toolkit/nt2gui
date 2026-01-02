@@ -99,16 +99,52 @@ class Simulation:
             extent=extent,
             aspect="auto",
         )
-        ax.set_title(f"{field} @ t={actual_time:.3f}")
-        ax.set_xlabel(x_coordinate)
-        ax.set_ylabel(y_coordinate)
-        fig.colorbar(im, ax=ax, label=field)
+
+        colorbar = fig.colorbar(im, ax=ax, label=field)
+        fig.canvas.draw()
+
+        x_ticks = [float(tick) for tick in ax.get_xticks()]
+        y_ticks = [float(tick) for tick in ax.get_yticks()]
+
+        x_ticklabels = [label.get_text() for label in ax.get_xticklabels()]
+        y_ticklabels = [label.get_text() for label in ax.get_yticklabels()]
+
+        colorbar_ticks = [float(tick) for tick in colorbar.get_ticks()]
+        colorbar_ticklabels = [
+            label.get_text() for label in colorbar.ax.get_yticklabels()
+        ]
+        vmin, vmax = im.get_clim()
+
+        colorbar.remove()
+        ax.set_axis_off()
+        ax.set_position([0, 0, 1, 1])
+
+        fig.canvas.draw()
+        image_width, image_height = fig.canvas.get_width_height()
 
         buffer = BytesIO()
-        fig.tight_layout()
-        fig.savefig(buffer, format="png")
+        fig.savefig(buffer, format="png", bbox_inches=None, pad_inches=0)
         plt.close(fig)
         buffer.seek(0)
         encoded = base64.b64encode(buffer.read()).decode("ascii")
 
-        return {"image": encoded, "timestamp": actual_time}
+        return {
+            "image": encoded,
+            "timestamp": actual_time,
+            "extent": {
+                "xMin": extent[0],
+                "xMax": extent[1],
+                "yMin": extent[2],
+                "yMax": extent[3],
+            },
+            "imageSize": {"width": image_width, "height": image_height},
+            "xTicks": {"positions": x_ticks, "labels": x_ticklabels},
+            "yTicks": {"positions": y_ticks, "labels": y_ticklabels},
+            "colorbar": {
+                "ticks": colorbar_ticks,
+                "labels": colorbar_ticklabels,
+                "vmin": float(vmin),
+                "vmax": float(vmax),
+            },
+            "colorMap": im.get_cmap().name,
+        }

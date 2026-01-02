@@ -1,9 +1,27 @@
 import { SERVER_URL } from "../config";
 import { IPseudocolorConfig } from "../global";
 
-type PseudocolorResponse = {
+export type TickSet = {
+  positions: number[];
+  labels: string[];
+};
+
+export type ColorbarTicks = {
+  ticks: number[];
+  labels: string[];
+  vmin: number;
+  vmax: number;
+};
+
+export type PseudocolorResponse = {
   image: string;
   timestamp: number;
+  extent: { xMin: number; xMax: number; yMin: number; yMax: number };
+  imageSize: { width: number; height: number };
+  xTicks: TickSet;
+  yTicks: TickSet;
+  colorbar: ColorbarTicks;
+  colorMap: string;
 };
 
 export const renderPseudocolor = async (

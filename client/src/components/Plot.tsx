@@ -18,7 +18,8 @@ import {
 } from "../global";
 
 import PseudocolorControls from "./PseudocolorControls";
-import { renderPseudocolor } from "../services/renderService";
+import PseudocolorPreview from "./PseudocolorPreview";
+import { PseudocolorResponse, renderPseudocolor } from "../services/renderService";
 
 interface IPlotProps {
   node: TabNode;
@@ -67,7 +68,7 @@ const Plot = (props: IPlotProps) => {
 
   const simulationLabel = selectedSimulation?.path ?? "No simulation";
 
-  const [imageSource, setImageSource] = useState<string | null>(null);
+  const [renderData, setRenderData] = useState<PseudocolorResponse | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{
@@ -77,12 +78,13 @@ const Plot = (props: IPlotProps) => {
 
   useEffect(() => {
     if (!isPseudocolor) {
+      setRenderData(null);
       return;
     }
 
     if (!selectedSimulationId) {
       setRenderError("Load a simulation to render pseudocolor plots.");
-      setImageSource(null);
+      setRenderData(null);
       return;
     }
 
@@ -92,7 +94,7 @@ const Plot = (props: IPlotProps) => {
       !pseudocolorConfig.yCoordinate
     ) {
       setRenderError("Specify field and coordinate names to render the plot.");
-      setImageSource(null);
+      setRenderData(null);
       return;
     }
 
@@ -105,10 +107,10 @@ const Plot = (props: IPlotProps) => {
       props.timeline.current,
     )
       .then((result) => {
-        setImageSource(`data:image/png;base64,${result.image}`);
+        setRenderData(result);
       })
       .catch((error: Error) => {
-        setImageSource(null);
+        setRenderData(null);
         setRenderError(error.message ?? "Failed to render plot");
       })
       .finally(() => {
@@ -193,15 +195,11 @@ const Plot = (props: IPlotProps) => {
             <div className="plot-figure__error" role="alert">
               {renderError}
             </div>
-          ) : imageSource ? (
-            <div className="plot-figure__preview">
-              <img src={imageSource} alt="Pseudocolor render" />
-              {isRendering && (
-                <div className="plot-figure__status plot-figure__status--floating">
-                  Refreshing…
-                </div>
-              )}
-            </div>
+          ) : renderData ? (
+            <PseudocolorPreview
+              render={renderData}
+              isRefreshing={isRendering}
+            />
           ) : (
             <div className="plot-figure__placeholder">
               <span className="plot-figure__tag">Awaiting render</span>

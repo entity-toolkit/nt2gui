@@ -11,6 +11,7 @@ export type ColorbarTicks = {
   labels: string[];
   vmin: number;
   vmax: number;
+  colors: string[];
 };
 
 export type PseudocolorResponse = {

@@ -1,11 +1,4 @@
 import { axisBottom, axisLeft, axisRight, scaleLinear, select } from "d3";
-import {
-  interpolateCividis,
-  interpolateMagma,
-  interpolatePlasma,
-  interpolateTurbo,
-  interpolateViridis,
-} from "d3-scale-chromatic";
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { PseudocolorResponse } from "../services/renderService";
 
@@ -16,14 +9,6 @@ interface PseudocolorPreviewProps {
 
 const margin = { top: 16, right: 78, bottom: 44, left: 54 };
 const colorbarWidth = 14;
-
-const colorMapInterpolators: Record<string, (t: number) => string> = {
-  viridis: interpolateViridis,
-  plasma: interpolatePlasma,
-  cividis: interpolateCividis,
-  turbo: interpolateTurbo,
-  magma: interpolateMagma,
-};
 
 const tickFormatter = (labels: string[]) =>
   function formatTick(_value: number, index: number) {
@@ -123,13 +108,17 @@ const PseudocolorPreview = ({
   ]);
 
   const colorStops = useMemo(() => {
-    const interpolator =
-      colorMapInterpolators[render.colorMap] ?? colorMapInterpolators.viridis;
-    return Array.from({ length: 11 }, (_, index) => {
-      const t = index / 10;
-      return { offset: t * 100, color: interpolator(t) };
-    });
-  }, [render.colorMap]);
+    if (!render.colorbar.colors.length) {
+      return [];
+    }
+
+    const lastIndex = Math.max(render.colorbar.colors.length - 1, 1);
+
+    return render.colorbar.colors.map((color, index) => ({
+      offset: (index / lastIndex) * 100,
+      color,
+    }));
+  }, [render.colorbar.colors]);
 
   return (
     <div className="plot-figure__preview">

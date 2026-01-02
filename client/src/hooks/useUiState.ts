@@ -106,12 +106,17 @@ export const useUiState = () => {
   const handleModelChange = useCallback(
     (updatedModel: Model) => {
       const jsonModel = updatedModel.toJson();
-      persistState(jsonModel, plotters, timeline);
-      setModel((previous) =>
-        previous === updatedModel ? previous : updatedModel,
-      );
+      const panelIds = collectPanelIds(jsonModel);
+
+      setPlotters((prevPlotters) => {
+        const reconciledPlotters = reconcilePlotters(prevPlotters, panelIds);
+        persistState(jsonModel, reconciledPlotters, timeline);
+        return reconciledPlotters;
+      });
+
+      setModel(updatedModel);
     },
-    [persistState, plotters, timeline],
+    [persistState, timeline],
   );
 
   useEffect(() => {
@@ -136,21 +141,6 @@ export const useUiState = () => {
 
     bootstrapModel();
   }, []);
-
-  useEffect(() => {
-    const modelJson = model.toJson();
-    const panelIds = collectPanelIds(modelJson);
-
-    setPlotters((prevPlotters) => {
-      const reconciledPlotters = reconcilePlotters(prevPlotters, panelIds);
-      if (reconciledPlotters === prevPlotters) {
-        return prevPlotters;
-      }
-
-      persistState(modelJson, reconciledPlotters, timeline);
-      return reconciledPlotters;
-    });
-  }, [model, persistState, timeline]);
 
   const onPseudocolorConfigChange = useCallback(
     (nodeId: string, config: IPseudocolorConfig) => {

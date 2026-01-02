@@ -19,18 +19,27 @@
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  gap: 10px 12px;
+  align-items: stretch;
+}
+
+.form-row--nowrap {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .form-control {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .form-control label {
   color: #cbd5e1;
   font-size: 13px;
+  min-width: 48px;
+  flex-shrink: 0;
 }
 
 .form-control input,
@@ -41,6 +50,7 @@
   background: var(--color-subtle);
   color: #e5e7eb;
   font-size: 14px;
+  flex: 1;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;

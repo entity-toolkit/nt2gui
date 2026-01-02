@@ -57,6 +57,16 @@ const Plot = (props: IPlotProps) => {
     return matching?.id ?? firstSimulationId ?? null;
   }, [firstSimulationId, node_plotter?.simulationId, props.simulations]);
 
+  const selectedSimulation = useMemo(
+    () =>
+      props.simulations.find(
+        (simulation) => simulation.id === selectedSimulationId,
+      ),
+    [props.simulations, selectedSimulationId],
+  );
+
+  const simulationLabel = selectedSimulation?.path ?? "No simulation";
+
   const [imageSource, setImageSource] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -213,6 +223,7 @@ const Plot = (props: IPlotProps) => {
         <div className="plot-meta">
           <span className="badge">{node_datatype}</span>
           <span className="badge">{node_plottype}</span>
+          <span className="badge">Simulation: {simulationLabel}</span>
         </div>
       </div>
 
@@ -225,10 +236,9 @@ const Plot = (props: IPlotProps) => {
           >
             <div className="plot-contextmenu__header">Pseudocolor settings</div>
             <div className="form-section">
-              <div className="form-section__title">Simulation</div>
               <div className="form-row">
                 <div className="form-control">
-                  <label htmlFor="simulation-select">Source</label>
+                  <label htmlFor="simulation-select">Simulation</label>
                   <select
                     id="simulation-select"
                     value={selectedSimulationId ?? ""}

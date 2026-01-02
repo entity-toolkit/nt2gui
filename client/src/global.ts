@@ -53,8 +53,8 @@ export interface ISimulation {
 
 export const defaultPseudocolorConfig: IPseudocolorConfig = {
   field: "",
-  xCoordinate: "",
-  yCoordinate: "",
+  xCoordinate: "x",
+  yCoordinate: "y",
   vmin: undefined,
   vmax: undefined,
   colorMap: "viridis",

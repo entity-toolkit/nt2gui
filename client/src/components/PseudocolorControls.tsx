@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { defaultPseudocolorConfig, IPseudocolorConfig } from "../global";
 
 interface PseudocolorControlsProps {
@@ -13,6 +13,22 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
   onChange,
 }) => {
   const defaults = useMemo(() => defaultPseudocolorConfig, []);
+
+  useEffect(() => {
+    const updates: Partial<IPseudocolorConfig> = {};
+
+    if (!config.xCoordinate) {
+      updates.xCoordinate = defaults.xCoordinate;
+    }
+
+    if (!config.yCoordinate) {
+      updates.yCoordinate = defaults.yCoordinate;
+    }
+
+    if (Object.keys(updates).length) {
+      onChange({ ...config, ...updates });
+    }
+  }, [config, defaults.xCoordinate, defaults.yCoordinate, onChange]);
   const handleInputChange = <K extends keyof IPseudocolorConfig>(
     key: K,
     value: IPseudocolorConfig[K],
@@ -23,10 +39,9 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
   return (
     <div className="pseudocolor-grid">
       <div className="form-section">
-        <div className="form-section__title">Field</div>
         <div className="form-row">
           <div className="form-control">
-            <label htmlFor="field-select">Name</label>
+            <label htmlFor="field-select">Field</label>
             <input
               id="field-select"
               type="text"
@@ -39,7 +54,6 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       </div>
 
       <div className="form-section">
-        <div className="form-section__title">Coordinates</div>
         <div className="form-row">
           <div className="form-control">
             <label htmlFor="x-coordinate">X</label>
@@ -65,7 +79,6 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       </div>
 
       <div className="form-section">
-        <div className="form-section__title">Range</div>
         <div className="form-row">
           <div className="form-control">
             <label htmlFor="vmin">vmin</label>
@@ -101,7 +114,6 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       </div>
 
       <div className="form-section">
-        <div className="form-section__title">Colorbar</div>
         <div className="form-row">
           <div className="form-control">
             <label htmlFor="colorbar">Map</label>

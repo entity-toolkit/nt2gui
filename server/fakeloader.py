@@ -124,11 +124,15 @@ class Simulation:
         x_ticks, x_ticklabels = _filter_ticks(x_ticks, x_ticklabels, extent[0], extent[1])
         y_ticks, y_ticklabels = _filter_ticks(y_ticks, y_ticklabels, extent[2], extent[3])
 
+        vmin, vmax = im.get_clim()
+
         colorbar_ticks = [float(tick) for tick in colorbar.get_ticks()]
         colorbar_ticklabels = [
             label.get_text() for label in colorbar.ax.get_yticklabels()
         ]
-        vmin, vmax = im.get_clim()
+        colorbar_ticks, colorbar_ticklabels = _filter_ticks(
+            colorbar_ticks, colorbar_ticklabels, vmin, vmax
+        )
 
         colorbar.remove()
         ax.set_axis_off()

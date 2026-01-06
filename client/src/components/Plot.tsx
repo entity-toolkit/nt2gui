@@ -3,7 +3,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ChangeEvent,
   type MouseEvent,
 } from "react";
 
@@ -17,8 +16,9 @@ import {
   ISimulation,
 } from "../global";
 
-import PseudocolorControls from "./PseudocolorControls";
 import PseudocolorPreview from "./PseudocolorPreview";
+import PlotContextMenu from "./PlotContextMenu";
+import styles from "./Plot.module.css";
 import {
   PseudocolorResponse,
   renderPseudocolor,
@@ -188,16 +188,16 @@ const Plot = (props: IPlotProps) => {
   };
 
   return (
-    <div className="plot">
-      <div className="plot-body">
-        <div className="plot-figure" onContextMenu={openContextMenu}>
+    <div className={styles.plot}>
+      <div className={styles.plotBody}>
+        <div className={styles.plotFigure} onContextMenu={openContextMenu}>
           {!isPseudocolor ? (
-            <div className="plot-figure__placeholder">
-              <span className="plot-figure__tag">Pick a renderer</span>
+            <div className={styles.figurePlaceholder}>
+              <span className={styles.figureTag}>Pick a renderer</span>
               <div>Select a plot type to request a server render.</div>
             </div>
           ) : renderError ? (
-            <div className="plot-figure__error" role="alert">
+            <div className={styles.figureError} role="alert">
               {renderError}
             </div>
           ) : renderData ? (
@@ -206,8 +206,8 @@ const Plot = (props: IPlotProps) => {
               isRefreshing={isRendering}
             />
           ) : (
-            <div className="plot-figure__placeholder">
-              <span className="plot-figure__tag">Awaiting render</span>
+            <div className={styles.figurePlaceholder}>
+              <span className={styles.figureTag}>Awaiting render</span>
               <div>
                 {isRendering
                   ? "Rendering pseudocolor preview…"
@@ -218,57 +218,27 @@ const Plot = (props: IPlotProps) => {
         </div>
       </div>
 
-      <div className="plot-footer">
-        <div className="plot-meta">
-          <span className="badge">{node_datatype}</span>
-          <span className="badge">{node_plottype}</span>
-          <span className="badge">Simulation: {simulationLabel}</span>
+      <div className={styles.plotFooter}>
+        <div className={styles.plotMeta}>
+          <span className={styles.plotBadge}>{node_datatype}</span>
+          <span className={styles.plotBadge}>{node_plottype}</span>
+          <span className={styles.plotBadge}>Simulation: {simulationLabel}</span>
         </div>
       </div>
 
       {menuPosition && (
-        <div className="plot-contextmenu__overlay">
-          <div
-            className="plot-contextmenu"
-            style={{ top: menuPosition.y, left: menuPosition.x }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="form-section form-simulation-select">
-              <div className="form-row">
-                <div className="form-control">
-                  <label htmlFor="simulation-select">simulation</label>
-                  <select
-                    id="simulation-select"
-                    value={selectedSimulationId ?? ""}
-                    onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                      props.onPlotSimulationChange(
-                        node_id,
-                        event.target.value || undefined,
-                      )
-                    }
-                    disabled={!props.simulations.length}
-                  >
-                    {props.simulations.length === 0 ? (
-                      <option value="">No simulations loaded</option>
-                    ) : (
-                      props.simulations.map((simulation) => (
-                        <option key={simulation.id} value={simulation.id}>
-                          {simulation.path}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <PseudocolorControls
-              config={pseudocolorConfig}
-              onChange={(config) =>
-                props.onPseudocolorConfigChange(node_id, config)
-              }
-            />
-          </div>
-        </div>
+        <PlotContextMenu
+          position={menuPosition}
+          simulations={props.simulations}
+          selectedSimulationId={selectedSimulationId}
+          pseudocolorConfig={pseudocolorConfig}
+          onSimulationChange={(simulationId) =>
+            props.onPlotSimulationChange(node_id, simulationId)
+          }
+          onConfigChange={(config) =>
+            props.onPseudocolorConfigChange(node_id, config)
+          }
+        />
       )}
     </div>
   );

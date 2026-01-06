@@ -1,0 +1,7 @@
+.panel {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}

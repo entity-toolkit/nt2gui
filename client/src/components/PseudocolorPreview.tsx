@@ -8,6 +8,8 @@ import {
 } from "d3";
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { PseudocolorResponse } from "../services/renderService";
+import styles from "./PseudocolorPreview.module.css";
+import plotStyles from "./Plot.module.css";
 
 interface PseudocolorPreviewProps {
   render: PseudocolorResponse;
@@ -128,9 +130,9 @@ const PseudocolorPreview = ({
   }, [render.colorbar.colors]);
 
   return (
-    <div className="plot-figure__preview">
+    <div className={plotStyles.figurePreview}>
       <svg
-        className="pseudocolor-svg"
+        className={styles.pseudocolorSvg}
         viewBox={`0 0 ${outerWidth} ${outerHeight}`}
         role="img"
         aria-label="Pseudocolor preview"
@@ -158,17 +160,17 @@ const PseudocolorPreview = ({
 
         <g
           ref={xAxisRef}
-          className="pseudocolor-axis"
+          className={styles.pseudocolorAxis}
           transform={`translate(0, ${margin.top + innerHeight})`}
         />
         <g
           ref={yAxisRef}
-          className="pseudocolor-axis"
+          className={styles.pseudocolorAxis}
           transform={`translate(${margin.left}, 0)`}
         />
 
         <g
-          className="pseudocolor-colorbar"
+          className={styles.pseudocolorColorbar}
           transform={`translate(${margin.left + innerWidth + 20}, ${margin.top})`}
         >
           <rect
@@ -177,11 +179,11 @@ const PseudocolorPreview = ({
             rx={4}
             fill={`url(#${gradientId})`}
           />
-          <g
-            ref={colorbarAxisRef}
-            className="pseudocolor-axis"
-            transform={`translate(${colorbarWidth + 8}, 0)`}
-          />
+            <g
+              ref={colorbarAxisRef}
+              className={styles.pseudocolorAxis}
+              transform={`translate(${colorbarWidth + 8}, 0)`}
+            />
         </g>
 
         {isRefreshing && (
@@ -191,7 +193,9 @@ const PseudocolorPreview = ({
             width="170"
             height="40"
           >
-            <div className="plot-figure__status plot-figure__status--floating">
+            <div
+              className={`${plotStyles.figureStatus} ${plotStyles.figureStatusFloating}`}
+            >
               Refreshing…
             </div>
           </foreignObject>

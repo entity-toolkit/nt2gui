@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import { defaultPseudocolorConfig, IPseudocolorConfig } from "../global";
+import styles from "./PseudocolorControls.module.css";
 
 interface PseudocolorControlsProps {
   config: IPseudocolorConfig;
@@ -37,10 +38,10 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
   };
 
   return (
-    <div className="pseudocolor-grid">
-      <div className="form-section">
-        <div className="form-row">
-          <div className="form-control">
+    <div className={styles.pseudocolorGrid}>
+      <div className={styles.formSection}>
+        <div className={styles.formRow}>
+          <div className={styles.formControl}>
             <label htmlFor="field-select">field</label>
             <input
               id="field-select"
@@ -53,9 +54,9 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
         </div>
       </div>
 
-      <div className="form-section">
-        <div className="form-row">
-          <div className="form-control">
+      <div className={styles.formSection}>
+        <div className={styles.formRow}>
+          <div className={styles.formControl}>
             <label>coordinates</label>
             <input
               id="x-coordinate"
@@ -75,9 +76,9 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
         </div>
       </div>
 
-      <div className="form-section">
-        <div className="form-row">
-          <div className="form-control">
+      <div className={styles.formSection}>
+        <div className={styles.formRow}>
+          <div className={styles.formControl}>
             <label htmlFor="vmin">min/max</label>
             <input
               id="vmin"
@@ -109,9 +110,9 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
         </div>
       </div>
 
-      <div className="form-section">
-        <div className="form-row">
-          <div className="form-control">
+      <div className={styles.formSection}>
+        <div className={styles.formRow}>
+          <div className={styles.formControl}>
             <label htmlFor="colorbar">colormap</label>
             <select
               id="colorbar"

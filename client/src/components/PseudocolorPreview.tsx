@@ -86,7 +86,6 @@ const PseudocolorPreview = ({
   const colorbarAxisRef = useRef<SVGGElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [localTooltip, setLocalTooltip] = useState<TooltipDisplay | null>(null);
   const [dragStart, setDragStart] = useState<PointerPoint | null>(null);
   const [dragCurrent, setDragCurrent] = useState<PointerPoint | null>(null);
   const gradientId = useId();
@@ -316,13 +315,11 @@ const PseudocolorPreview = ({
   const handlePointerMove = (event: ReactMouseEvent<SVGRectElement>) => {
     const point = eventToPoint(event);
     if (!point) {
-      setLocalTooltip(null);
       emitGlobalTooltip(null);
       return;
     }
 
     const tooltip = pointToTooltip(point);
-    setLocalTooltip(tooltip);
     if (dragStart) {
       setDragCurrent(point);
     }
@@ -330,7 +327,6 @@ const PseudocolorPreview = ({
   };
 
   const handlePointerLeave = () => {
-    setLocalTooltip(null);
     setDragStart(null);
     setDragCurrent(null);
     emitGlobalTooltip(null);
@@ -503,49 +499,6 @@ const PseudocolorPreview = ({
         )}
       </svg>
 
-      {globalTooltipPosition && (
-        <div
-          className={`${styles.tooltip} ${styles.globalTooltip}`}
-          style={{
-            left: `${globalTooltipPosition.posPct.x}%`,
-            top: `${globalTooltipPosition.posPct.y}%`,
-          }}
-        >
-          <span
-            className={styles.tooltipColor}
-            style={{ background: globalTooltipPosition.tooltip.color }}
-            aria-label="Global tooltip color"
-          />
-          <span className={styles.tooltipLabel}>Global</span>
-          <span>{`x: ${globalTooltipPosition.tooltip.x.toFixed(3)}`}</span>
-          <span>{`y: ${globalTooltipPosition.tooltip.y.toFixed(3)}`}</span>
-          {globalTooltipPosition.tooltip.value !== undefined && (
-            <span>{`v: ${globalTooltipPosition.tooltip.value.toFixed(3)}`}</span>
-          )}
-        </div>
-      )}
-
-      {localTooltip && (
-        <div
-          className={`${styles.tooltip} ${styles.localTooltip}`}
-          style={{
-            left: `${localTooltip.posPct.x}%`,
-            top: `${localTooltip.posPct.y}%`,
-          }}
-        >
-          <span
-            className={styles.tooltipColor}
-            style={{ background: localTooltip.color }}
-            aria-label="Local tooltip color"
-          />
-          <span className={styles.tooltipLabel}>Local</span>
-          <span>{`x: ${localTooltip.x.toFixed(3)}`}</span>
-          <span>{`y: ${localTooltip.y.toFixed(3)}`}</span>
-          {localTooltip.value !== undefined && (
-            <span>{`v: ${localTooltip.value.toFixed(3)}`}</span>
-          )}
-        </div>
-      )}
     </div>
   );
 };

@@ -360,6 +360,7 @@ const PseudocolorPreview = ({
 
   const globalTooltipPosition = useMemo(() => {
     if (!globalTooltip) return null;
+    if (globalTooltip.plotId === plotId) return null;
     if (
       globalTooltip.x < activeExtent.xMin ||
       globalTooltip.x > activeExtent.xMax ||

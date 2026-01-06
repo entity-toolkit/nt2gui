@@ -1,5 +1,6 @@
 import { ITimeline } from "../global";
 import TimelineControls from "./TimelineControls";
+import styles from "./FooterBar.module.css";
 
 interface FooterBarProps {
   timeline: ITimeline;
@@ -8,9 +9,9 @@ interface FooterBarProps {
 
 const FooterBar = ({ timeline, onTimelineChange }: FooterBarProps) => {
   return (
-    <footer className="footer-bar" aria-label="Timeline and simulations">
+    <footer className={styles.footer} aria-label="Timeline and simulations">
       <section
-        className="footer__section footer__timeline"
+        className={`${styles.section} ${styles.timelineSection}`}
         aria-label="Global timeline"
       >
         <TimelineControls

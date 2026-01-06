@@ -2,6 +2,7 @@ import { TabNode } from "flexlayout-react";
 import PickPlotter from "./PickPlotter";
 import PickDatatype from "./PickDatatype";
 import Plot from "./Plot";
+import styles from "./Panel.module.css";
 
 import {
   IPlotters,
@@ -30,7 +31,7 @@ const Panel = (props: IPanelProps) => {
   const node_id = props.node.getId();
   const node_plotter = props.plotters[node_id];
   return (
-    <div className="panel">
+    <div className={styles.panel}>
       {node_plotter?.dataType === DataType.None ? (
         <PickDatatype
           node={props.node}

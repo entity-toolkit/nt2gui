@@ -1,6 +1,7 @@
 import { ISimulation } from "../global";
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
+import styles from "./Menubar.module.css";
 const menuItems = ["Save state", "Load state", "Settings", "Help"];
 
 interface MenubarProps {
@@ -53,13 +54,13 @@ const Menubar = ({
   };
 
   return (
-    <nav className="menubar" aria-label="Application menu">
-      <div className="menubar__items">
+    <nav className={styles.menubar} aria-label="Application menu">
+      <div className={styles.menuItems}>
         {menuItems.map((item) => (
           <button
             key={item}
             type="button"
-            className="menubar__button"
+            className={styles.menuButton}
             onClick={() => handleMenuClick(item)}
           >
             {item}
@@ -69,23 +70,21 @@ const Menubar = ({
 
       {isDialogOpen &&
         createPortal(
-          <div
-            className="modal-overlay"
-            role="presentation"
-            onClick={closeDialog}
-          >
+          <div className={styles.overlay} role="presentation" onClick={closeDialog}>
             <div
-              className="modal"
+              className={styles.modal}
               role="dialog"
               aria-modal="true"
               aria-labelledby="settings-title"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="modal__header">
-                <h2 id="settings-title">Settings</h2>
+              <div className={styles.modalHeader}>
+                <h2 id="settings-title" className={styles.modalTitle}>
+                  Settings
+                </h2>
                 <button
                   type="button"
-                  className="modal__close"
+                  className={styles.closeButton}
                   aria-label="Close"
                   onClick={closeDialog}
                 >
@@ -94,15 +93,15 @@ const Menubar = ({
               </div>
               <section aria-live="polite">
                 <h3 id="settings-subtitle">Simulations</h3>
-                <ul className="simulations__list">
+                <ul className={styles.simulationsList}>
                   {simulations.map((simulation) => (
-                    <li key={simulation.id} className="simulations__item">
-                      <span className="simulations__path">
+                    <li key={simulation.id} className={styles.simulationItem}>
+                      <span className={styles.simulationPath}>
                         {simulation.path}
                       </span>
                       <button
                         type="button"
-                        className="simulations__unload"
+                        className={styles.unloadButton}
                         onClick={() => onUnloadSimulation(simulation.id)}
                       >
                         unload
@@ -110,11 +109,11 @@ const Menubar = ({
                     </li>
                   ))}
                 </ul>
-                <form className="simulations__add" onSubmit={handleSubmit}>
+                <form className={styles.addSimulation} onSubmit={handleSubmit}>
                   <input
                     id="simulation-path"
                     type="text"
-                    className="simulations__input"
+                    className={styles.pathInput}
                     value={pathInput}
                     onChange={(event) => setPathInput(event.target.value)}
                     placeholder="/data/simulations/run-001"
@@ -124,15 +123,15 @@ const Menubar = ({
                   />
                   <button
                     type="submit"
-                    className="modal__button modal__button--primary"
+                    className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
                     disabled={isLoading}
                   >
                     {isLoading ? "loading..." : "load"}
                   </button>
                 </form>
-                <div className="simulations__status">
+                <div className={styles.status}>
                   {isLoading && <span>loading...</span>}
-                  {error && <p className="modal__error">{error}</p>}
+                  {error && <p className={styles.error}>{error}</p>}
                 </div>
               </section>
             </div>

@@ -82,35 +82,3 @@
   padding: 16px;
   box-sizing: border-box;
 }
-
-.add-plot-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 320px;
-}
-
-.add-plot-menu input[type="button"] {
-  padding: 12px 14px;
-  background: #111827;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: #e5e7eb;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.add-plot-menu input[type="button"]:hover:enabled {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-soft);
-}
-
-.add-plot-menu input[type="button"]:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.helper-text {
-  color: var(--color-muted);
-  font-size: 12px;
-}

@@ -29,11 +29,28 @@ export interface IPseudocolorConfig {
   colorMap: string;
 }
 
+export interface IZoomWindow {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}
+
+export interface ITooltipDatum {
+  x: number;
+  y: number;
+  color: string;
+  value?: number;
+  plotId: string;
+}
+
 export interface IPlotter {
   plotType: PlotType;
   dataType: DataType;
   simulationId?: string;
   pseudocolorConfig?: IPseudocolorConfig;
+  localViewport?: IZoomWindow | null;
+  useGlobalViewport?: boolean;
 }
 
 export interface IPlotters {
@@ -44,6 +61,7 @@ export interface IUiState {
   layout: IJsonModel;
   plotters: IPlotters;
   timeline: ITimeline;
+  globalViewport: IZoomWindow | null;
 }
 
 export interface ISimulation {

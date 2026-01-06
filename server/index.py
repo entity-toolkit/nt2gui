@@ -160,12 +160,15 @@ def render_pseudocolor(simulation_id: str):
     payload = request.json or {}
     config = payload.get("config", {})
     time_value = payload.get("time")
+    viewport = payload.get("viewport")
 
     if time_value is None:
         return Response("Time value is required", status=400)
 
     try:
-        render_result = simulation.render_pseudocolor(config, float(time_value))
+        render_result = simulation.render_pseudocolor(
+            config, float(time_value), viewport
+        )
     except (KeyError, ValueError) as error:
         app.logger.error("Failed to render pseudocolor: %s", error)
         return Response(str(error), status=400)

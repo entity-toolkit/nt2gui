@@ -15,6 +15,54 @@
   min-height: 0;
 }
 
+.plotToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbarGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbarButton {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.toolbarButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toolbarButton:not(:disabled):hover {
+  background: #111827;
+  border-color: #475569;
+}
+
+.toolbarToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.toolbarStatus {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
 .plotFigure {
   flex: 1;
   min-height: 360px;

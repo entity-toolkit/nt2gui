@@ -1,5 +1,5 @@
 import { SERVER_URL } from "../config";
-import { IPseudocolorConfig } from "../global";
+import { IPseudocolorConfig, IZoomWindow } from "../global";
 
 export type TickSet = {
   positions: number[];
@@ -29,13 +29,14 @@ export const renderPseudocolor = async (
   simulationId: string,
   config: IPseudocolorConfig,
   time: number,
+  viewport?: IZoomWindow | null,
 ): Promise<PseudocolorResponse> => {
   const response = await fetch(
     `${SERVER_URL}/simulations/${simulationId}/render/pseudocolor`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config, time }),
+      body: JSON.stringify({ config, time, viewport }),
     },
   );
 

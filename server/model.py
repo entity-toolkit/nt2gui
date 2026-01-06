@@ -30,7 +30,13 @@ class Model:
                 },
             )
         )
-        return {"layout": layout, "plotters": plotters, "timeline": timeline}
+        global_viewport = deepcopy(data.get("globalViewport"))
+        return {
+            "layout": layout,
+            "plotters": plotters,
+            "timeline": timeline,
+            "globalViewport": global_viewport,
+        }
 
     def to_json(self) -> dict[str, Any]:
         return deepcopy(self._json_data)

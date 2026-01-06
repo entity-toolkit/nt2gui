@@ -37,7 +37,12 @@ describe("reconcilePlotters", () => {
     const nextPlotters = reconcilePlotters({}, new Set(["panel-1"]));
 
     expect(nextPlotters).toEqual({
-      "panel-1": { plotType: PlotType.None, dataType: DataType.None },
+      "panel-1": {
+        plotType: PlotType.None,
+        dataType: DataType.None,
+        useGlobalViewport: true,
+        localViewport: null,
+      },
     });
   });
 
@@ -54,7 +59,12 @@ describe("reconcilePlotters", () => {
 
   it("returns the same reference when no changes are needed", () => {
     const initial = {
-      "panel-1": { plotType: PlotType.None, dataType: DataType.None },
+      "panel-1": {
+        plotType: PlotType.None,
+        dataType: DataType.None,
+        useGlobalViewport: true,
+        localViewport: null,
+      },
     };
     const next = reconcilePlotters(initial, new Set(["panel-1"]));
 

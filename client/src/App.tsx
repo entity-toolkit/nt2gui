@@ -1,3 +1,5 @@
+import { useCallback, useState } from "react";
+
 import {
   Layout,
   Model,
@@ -8,7 +10,7 @@ import {
 } from "flexlayout-react";
 import "flexlayout-react/style/dark.css";
 
-import { IUiState } from "./global";
+import { ITooltipDatum, IUiState } from "./global";
 import AddTabButton from "./components/AddTabButton";
 import Panel from "./components/Panel";
 import Menubar from "./components/Menubar";
@@ -26,10 +28,20 @@ const App = () => {
     onPseudocolorConfigChange,
     onPlotSimulationChange,
     onTimelineChange,
+    globalViewport,
+    onGlobalViewportChange,
+    onLocalViewportChange,
+    onSyncViewportToggle,
     handleModelChange,
   } = useUiState();
   const { simulations, isLoading, addSimulation, unloadSimulation } =
     useSimulations({ onTimelineUpdate: onTimelineChange });
+
+  const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(null);
+  const handleGlobalTooltipChange = useCallback(
+    (tooltip: ITooltipDatum | null) => setGlobalTooltip(tooltip),
+    [],
+  );
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -41,6 +53,12 @@ const App = () => {
             plotters={plotters}
             timeline={timeline}
             simulations={simulations}
+            globalViewport={globalViewport}
+            onGlobalViewportChange={onGlobalViewportChange}
+            onLocalViewportChange={onLocalViewportChange}
+            onSyncViewportToggle={onSyncViewportToggle}
+            globalTooltip={globalTooltip}
+            onGlobalTooltipChange={handleGlobalTooltipChange}
             onDataTypeChange={onDataTypeChange}
             onPlotTypeChange={onPlotTypeChange}
             onPseudocolorConfigChange={onPseudocolorConfigChange}
@@ -49,7 +67,9 @@ const App = () => {
         );
       case "json":
         return (
-          <ModelJson uiState={{ layout: model.toJson(), plotters, timeline }} />
+          <ModelJson
+            uiState={{ layout: model.toJson(), plotters, timeline, globalViewport }}
+          />
         );
       default:
         return <div>{`unknown component: ${component}`}</div>;

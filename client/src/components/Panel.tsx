@@ -11,6 +11,8 @@ import {
   IPseudocolorConfig,
   ITimeline,
   ISimulation,
+  IZoomWindow,
+  ITooltipDatum,
 } from "../global";
 
 interface IPanelProps {
@@ -18,6 +20,7 @@ interface IPanelProps {
   plotters: IPlotters;
   timeline: ITimeline;
   simulations: ISimulation[];
+  globalViewport: IZoomWindow | null;
   onDataTypeChange: (node_id: string, newDataType: DataType) => void;
   onPlotTypeChange: (node_id: string, newPlotType: PlotType) => void;
   onPseudocolorConfigChange: (
@@ -25,6 +28,11 @@ interface IPanelProps {
     config: IPseudocolorConfig,
   ) => void;
   onPlotSimulationChange: (node_id: string, simulationId?: string) => void;
+  onGlobalViewportChange: (viewport: IZoomWindow | null) => void;
+  onLocalViewportChange: (nodeId: string, viewport: IZoomWindow | null) => void;
+  onSyncViewportToggle: (nodeId: string, useGlobal: boolean) => void;
+  globalTooltip: ITooltipDatum | null;
+  onGlobalTooltipChange: (tooltip: ITooltipDatum | null) => void;
 }
 
 const Panel = (props: IPanelProps) => {
@@ -50,6 +58,12 @@ const Panel = (props: IPanelProps) => {
           plotters={props.plotters}
           timeline={props.timeline}
           simulations={props.simulations}
+          globalViewport={props.globalViewport}
+          onGlobalViewportChange={props.onGlobalViewportChange}
+          onLocalViewportChange={props.onLocalViewportChange}
+          onSyncViewportToggle={props.onSyncViewportToggle}
+          globalTooltip={props.globalTooltip}
+          onGlobalTooltipChange={props.onGlobalTooltipChange}
           onDataTypeChange={props.onDataTypeChange}
           onPlotTypeChange={props.onPlotTypeChange}
           onPseudocolorConfigChange={props.onPseudocolorConfigChange}

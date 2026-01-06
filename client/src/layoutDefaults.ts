@@ -41,4 +41,5 @@ export const initialUiState: IUiState = {
     max: 100,
     step: 1,
   },
+  globalViewport: null,
 };

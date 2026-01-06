@@ -59,7 +59,9 @@ class Simulation:
     def y(self) -> np.ndarray:
         return self._y
 
-    def render_pseudocolor(self, config: dict, time_value: float) -> dict:
+    def render_pseudocolor(
+        self, config: dict, time_value: float, viewport: dict | None = None
+    ) -> dict:
         field = config.get("field")
         x_coordinate = config.get("xCoordinate", "x")
         y_coordinate = config.get("yCoordinate", "y")
@@ -83,6 +85,37 @@ class Simulation:
 
         x_vals = self._fields.coords.get(x_coordinate, self.x)
         y_vals = self._fields.coords.get(y_coordinate, self.y)
+
+        requested_view = viewport or {}
+        if requested_view:
+            x_min = requested_view.get("xMin")
+            x_max = requested_view.get("xMax")
+            y_min = requested_view.get("yMin")
+            y_max = requested_view.get("yMax")
+
+            x_lower, x_upper = sorted(
+                [
+                    float(x_min if x_min is not None else x_vals.min()),
+                    float(x_max if x_max is not None else x_vals.max()),
+                ]
+            )
+            y_lower, y_upper = sorted(
+                [
+                    float(y_min if y_min is not None else y_vals.min()),
+                    float(y_max if y_max is not None else y_vals.max()),
+                ]
+            )
+
+            ordered = ordered.sel(
+                {x_coordinate: slice(x_lower, x_upper), y_coordinate: slice(y_lower, y_upper)}
+            )
+
+            if ordered.sizes.get(x_coordinate, 0) == 0 or ordered.sizes.get(y_coordinate, 0) == 0:
+                raise ValueError("Selected zoom window is empty")
+
+            values = ordered.values
+            x_vals = ordered.coords.get(x_coordinate, x_vals)
+            y_vals = ordered.coords.get(y_coordinate, y_vals)
 
         fig, ax = plt.subplots(figsize=(5, 4), dpi=120)
         extent = (

@@ -263,8 +263,14 @@ const PseudocolorPreview = ({
     if (!svgElement) return null;
 
     const bounds = svgElement.getBoundingClientRect();
-    const svgX = event.clientX - bounds.left;
-    const svgY = event.clientY - bounds.top;
+    const scaleX = outerWidth / bounds.width;
+    const scaleY = outerHeight / bounds.height;
+
+    const relativeX = event.clientX - bounds.left;
+    const relativeY = event.clientY - bounds.top;
+
+    const svgX = relativeX * scaleX;
+    const svgY = relativeY * scaleY;
 
     if (
       svgX < margin.left ||
@@ -284,8 +290,8 @@ const PseudocolorPreview = ({
       svgX,
       svgY,
       posPct: {
-        x: (svgX / bounds.width) * 100,
-        y: (svgY / bounds.height) * 100,
+        x: (relativeX / bounds.width) * 100,
+        y: (relativeY / bounds.height) * 100,
       },
     };
   };

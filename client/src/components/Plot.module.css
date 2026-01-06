@@ -7,24 +7,7 @@
   min-height: 0;
 }
 
-.plot-meta {
-  display: flex;
-  gap: 8px;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: var(--radius-pill);
-  background: #111827;
-  border: 1px solid var(--color-border);
-  font-size: 12px;
-  color: #cbd5e1;
-}
-
-.plot-body {
+.plotBody {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -32,23 +15,15 @@
   min-height: 0;
 }
 
-.plot-figure {
+.plotFigure {
   flex: 1;
   min-height: 360px;
   width: 100%;
   border-radius: var(--radius-md);
   border: 1px dashed #243049;
   background:
-    radial-gradient(
-      circle at 20% 20%,
-      rgba(59, 130, 246, 0.05),
-      transparent 35%
-    ),
-    radial-gradient(
-      circle at 80% 30%,
-      rgba(16, 185, 129, 0.08),
-      transparent 40%
-    ),
+    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05), transparent 35%),
+    radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.08), transparent 40%),
     var(--color-bg);
   color: var(--color-muted);
   display: flex;
@@ -59,7 +34,7 @@
   position: relative;
 }
 
-.plot-figure__placeholder {
+.figurePlaceholder {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -67,7 +42,7 @@
   font-size: 14px;
 }
 
-.plot-figure__preview {
+.figurePreview {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -78,7 +53,7 @@
   position: relative;
 }
 
-.plot-figure__preview img {
+.figurePreview img {
   width: 100%;
   height: 100%;
   max-width: 100%;
@@ -88,12 +63,12 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
-.plot-figure__status {
+.figureStatus {
   font-size: 13px;
   color: var(--color-muted);
 }
 
-.plot-figure__status--floating {
+.figureStatusFloating {
   position: absolute;
   right: 14px;
   top: 12px;
@@ -105,7 +80,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
-.plot-figure__tag {
+.figureTag {
   padding: 6px 10px;
   border-radius: var(--radius-pill);
   background: rgba(59, 130, 246, 0.1);
@@ -114,7 +89,7 @@
   font-weight: 600;
 }
 
-.plot-figure__error {
+.figureError {
   color: #fca5a5;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.4);
@@ -124,8 +99,25 @@
   text-align: center;
 }
 
-.plot-footer {
+.plotFooter {
   display: flex;
   justify-content: flex-end;
   margin-top: auto;
+}
+
+.plotMeta {
+  display: flex;
+  gap: 8px;
+}
+
+.plotBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  background: #111827;
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  color: #cbd5e1;
 }

@@ -9,6 +9,7 @@ import {
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { PseudocolorResponse } from "../services/renderService";
 import styles from "./PseudocolorPreview.module.css";
+import plotStyles from "./Plot.module.css";
 
 interface PseudocolorPreviewProps {
   render: PseudocolorResponse;
@@ -129,7 +130,7 @@ const PseudocolorPreview = ({
   }, [render.colorbar.colors]);
 
   return (
-    <div className="plot-figure__preview">
+    <div className={plotStyles.figurePreview}>
       <svg
         className={styles.pseudocolorSvg}
         viewBox={`0 0 ${outerWidth} ${outerHeight}`}
@@ -192,7 +193,9 @@ const PseudocolorPreview = ({
             width="170"
             height="40"
           >
-            <div className="plot-figure__status plot-figure__status--floating">
+            <div
+              className={`${plotStyles.figureStatus} ${plotStyles.figureStatusFloating}`}
+            >
               Refreshing…
             </div>
           </foreignObject>

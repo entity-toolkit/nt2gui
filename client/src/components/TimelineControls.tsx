@@ -1,5 +1,6 @@
 import React from "react";
 import { ITimeline } from "../global";
+import styles from "./TimelineControls.module.css";
 
 interface TimelineControlsProps {
   timeline: ITimeline;
@@ -34,9 +35,9 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
   };
 
   return (
-    <div className="timeline-controls" aria-label="Global timeline">
+    <div className={styles.timelineControls} aria-label="Global timeline">
       <input
-        className="timeline-slider"
+        className={styles.timelineSlider}
         type="range"
         min={timeline.min}
         max={timeline.max}
@@ -47,10 +48,10 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
         onTouchEnd={commitTimeline}
         onKeyUp={handleKeyUp}
       />
-      <div className="timeline-range">
+      <div className={styles.timelineRange}>
         <span>{formatLabel(timeline.min)}</span>
-        <div className="timeline-labels">
-          <span className="timeline-title">
+        <div className={styles.timelineLabels}>
+          <span className={styles.timelineTitle}>
             Time: {formatLabel(draftValue)}
           </span>
         </div>

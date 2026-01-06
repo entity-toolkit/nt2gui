@@ -1,37 +1,27 @@
-.pseudocolor-grid {
+.pseudocolorGrid {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.form-simulation-select {
-  padding: 0 0 8px 0;
-}
-
-.form-section {
+.formSection {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.form-section__title {
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--color-text);
-}
-
-.form-row {
+.formRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px 12px;
   align-items: stretch;
 }
 
-.form-row--nowrap {
+.formRowTight {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.form-control {
+.formControl {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -39,14 +29,14 @@
   min-width: 0;
 }
 
-.form-control label {
+.formControl label {
   color: #cbd5e1;
   font-size: 13px;
   flex-shrink: 0;
 }
 
-.form-control input,
-.form-control select {
+.formControl input,
+.formControl select {
   padding: 8px 10px;
   min-width: 0;
   border-radius: var(--radius-sm);
@@ -60,49 +50,11 @@
     box-shadow 0.2s ease;
 }
 
-.form-control input:focus,
-.form-control select:focus {
+.formControl input:focus,
+.formControl select:focus {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-soft);
-}
-
-.timeline-controls {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr;
-  row-gap: 10px;
-}
-
-.timeline-labels {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.timeline-title {
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.5px;
-  color: #93c5fd;
-}
-
-.timeline-value {
-  font-weight: 700;
-}
-
-.timeline-slider {
-  accent-color: var(--color-accent);
-  width: 100%;
-}
-
-.timeline-range {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--color-muted);
 }
 
 .hint {

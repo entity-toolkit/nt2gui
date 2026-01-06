@@ -3,7 +3,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ChangeEvent,
   type MouseEvent,
 } from "react";
 
@@ -17,8 +16,8 @@ import {
   ISimulation,
 } from "../global";
 
-import PseudocolorControls from "./PseudocolorControls";
 import PseudocolorPreview from "./PseudocolorPreview";
+import PlotContextMenu from "./PlotContextMenu";
 import {
   PseudocolorResponse,
   renderPseudocolor,
@@ -227,48 +226,18 @@ const Plot = (props: IPlotProps) => {
       </div>
 
       {menuPosition && (
-        <div className="plot-contextmenu__overlay">
-          <div
-            className="plot-contextmenu"
-            style={{ top: menuPosition.y, left: menuPosition.x }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="form-section form-simulation-select">
-              <div className="form-row">
-                <div className="form-control">
-                  <label htmlFor="simulation-select">simulation</label>
-                  <select
-                    id="simulation-select"
-                    value={selectedSimulationId ?? ""}
-                    onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                      props.onPlotSimulationChange(
-                        node_id,
-                        event.target.value || undefined,
-                      )
-                    }
-                    disabled={!props.simulations.length}
-                  >
-                    {props.simulations.length === 0 ? (
-                      <option value="">No simulations loaded</option>
-                    ) : (
-                      props.simulations.map((simulation) => (
-                        <option key={simulation.id} value={simulation.id}>
-                          {simulation.path}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <PseudocolorControls
-              config={pseudocolorConfig}
-              onChange={(config) =>
-                props.onPseudocolorConfigChange(node_id, config)
-              }
-            />
-          </div>
-        </div>
+        <PlotContextMenu
+          position={menuPosition}
+          simulations={props.simulations}
+          selectedSimulationId={selectedSimulationId}
+          pseudocolorConfig={pseudocolorConfig}
+          onSimulationChange={(simulationId) =>
+            props.onPlotSimulationChange(node_id, simulationId)
+          }
+          onConfigChange={(config) =>
+            props.onPseudocolorConfigChange(node_id, config)
+          }
+        />
       )}
     </div>
   );

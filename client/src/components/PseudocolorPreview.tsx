@@ -394,6 +394,7 @@ const PseudocolorPreview = ({
       <svg
         className={styles.pseudocolorSvg}
         viewBox={`0 0 ${outerWidth} ${outerHeight}`}
+        preserveAspectRatio="none"
         role="img"
         aria-label="Pseudocolor preview"
         ref={svgRef}

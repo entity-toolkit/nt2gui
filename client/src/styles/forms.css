@@ -1,7 +1,11 @@
 .pseudocolor-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+
+.form-simulation-select {
+  padding: 0 0 8px 0;
 }
 
 .form-section {
@@ -38,13 +42,13 @@
 .form-control label {
   color: #cbd5e1;
   font-size: 13px;
-  min-width: 48px;
   flex-shrink: 0;
 }
 
 .form-control input,
 .form-control select {
   padding: 8px 10px;
+  min-width: 0;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-subtle);

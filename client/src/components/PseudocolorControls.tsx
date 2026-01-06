@@ -41,11 +41,11 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       <div className="form-section">
         <div className="form-row">
           <div className="form-control">
-            <label htmlFor="field-select">Field</label>
+            <label htmlFor="field-select">field</label>
             <input
               id="field-select"
               type="text"
-              placeholder="e.g. density"
+              placeholder="density"
               value={config.field}
               onChange={(e) => handleInputChange("field", e.target.value)}
             />
@@ -56,21 +56,18 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       <div className="form-section">
         <div className="form-row">
           <div className="form-control">
-            <label htmlFor="x-coordinate">X</label>
+            <label>coordinates</label>
             <input
               id="x-coordinate"
               type="text"
-              placeholder="e.g. x"
+              placeholder="x"
               value={config.xCoordinate}
               onChange={(e) => handleInputChange("xCoordinate", e.target.value)}
             />
-          </div>
-          <div className="form-control">
-            <label htmlFor="y-coordinate">Y</label>
             <input
               id="y-coordinate"
               type="text"
-              placeholder="e.g. y"
+              placeholder="y"
               value={config.yCoordinate}
               onChange={(e) => handleInputChange("yCoordinate", e.target.value)}
             />
@@ -81,7 +78,7 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       <div className="form-section">
         <div className="form-row">
           <div className="form-control">
-            <label htmlFor="vmin">vmin</label>
+            <label htmlFor="vmin">min/max</label>
             <input
               id="vmin"
               type="number"
@@ -93,10 +90,8 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
                   e.target.value === "" ? undefined : Number(e.target.value),
                 )
               }
+              step="0.01"
             />
-          </div>
-          <div className="form-control">
-            <label htmlFor="vmax">vmax</label>
             <input
               id="vmax"
               type="number"
@@ -108,6 +103,7 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
                   e.target.value === "" ? undefined : Number(e.target.value),
                 )
               }
+              step="0.01"
             />
           </div>
         </div>
@@ -116,7 +112,7 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       <div className="form-section">
         <div className="form-row">
           <div className="form-control">
-            <label htmlFor="colorbar">Map</label>
+            <label htmlFor="colorbar">colormap</label>
             <select
               id="colorbar"
               value={config.colorMap}

@@ -73,7 +73,12 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <Menubar onAddSimulation={addSimulation} isLoading={isLoading} />
+      <Menubar
+        simulations={simulations}
+        onAddSimulation={addSimulation}
+        onUnloadSimulation={unloadSimulation}
+        isLoading={isLoading}
+      />
       <div className="layout-container">
         <div id="content"></div>
         <Layout
@@ -86,13 +91,7 @@ const App = () => {
           realtimeResize={true}
         />
       </div>
-      <FooterBar
-        timeline={timeline}
-        onTimelineChange={onTimelineChange}
-        simulations={simulations}
-        onUnloadSimulation={unloadSimulation}
-        isLoading={isLoading}
-      />
+      <FooterBar timeline={timeline} onTimelineChange={onTimelineChange} />
     </div>
   );
 };

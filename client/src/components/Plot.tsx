@@ -216,10 +216,6 @@ const Plot = (props: IPlotProps) => {
             </div>
           )}
         </div>
-        <div className="plot-hint">
-          Right-click the plot to configure fields, coordinates, colormap, and
-          ranges.
-        </div>
       </div>
 
       <div className="plot-footer">
@@ -237,11 +233,10 @@ const Plot = (props: IPlotProps) => {
             style={{ top: menuPosition.y, left: menuPosition.x }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="plot-contextmenu__header">Pseudocolor settings</div>
-            <div className="form-section">
+            <div className="form-section form-simulation-select">
               <div className="form-row">
                 <div className="form-control">
-                  <label htmlFor="simulation-select">Simulation</label>
+                  <label htmlFor="simulation-select">simulation</label>
                   <select
                     id="simulation-select"
                     value={selectedSimulationId ?? ""}
@@ -272,9 +267,6 @@ const Plot = (props: IPlotProps) => {
                 props.onPseudocolorConfigChange(node_id, config)
               }
             />
-            <div className="plot-contextmenu__footer">
-              Right-click anywhere on the plot to reopen this menu.
-            </div>
           </div>
         </div>
       )}

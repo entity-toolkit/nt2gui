@@ -9,6 +9,7 @@ const makeState = (current = 0): IUiState => ({
   plotters: {},
   timeline: { current, min: 0, max: 100, step: 1 },
   globalViewport: null,
+  globalLineViewports: {},
 });
 
 const snapshot = (revision: number, state = makeState()): IServerSnapshot => ({

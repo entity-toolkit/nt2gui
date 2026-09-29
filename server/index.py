@@ -9,9 +9,12 @@ from flask_cors import CORS
 from pydantic import ValidationError
 
 from fakeloader import Simulation
+from fields import field_metadata, render_line
 from schema import (
     DEFAULT_TIMELINE,
+    LineConfig,
     Plotter,
+    Range,
     Session,
     SessionDocument,
     SimulationRecord,
@@ -187,6 +190,47 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             return _error(f"Could not read file: {error.strerror or error}", 400)
         app.logger.info("Session loaded from %s", path)
         return jsonify({**apply_document(document), "path": str(path)})
+
+    @app.get("/simulations/<simulation_id>/fields")
+    def get_fields(simulation_id: str):
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return _error("Simulation not found", 404)
+        return jsonify(field_metadata(simulation.fields))
+
+    @app.post("/simulations/<simulation_id>/render/line")
+    def render_line_plot(simulation_id: str):
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return _error("Simulation not found", 404)
+
+        payload = request.get_json(silent=True) or {}
+        time_value = payload.get("time")
+        if not isinstance(time_value, (int, float)):
+            return _error("Time value is required", 400)
+        try:
+            config = LineConfig.model_validate(payload.get("config"))
+            value_range = (
+                Range.model_validate(payload["range"]).to_wire()
+                if payload.get("range") is not None
+                else None
+            )
+            return jsonify(
+                render_line(
+                    simulation.fields,
+                    config.quantities,
+                    config.axis,
+                    config.slices,
+                    float(time_value),
+                    value_range,
+                )
+            )
+        except ValidationError as error:
+            return _error("Invalid line plot request", 400, details=json.loads(error.json(include_url=False)))
+        except (KeyError, ValueError) as error:
+            # KeyError's str() wraps the message in quotes.
+            message = error.args[0] if error.args else str(error)
+            return _error(str(message), 400)
 
     @app.post("/simulations/<simulation_id>/render/pseudocolor")
     def render_pseudocolor(simulation_id: str):

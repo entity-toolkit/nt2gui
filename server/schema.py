@@ -11,7 +11,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class _Schema(BaseModel):
@@ -65,6 +65,33 @@ class PseudocolorConfig(_Schema):
     vmin: float | None = None
     vmax: float | None = None
     color_map: str
+    # Coordinate value at which each dim beyond x/y is sliced (3D fields).
+    slices: dict[str, float] = {}
+
+
+class Range(_Schema):
+    """A zoom window along a single coordinate (1D plots)."""
+
+    min: float
+    max: float
+
+    @model_validator(mode="after")
+    def _check_order(self) -> "Range":
+        if self.min >= self.max:
+            raise ValueError("range min must be below max")
+        return self
+
+
+class LineConfig(_Schema):
+    # Field names ("Ex") or vector names ("E", expands to its components).
+    quantities: list[str]
+    # Coordinate to plot against; empty means "first available".
+    axis: str
+    # Coordinate value at which every other spatial dimension is sliced.
+    slices: dict[str, float] = {}
+    # Fixed value-axis limits (display only); unset means automatic.
+    y_min: float | None = None
+    y_max: float | None = None
 
 
 class Plotter(_Schema):
@@ -74,6 +101,8 @@ class Plotter(_Schema):
     pseudocolor_config: PseudocolorConfig | None = None
     local_viewport: ZoomWindow | None = None
     use_global_viewport: bool | None = None
+    line_config: LineConfig | None = None
+    line_viewport: Range | None = None
 
 
 class UiState(_Schema):
@@ -82,6 +111,8 @@ class UiState(_Schema):
     plotters: dict[str, Plotter]
     timeline: Timeline
     global_viewport: ZoomWindow | None
+    # Synced 1D zoom, per coordinate: only line plots along the same axis share it.
+    global_line_viewports: dict[str, Range]
 
     @field_validator("layout")
     @classmethod
@@ -140,6 +171,7 @@ def default_session() -> Session:
                 "plotters": {},
                 "timeline": DEFAULT_TIMELINE,
                 "globalViewport": None,
+                "globalLineViewports": {},
             },
             "simulations": [],
         }

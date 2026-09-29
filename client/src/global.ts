@@ -27,6 +27,8 @@ export interface IPseudocolorConfig {
   vmin?: number;
   vmax?: number;
   colorMap: string;
+  /** Coordinate value at which each dim beyond x/y is sliced (3D fields). */
+  slices?: Record<string, number>;
 }
 
 export interface IZoomWindow {
@@ -34,6 +36,24 @@ export interface IZoomWindow {
   xMax: number;
   yMin: number;
   yMax: number;
+}
+
+/** A zoom window along one coordinate (1D plots). */
+export interface IRange {
+  min: number;
+  max: number;
+}
+
+export interface ILineConfig {
+  /** Field names ("Ex") or vector names ("E", plots all its components). */
+  quantities: string[];
+  /** Coordinate to plot against; "" means the first one available. */
+  axis: string;
+  /** Coordinate value at which each other spatial dimension is sliced. */
+  slices: Record<string, number>;
+  /** Fixed value-axis limits; either may be left unset (auto). */
+  yMin?: number;
+  yMax?: number;
 }
 
 export interface ITooltipDatum {
@@ -51,6 +71,8 @@ export interface IPlotter {
   pseudocolorConfig?: IPseudocolorConfig;
   localViewport?: IZoomWindow | null;
   useGlobalViewport?: boolean;
+  lineConfig?: ILineConfig;
+  lineViewport?: IRange | null;
 }
 
 export interface IPlotters {
@@ -62,6 +84,8 @@ export interface IUiState {
   plotters: IPlotters;
   timeline: ITimeline;
   globalViewport: IZoomWindow | null;
+  /** Synced 1D zoom per coordinate: only line plots along the same axis share it. */
+  globalLineViewports: Record<string, IRange>;
 }
 
 export interface ISimulation {
@@ -77,6 +101,20 @@ export const defaultPseudocolorConfig: IPseudocolorConfig = {
   vmax: undefined,
   colorMap: "viridis",
 };
+
+export const defaultLineConfig: ILineConfig = {
+  quantities: [],
+  axis: "",
+  slices: {},
+};
+
+/** A simulation's fields, as described by the server (see server/fields.py). */
+export interface IFieldMetadata {
+  fields: { name: string; dims: string[] }[];
+  vectors: { name: string; components: string[] }[];
+  /** Coordinate values of every spatial dimension used by some field. */
+  coords: Record<string, number[]>;
+}
 
 /** What the server returns for every state read or change. */
 export interface IServerSnapshot {

@@ -36,6 +36,8 @@ const App = () => {
     onGlobalViewportChange,
     onLocalViewportChange,
     onSyncViewportToggle,
+    onLineConfigChange,
+    onLineRangeChange,
     handleModelChange,
   } = useUiState();
   const { isLoading, addSimulation, unloadSimulation } =
@@ -58,7 +60,7 @@ const App = () => {
     );
   }
 
-  const { plotters, timeline, globalViewport } = uiState;
+  const { plotters, timeline, globalViewport, globalLineViewports } = uiState;
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -80,6 +82,9 @@ const App = () => {
             onPlotTypeChange={onPlotTypeChange}
             onPseudocolorConfigChange={onPseudocolorConfigChange}
             onPlotSimulationChange={onPlotSimulationChange}
+            globalLineViewports={globalLineViewports}
+            onLineConfigChange={onLineConfigChange}
+            onLineRangeChange={onLineRangeChange}
           />
         );
       case "json":
@@ -110,6 +115,7 @@ const App = () => {
     <div className="app-shell">
       <Menubar
         sessionFiles={sessionFiles}
+        syncStatus={syncStatus}
         simulations={simulations}
         onAddSimulation={addSimulation}
         onUnloadSimulation={unloadSimulation}
@@ -127,12 +133,9 @@ const App = () => {
           realtimeResize={true}
         />
       </div>
-      <FooterBar
-        timeline={timeline}
-        onTimelineChange={onTimelineChange}
-        syncStatus={syncStatus}
-        showTimeline={simulations.length > 0}
-      />
+      {simulations.length > 0 && (
+        <FooterBar timeline={timeline} onTimelineChange={onTimelineChange} />
+      )}
     </div>
   );
 };

@@ -27,9 +27,35 @@ class Simulation:
         f = np.sin(xx - 2 * np.pi * tt) * np.cos(yy)
         g = np.exp(-((xx - 5) ** 2 + (yy) ** 2)) * np.sin(4 * np.pi * tt)
 
+        phase = xx - 2 * np.pi * tt
+        dims = ("x", "y", "t")
+        data_vars = {
+            "f": (dims, f),
+            "g": (dims, g),
+            # Vector components, so line plots can show "B"/"E" as groups.
+            "Bx": (dims, 0.2 * np.cos(yy) + 0 * xx),
+            "By": (dims, np.sin(phase) * np.exp(-(yy**2) / 8)),
+            "Bz": (dims, np.cos(phase) * np.exp(-(yy**2) / 8)),
+            "Ex": (dims, 0.1 * np.sin(2 * phase)),
+            "Ey": (dims, -np.cos(phase) * np.exp(-(yy**2) / 8)),
+            "Ez": (dims, np.sin(phase) * np.exp(-(yy**2) / 8)),
+            "N_1": (dims, 1 + 0.5 * np.exp(-((xx - 3 - 4 * tt) ** 2) - yy**2 / 4)),
+            "N_2": (dims, 1 + 0.3 * np.cos(yy) * np.sin(xx + 2 * np.pi * tt) ** 2),
+        }
+
+        # A 3D field, so plots can be sliced along a third axis. float32 and
+        # a short z keep the fake dataset small.
+        self._z = np.linspace(-2, 2, 9)
+        x4, y4, z4, t4 = np.meshgrid(self.x, self.y, self._z, self.t, indexing="ij")
+        data_vars["rho"] = (
+            ("x", "y", "z", "t"),
+            np.exp(-((x4 - 5 - 3 * np.sin(2 * np.pi * t4)) ** 2) / 4 - y4**2 / 4 - z4**2)
+            .astype(np.float32),
+        )
+
         self._fields = xr.Dataset(
-            data_vars={"f": (("x", "y", "t"), f), "g": (("x", "y", "t"), g)},
-            coords={"t": self.t, "x": self.x, "y": self.y},
+            data_vars=data_vars,
+            coords={"t": self.t, "x": self.x, "y": self.y, "z": self._z},
         )
 
     @property
@@ -81,6 +107,26 @@ class Simulation:
 
         slice_data = data_array.sel(t=time_value, method="nearest")
         actual_time = float(slice_data.coords["t"].item())
+
+        for coordinate in (x_coordinate, y_coordinate):
+            if coordinate not in slice_data.dims:
+                raise ValueError(f"'{field}' does not depend on '{coordinate}'")
+        if x_coordinate == y_coordinate:
+            raise ValueError("x and y must be different coordinates")
+        # Fields with more than two spatial dims are cut at `slices[dim]` (the
+        # nearest grid point) along every other dim, or through its middle.
+        requested_slices = config.get("slices") or {}
+        used_slices: dict[str, float] = {}
+        for dim in list(slice_data.dims):
+            if dim in (x_coordinate, y_coordinate):
+                continue
+            if dim in requested_slices:
+                slice_data = slice_data.sel(
+                    {dim: float(requested_slices[dim])}, method="nearest"
+                )
+            else:
+                slice_data = slice_data.isel({dim: slice_data.sizes[dim] // 2})
+            used_slices[str(dim)] = float(slice_data.coords[dim].item())
 
         ordered = slice_data.transpose(x_coordinate, y_coordinate)
         values = ordered.values
@@ -192,6 +238,7 @@ class Simulation:
         return {
             "image": encoded,
             "timestamp": actual_time,
+            "slices": used_slices,
             "extent": {
                 "xMin": extent[0],
                 "xMax": extent[1],

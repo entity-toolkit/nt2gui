@@ -8,9 +8,13 @@ import {
   ITimeline,
   IPseudocolorConfig,
   IZoomWindow,
+  ILineConfig,
+  IRange,
   PlotType,
+  defaultLineConfig,
   defaultPseudocolorConfig,
 } from "../global";
+import { withAxisRange } from "../lineConfig";
 import { collectPanelIds, reconcilePlotters } from "../plotterSync";
 import { fetchState, putState } from "../services/uiStateService";
 import { StateSync, SyncStatus } from "../sync/StateSync";
@@ -163,6 +167,10 @@ export const useUiState = () => {
                     ...defaultPseudocolorConfig,
                   })
                 : existing?.pseudocolorConfig,
+            lineConfig:
+              newPlotType === PlotType.Line
+                ? (existing?.lineConfig ?? { ...defaultLineConfig })
+                : existing?.lineConfig,
           },
         };
       });
@@ -265,6 +273,52 @@ export const useUiState = () => {
     [updateUiState],
   );
 
+  const onLineConfigChange = useCallback(
+    (nodeId: string, config: ILineConfig) => {
+      applyPlotterChange((prev) => {
+        const existing = prev[nodeId];
+        if (!existing || existing.lineConfig === config) return prev;
+        return { ...prev, [nodeId]: { ...existing, lineConfig: config } };
+      });
+    },
+    [applyPlotterChange],
+  );
+
+  /**
+   * Zoom a line plot along its axis. Synced plots write the shared range for
+   * that axis; unsynced ones keep their own.
+   */
+  const onLineRangeChange = useCallback(
+    (nodeId: string, axis: string, range: IRange | null) => {
+      updateUiState((prev) => {
+        const existing = prev.plotters[nodeId];
+        if (!existing) return prev;
+        if (existing.useGlobalViewport ?? true) {
+          const globalLineViewports = withAxisRange(
+            prev.globalLineViewports,
+            axis,
+            range,
+          );
+          return globalLineViewports === prev.globalLineViewports
+            ? prev
+            : { ...prev, globalLineViewports };
+        }
+        const current = existing.lineViewport ?? null;
+        if (current?.min === range?.min && current?.max === range?.max) {
+          return prev;
+        }
+        return {
+          ...prev,
+          plotters: {
+            ...prev.plotters,
+            [nodeId]: { ...existing, lineViewport: range },
+          },
+        };
+      });
+    },
+    [updateUiState],
+  );
+
   const onLocalViewportChange = useCallback(
     (nodeId: string, viewport: IZoomWindow | null) => {
       applyPlotterChange((prev) => {
@@ -326,6 +380,8 @@ export const useUiState = () => {
       onGlobalViewportChange,
       onLocalViewportChange,
       onSyncViewportToggle,
+      onLineConfigChange,
+      onLineRangeChange,
       handleModelChange,
     }),
     [
@@ -344,6 +400,8 @@ export const useUiState = () => {
       onGlobalViewportChange,
       onLocalViewportChange,
       onSyncViewportToggle,
+      onLineConfigChange,
+      onLineRangeChange,
       handleModelChange,
     ],
   );

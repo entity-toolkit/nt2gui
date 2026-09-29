@@ -3,11 +3,14 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { useSessionFiles } from "../hooks/useSessionFiles";
 import SessionDialog, { SessionDialogMode } from "./SessionDialog";
+import SyncStatusBadge from "./SyncStatusBadge";
+import { SyncStatus } from "../sync/StateSync";
 import styles from "./Menubar.module.css";
 const menuItems = ["Save state", "Load state", "Settings", "Help"];
 
 interface MenubarProps {
   sessionFiles: ReturnType<typeof useSessionFiles>;
+  syncStatus: SyncStatus;
   simulations: ISimulation[];
   onAddSimulation: (path: string) => void | Promise<void>;
   onUnloadSimulation: (id: string) => void;
@@ -16,6 +19,7 @@ interface MenubarProps {
 
 const Menubar = ({
   sessionFiles,
+  syncStatus,
   simulations,
   onAddSimulation,
   onUnloadSimulation,
@@ -77,6 +81,9 @@ const Menubar = ({
             {item}
           </button>
         ))}
+        <div className={styles.menuStatus}>
+          <SyncStatusBadge status={syncStatus} />
+        </div>
       </div>
 
       {sessionDialog && (

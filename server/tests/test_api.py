@@ -25,7 +25,13 @@ def test_state_is_available_without_initialization(client):
     assert response.status_code == 200
     body = response.get_json()
     assert body["revision"] == 0
-    assert set(body["state"]) == {"layout", "plotters", "timeline", "globalViewport"}
+    assert set(body["state"]) == {
+        "layout",
+        "plotters",
+        "timeline",
+        "globalViewport",
+        "globalLineViewports",
+    }
 
 
 def test_put_state_accepts_current_revision(client):
@@ -120,3 +126,129 @@ def test_unloading_simulation_clears_references_and_resets_timeline(client):
 def test_unknown_simulation_is_404(client):
     assert client.delete("/simulations/nope").status_code == 404
     assert client.post("/simulations/nope/render/pseudocolor", json={"time": 0}).status_code == 404
+
+
+def test_field_metadata_endpoint(client):
+    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+        "simulations"
+    ][0]["id"]
+
+    body = client.get(f"/simulations/{sim_id}/fields").get_json()
+
+    assert {"name": "B", "components": ["Bx", "By", "Bz"]} in body["vectors"]
+    assert {"name": "N_1", "dims": ["x", "y"]} in body["fields"]
+    assert client.get("/simulations/nope/fields").status_code == 404
+
+
+def test_line_render_endpoint(client):
+    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+        "simulations"
+    ][0]["id"]
+    url = f"/simulations/{sim_id}/render/line"
+    config = {"quantities": ["E", "N_1"], "axis": "x", "slices": {"y": 0.0}}
+
+    ok = client.post(url, json={"config": config, "time": 0.5, "range": {"min": 2, "max": 4}})
+    body = ok.get_json()
+    assert ok.status_code == 200
+    assert [s["name"] for s in body["series"]] == ["Ex", "Ey", "Ez", "N_1"]
+    # One grid point beyond each edge of the zoom range is kept.
+    inside = [c for c in body["coordinates"] if 2 <= c <= 4]
+    assert len(body["coordinates"]) == len(inside) + 2
+
+    unknown = client.post(url, json={"config": {**config, "quantities": ["zzz"]}, "time": 0})
+    assert unknown.status_code == 400
+    assert unknown.get_json()["error"] == "Unknown quantity 'zzz'"
+
+    assert client.post(url, json={"config": config}).status_code == 400
+    assert client.post(url, json={"config": {"axis": "x"}, "time": 0}).status_code == 400
+    bad_range = {"config": config, "time": 0, "range": {"min": 3, "max": 1}}
+    assert client.post(url, json=bad_range).status_code == 400
+
+
+def test_line_plot_state_round_trips(client):
+    plotters = {
+        "p1": {
+            "plotType": "line",
+            "dataType": "fields",
+            "lineConfig": {"quantities": ["B"], "axis": "y", "slices": {"x": 2.5}},
+            "lineViewport": {"min": -1, "max": 1},
+        }
+    }
+    response = put_state(
+        client, 0, plotters=plotters, globalLineViewports={"x": {"min": 0, "max": 5}}
+    )
+
+    assert response.status_code == 200
+    state = client.get("/state").get_json()["state"]
+    assert state["plotters"] == plotters
+    assert state["globalLineViewports"] == {"x": {"min": 0, "max": 5}}
+
+
+def test_line_y_limits_round_trip_in_state(client):
+    plotters = {
+        "p1": {
+            "plotType": "line",
+            "dataType": "fields",
+            "lineConfig": {"quantities": ["f"], "axis": "x", "yMin": -2, "yMax": 3.5},
+        }
+    }
+    assert put_state(client, 0, plotters=plotters).status_code == 200
+    assert client.get("/state").get_json()["state"]["plotters"] == plotters
+
+
+def test_pseudocolor_rejects_axes_the_field_lacks(client):
+    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+        "simulations"
+    ][0]["id"]
+    url = f"/simulations/{sim_id}/render/pseudocolor"
+
+    ok = client.post(url, json={"config": {"field": "f", "xCoordinate": "y", "yCoordinate": "x"}, "time": 0})
+    missing = client.post(url, json={"config": {"field": "f", "xCoordinate": "x", "yCoordinate": "z"}, "time": 0})
+    same = client.post(url, json={"config": {"field": "f", "xCoordinate": "x", "yCoordinate": "x"}, "time": 0})
+
+    assert ok.status_code == 200
+    assert missing.status_code == 400 and "does not depend on 'z'" in missing.get_json()["error"]
+    assert same.status_code == 400
+
+
+def test_pseudocolor_of_3d_field_is_sliced_at_requested_coordinate(client):
+    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+        "simulations"
+    ][0]["id"]
+    url = f"/simulations/{sim_id}/render/pseudocolor"
+    config = {"field": "rho", "xCoordinate": "x", "yCoordinate": "y"}
+
+    middle = client.post(url, json={"config": config, "time": 0}).get_json()
+    chosen = client.post(
+        url, json={"config": {**config, "slices": {"z": 1.4}}, "time": 0}
+    ).get_json()
+    along_z = client.post(
+        url,
+        json={"config": {**config, "yCoordinate": "z", "slices": {"y": -5}}, "time": 0},
+    ).get_json()
+    two_d = client.post(url, json={"config": {**config, "field": "f"}, "time": 0}).get_json()
+
+    assert middle["slices"] == {"z": 0.0}
+    assert chosen["slices"] == {"z": 1.5}  # nearest grid point (z step is 0.5)
+    # rho ~ exp(-z^2): a slice away from z=0 has a smaller peak.
+    assert chosen["colorbar"]["vmax"] < middle["colorbar"]["vmax"]
+    assert along_z["slices"] == {"y": -5.0}
+    assert two_d["slices"] == {}
+
+
+def test_pseudocolor_slices_round_trip_in_state(client):
+    plotters = {
+        "p1": {
+            "plotType": "pseudocolor",
+            "dataType": "fields",
+            "pseudocolorConfig": {
+                "field": "rho",
+                "xCoordinate": "x",
+                "yCoordinate": "y",
+                "colorMap": "viridis",
+                "slices": {"z": 0.5},
+            },
+        }
+    }
+    assert put_state(client, 0, plotters=plotters).status_code == 200
+    assert client.get("/state").get_json()["state"]["plotters"] == plotters

@@ -13,7 +13,10 @@ const PickPlotter = (props: IPickPlotterProps) => {
   return (
     <SelectionMenu
       options={[
-        { label: "1D plot", disabled: true },
+        {
+          label: "1D plot",
+          onSelect: () => props.onPlotTypeChange(node_id, PlotType.Line),
+        },
         {
           label: "2D pseudocolor",
           onSelect: () => props.onPlotTypeChange(node_id, PlotType.Pseudocolor),

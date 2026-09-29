@@ -16,12 +16,22 @@ from schema import SCHEMA_VERSION, SessionDocument
 
 SESSION_SUFFIX = ".json"
 
+
+def _v1_to_v2(raw: dict[str, Any]) -> dict[str, Any]:
+    # v2 added 1D line plots and their per-axis synced zoom.
+    state = raw.get("state")
+    if isinstance(state, dict):
+        state.setdefault("globalLineViewports", {})
+    return raw
+
+
 # schema_version -> function upgrading raw JSON from that version to the next.
-MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
+MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {1: _v1_to_v2}
 
 
 def migrate(raw: dict[str, Any]) -> dict[str, Any]:
-    version = raw.get("schemaVersion", SCHEMA_VERSION)
+    # Files written before versioning existed are v1.
+    version = raw.get("schemaVersion", 1)
     if not isinstance(version, int):
         raise ValueError("schemaVersion must be an integer")
     if version > SCHEMA_VERSION:

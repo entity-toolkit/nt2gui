@@ -1,6 +1,5 @@
-import { ChangeEvent } from "react";
-import { IPseudocolorConfig, ISimulation } from "../global";
-import PseudocolorControls from "./PseudocolorControls";
+import { ChangeEvent, ReactNode } from "react";
+import { ISimulation } from "../global";
 import contextStyles from "./PlotContextMenu.module.css";
 import formStyles from "./PseudocolorControls.module.css";
 
@@ -8,18 +7,17 @@ interface PlotContextMenuProps {
   position: { x: number; y: number };
   simulations: ISimulation[];
   selectedSimulationId: string | null;
-  pseudocolorConfig: IPseudocolorConfig;
   onSimulationChange: (simulationId?: string) => void;
-  onConfigChange: (config: IPseudocolorConfig) => void;
+  /** Plot-type specific controls, shown below the simulation picker. */
+  children: ReactNode;
 }
 
 const PlotContextMenu = ({
   position,
   simulations,
   selectedSimulationId,
-  pseudocolorConfig,
   onSimulationChange,
-  onConfigChange,
+  children,
 }: PlotContextMenuProps) => (
   <div className={contextStyles.overlay}>
     <div
@@ -54,10 +52,7 @@ const PlotContextMenu = ({
           </div>
         </div>
       </div>
-      <PseudocolorControls
-        config={pseudocolorConfig}
-        onChange={onConfigChange}
-      />
+      {children}
     </div>
   </div>
 );

@@ -13,6 +13,8 @@ import {
   ISimulation,
   IZoomWindow,
   ITooltipDatum,
+  ILineConfig,
+  IRange,
 } from "../global";
 
 interface IPanelProps {
@@ -33,6 +35,13 @@ interface IPanelProps {
   onSyncViewportToggle: (nodeId: string, useGlobal: boolean) => void;
   globalTooltip: ITooltipDatum | null;
   onGlobalTooltipChange: (tooltip: ITooltipDatum | null) => void;
+  globalLineViewports: Record<string, IRange>;
+  onLineConfigChange: (nodeId: string, config: ILineConfig) => void;
+  onLineRangeChange: (
+    nodeId: string,
+    axis: string,
+    range: IRange | null,
+  ) => void;
 }
 
 const Panel = (props: IPanelProps) => {
@@ -68,6 +77,9 @@ const Panel = (props: IPanelProps) => {
           onPlotTypeChange={props.onPlotTypeChange}
           onPseudocolorConfigChange={props.onPseudocolorConfigChange}
           onPlotSimulationChange={props.onPlotSimulationChange}
+          globalLineViewports={props.globalLineViewports}
+          onLineConfigChange={props.onLineConfigChange}
+          onLineRangeChange={props.onLineRangeChange}
         />
       )}
     </div>

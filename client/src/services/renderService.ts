@@ -17,6 +17,8 @@ export type ColorbarTicks = {
 export type PseudocolorResponse = {
   image: string;
   timestamp: number;
+  /** Coordinates actually used for dims beyond x/y (nearest grid point). */
+  slices: Record<string, number>;
   extent: { xMin: number; xMax: number; yMin: number; yMax: number };
   imageSize: { width: number; height: number };
   xTicks: TickSet;

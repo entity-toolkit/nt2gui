@@ -30,10 +30,33 @@ interface PseudocolorPreviewProps {
   plotId: string;
   globalTooltip: ITooltipDatum | null;
   onGlobalTooltipChange: (tooltip: ITooltipDatum | null) => void;
+  xLabel: string;
+  yLabel: string;
+  colorbarLabel: string;
 }
 
-const margin = { top: 16, right: 78, bottom: 44, left: 54 };
 const colorbarWidth = 14;
+const colorbarGap = 20;
+const tickLabelGap = 8;
+// Room for a (rotated) axis title: font size plus padding.
+const titleSpace = 22;
+
+/**
+ * Margins around the image, sized from the measured width of the tick labels
+ * so that long labels (e.g. "-0.00125" on the colorbar) are never clipped.
+ */
+const computeMargin = (labels: { yTicks: number; colorbarTicks: number }) => ({
+  top: 16,
+  bottom: 30 + titleSpace,
+  left: 12 + labels.yTicks + titleSpace,
+  right:
+    colorbarGap +
+    colorbarWidth +
+    tickLabelGap +
+    labels.colorbarTicks +
+    titleSpace +
+    6,
+});
 
 const tickFormatter = (labels: string[]) =>
   function formatTick(_value: NumberValue, index: number) {
@@ -82,6 +105,9 @@ const PseudocolorPreview = ({
   plotId,
   globalTooltip,
   onGlobalTooltipChange,
+  xLabel,
+  yLabel,
+  colorbarLabel,
 }: PseudocolorPreviewProps) => {
   const xAxisRef = useRef<SVGGElement | null>(null);
   const yAxisRef = useRef<SVGGElement | null>(null);
@@ -93,6 +119,12 @@ const PseudocolorPreview = ({
   const [dragStart, setDragStart] = useState<PointerPoint | null>(null);
   const [dragCurrent, setDragCurrent] = useState<PointerPoint | null>(null);
   const gradientId = useId();
+  // Widest tick label of each vertical axis, measured after d3 draws them.
+  const [labelWidths, setLabelWidths] = useState({
+    yTicks: 36,
+    colorbarTicks: 36,
+  });
+  const margin = useMemo(() => computeMargin(labelWidths), [labelWidths]);
 
   const { width: imageWidth, height: imageHeight } = render.imageSize;
   const xRange = render.extent.xMax - render.extent.xMin;
@@ -124,7 +156,7 @@ const PseudocolorPreview = ({
       scaleLinear()
         .domain([activeExtent.xMin, activeExtent.xMax])
         .range([margin.left, margin.left + innerWidth]),
-    [activeExtent.xMax, activeExtent.xMin, innerWidth],
+    [activeExtent.xMax, activeExtent.xMin, innerWidth, margin.left],
   );
 
   const yScale = useMemo(
@@ -132,7 +164,7 @@ const PseudocolorPreview = ({
       scaleLinear()
         .domain([activeExtent.yMin, activeExtent.yMax])
         .range([margin.top + innerHeight, margin.top]),
-    [activeExtent.yMax, activeExtent.yMin, innerHeight],
+    [activeExtent.yMax, activeExtent.yMin, innerHeight, margin.top],
   );
 
   useEffect(() => {
@@ -179,6 +211,33 @@ const PseudocolorPreview = ({
     render.colorbar.ticks,
     render.colorbar.vmax,
     render.colorbar.vmin,
+  ]);
+
+  // Runs after the axis effects above, once their tick labels exist. Sizes
+  // are in SVG user units, so they hold however the figure is scaled.
+  useEffect(() => {
+    const widest = (group: SVGGElement | null) => {
+      let width = 0;
+      group?.querySelectorAll("text").forEach((text) => {
+        width = Math.max(width, text.getBBox().width);
+      });
+      return Math.ceil(width);
+    };
+    const next = {
+      yTicks: widest(yAxisRef.current),
+      colorbarTicks: widest(colorbarAxisRef.current),
+    };
+    setLabelWidths((prev) =>
+      prev.yTicks === next.yTicks && prev.colorbarTicks === next.colorbarTicks
+        ? prev
+        : next,
+    );
+  }, [
+    render.colorbar.labels,
+    render.xTicks.labels,
+    render.yTicks.labels,
+    xScale,
+    yScale,
   ]);
 
   useEffect(() => {
@@ -448,7 +507,7 @@ const PseudocolorPreview = ({
 
         <g
           className={styles.pseudocolorColorbar}
-          transform={`translate(${margin.left + innerWidth + 20}, ${margin.top})`}
+          transform={`translate(${margin.left + innerWidth + colorbarGap}, ${margin.top})`}
         >
           <rect
             width={colorbarWidth}
@@ -456,12 +515,39 @@ const PseudocolorPreview = ({
             rx={4}
             fill={`url(#${gradientId})`}
           />
-            <g
-              ref={colorbarAxisRef}
-              className={styles.pseudocolorAxis}
-              transform={`translate(${colorbarWidth + 8}, 0)`}
-            />
+          <g
+            ref={colorbarAxisRef}
+            className={styles.pseudocolorAxis}
+            transform={`translate(${colorbarWidth + tickLabelGap}, 0)`}
+          />
+          <text
+            className={styles.axisTitle}
+            transform={`translate(${
+              colorbarWidth + tickLabelGap + labelWidths.colorbarTicks + 16
+            }, ${innerHeight / 2}) rotate(90)`}
+            textAnchor="middle"
+          >
+            {colorbarLabel}
+          </text>
         </g>
+
+        <text
+          className={styles.axisTitle}
+          x={margin.left + innerWidth / 2}
+          y={margin.top + innerHeight + 30 + titleSpace / 2 + 4}
+          textAnchor="middle"
+        >
+          {xLabel}
+        </text>
+        <text
+          className={styles.axisTitle}
+          transform={`translate(${titleSpace / 2 + 4}, ${
+            margin.top + innerHeight / 2
+          }) rotate(-90)`}
+          textAnchor="middle"
+        >
+          {yLabel}
+        </text>
 
         {dragStart && dragCurrent && (
           <rect

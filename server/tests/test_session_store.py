@@ -132,3 +132,26 @@ def test_save_leaves_no_temp_files(tmp_path):
     store.replace_state(make_state(), 1)
 
     assert [p.name for p in tmp_path.iterdir()] == ["session.json"]
+
+
+def test_v1_session_file_is_migrated(tmp_path):
+    path = tmp_path / "session.json"
+    v1 = default_session().to_wire()
+    v1["schemaVersion"] = 1
+    del v1["state"]["globalLineViewports"]
+    path.write_text(json.dumps(v1))
+
+    store = SessionStore(path)
+
+    assert store.snapshot()["state"]["globalLineViewports"] == {}
+    assert store.session.schema_version == SCHEMA_VERSION
+
+
+def test_unversioned_file_is_treated_as_v1(tmp_path):
+    path = tmp_path / "session.json"
+    raw = default_session().to_wire()
+    del raw["schemaVersion"]
+    del raw["state"]["globalLineViewports"]
+    path.write_text(json.dumps(raw))
+
+    assert SessionStore(path).snapshot()["state"]["globalLineViewports"] == {}

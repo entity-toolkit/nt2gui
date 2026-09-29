@@ -2,6 +2,7 @@ import { TabNode } from "flexlayout-react";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useCallback,
   type MouseEvent,
@@ -18,7 +19,22 @@ import {
   ISimulation,
   IZoomWindow,
   ITooltipDatum,
+  ILineConfig,
+  IRange,
+  defaultLineConfig,
 } from "../global";
+import { useFieldMetadata } from "../hooks/useFieldMetadata";
+import {
+  activeLineRange,
+  effectiveAxis,
+  quantityDims,
+  withSlice,
+} from "../lineConfig";
+import { pseudocolorSliceDims } from "../pseudocolorConfig";
+import SlicedFigure from "./SlicedFigure";
+import LineControls from "./LineControls";
+import LineFigure from "./LineFigure";
+import PseudocolorControls from "./PseudocolorControls";
 
 import PseudocolorPreview from "./PseudocolorPreview";
 import PlotContextMenu from "./PlotContextMenu";
@@ -46,6 +62,13 @@ interface IPlotProps {
   onLocalViewportChange: (nodeId: string, viewport: IZoomWindow | null) => void;
   onSyncViewportToggle: (nodeId: string, useGlobal: boolean) => void;
   onGlobalTooltipChange: (tooltip: ITooltipDatum | null) => void;
+  globalLineViewports: Record<string, IRange>;
+  onLineConfigChange: (nodeId: string, config: ILineConfig) => void;
+  onLineRangeChange: (
+    nodeId: string,
+    axis: string,
+    range: IRange | null,
+  ) => void;
 }
 
 const Plot = (props: IPlotProps) => {
@@ -56,6 +79,10 @@ const Plot = (props: IPlotProps) => {
 
   const isPseudocolor =
     node_datatype === DataType.Fields && node_plottype === PlotType.Pseudocolor;
+
+  const isLine =
+    node_datatype === DataType.Fields && node_plottype === PlotType.Line;
+  const needsSimulation = isPseudocolor || isLine;
 
   const pseudocolorConfig = useMemo(
     () => node_plotter?.pseudocolorConfig ?? defaultPseudocolorConfig,
@@ -95,8 +122,11 @@ const Plot = (props: IPlotProps) => {
     y: number;
   } | null>(null);
   const [isZoomMode, setIsZoomMode] = useState(false);
+  // Slice sliders fire renders in quick succession; only the latest counts.
+  const latestRender = useRef(0);
 
   useEffect(() => {
+    const requestId = ++latestRender.current;
     if (!isPseudocolor) {
       setRenderData(null);
       return;
@@ -128,14 +158,16 @@ const Plot = (props: IPlotProps) => {
       activeViewport ?? undefined,
     )
       .then((result) => {
+        if (requestId !== latestRender.current) return;
         setRenderData(result);
       })
       .catch((error: Error) => {
+        if (requestId !== latestRender.current) return;
         setRenderData(null);
         setRenderError(error.message ?? "Failed to render plot");
       })
       .finally(() => {
-        setIsRendering(false);
+        if (requestId === latestRender.current) setIsRendering(false);
       });
   }, [
     isPseudocolor,
@@ -146,7 +178,7 @@ const Plot = (props: IPlotProps) => {
   ]);
 
   useEffect(() => {
-    if (!isPseudocolor) {
+    if (!needsSimulation) {
       return;
     }
 
@@ -167,7 +199,7 @@ const Plot = (props: IPlotProps) => {
 
     props.onPlotSimulationChange(node_id, props.simulations[0].id);
   }, [
-    isPseudocolor,
+    needsSimulation,
     node_id,
     node_plotter?.simulationId,
     props.onPlotSimulationChange,
@@ -208,7 +240,31 @@ const Plot = (props: IPlotProps) => {
     [node_id, props, useGlobalZoom],
   );
 
-  const resetZoom = useCallback(() => applyViewport(null), [applyViewport]);
+  const lineConfig = node_plotter?.lineConfig ?? defaultLineConfig;
+  const { metadata: fieldMetadata, error: fieldMetadataError } =
+    useFieldMetadata(needsSimulation ? selectedSimulationId : null);
+  const lineAxis = fieldMetadata
+    ? effectiveAxis(
+        lineConfig.axis,
+        quantityDims(fieldMetadata, lineConfig.quantities),
+      )
+    : "";
+  const lineRange = isLine
+    ? activeLineRange(node_plotter, props.globalLineViewports, lineAxis)
+    : null;
+
+  const applyLineRange = useCallback(
+    (range: IRange | null) => {
+      if (lineAxis) props.onLineRangeChange(node_id, lineAxis, range);
+      setIsZoomMode(false);
+    },
+    [lineAxis, node_id, props],
+  );
+
+  const resetZoom = useCallback(
+    () => (isLine ? applyLineRange(null) : applyViewport(null)),
+    [applyLineRange, applyViewport, isLine],
+  );
 
   const handleSyncToggle = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -219,16 +275,22 @@ const Plot = (props: IPlotProps) => {
 
   const openContextMenu = (event: MouseEvent) => {
     event.preventDefault();
-    if (!isPseudocolor) {
+    if (!needsSimulation) {
       return;
     }
 
     setMenuPosition({ x: event.clientX, y: event.clientY });
   };
 
-  const canZoom = isPseudocolor && !!renderData;
-  const canResetZoom = !!activeViewport;
-  const zoomStatusLabel = useGlobalZoom ? "Global zoom" : "Local zoom";
+  const canZoom =
+    (isPseudocolor && !!renderData) ||
+    (isLine && !!lineAxis && lineConfig.quantities.length > 0);
+  const isZoomed = isLine ? !!lineRange : !!activeViewport;
+  const canResetZoom = isZoomed;
+  // 1D plots only sync with other 1D plots along the same coordinate.
+  const zoomStatusLabel =
+    (useGlobalZoom ? "Global zoom" : "Local zoom") +
+    (isLine && lineAxis ? ` (${lineAxis})` : "");
 
   return (
     <div className={styles.plot}>
@@ -265,41 +327,91 @@ const Plot = (props: IPlotProps) => {
             </label>
             <span className={styles.toolbarStatus}>
               {zoomStatusLabel}
-              {activeViewport ? " • zoomed" : ""}
+              {isZoomed ? " • zoomed" : ""}
             </span>
           </div>
         </div>
 
         <div className={styles.plotFigure} onContextMenu={openContextMenu}>
-          {!isPseudocolor ? (
+          {isLine ? (
+            !selectedSimulationId ? (
+              <div className={styles.figurePlaceholder}>
+                <span className={styles.figureTag}>No simulation</span>
+                <div>Load a simulation to plot its fields.</div>
+              </div>
+            ) : fieldMetadataError ? (
+              <div className={styles.figureError} role="alert">
+                {fieldMetadataError}
+              </div>
+            ) : !fieldMetadata ? (
+              <div className={styles.figurePlaceholder}>
+                <span className={styles.figureTag}>Loading fields…</span>
+              </div>
+            ) : (
+              <LineFigure
+                simulationId={selectedSimulationId}
+                metadata={fieldMetadata}
+                config={lineConfig}
+                time={props.timeline.current}
+                range={lineRange}
+                zoomEnabled={isZoomMode}
+                onRangeChange={applyLineRange}
+                onConfigChange={(config) =>
+                  props.onLineConfigChange(node_id, config)
+                }
+              />
+            )
+          ) : !isPseudocolor ? (
             <div className={styles.figurePlaceholder}>
               <span className={styles.figureTag}>Pick a renderer</span>
               <div>Select a plot type to request a server render.</div>
             </div>
-          ) : renderError ? (
-            <div className={styles.figureError} role="alert">
-              {renderError}
-            </div>
-          ) : renderData ? (
-            <PseudocolorPreview
-              render={renderData}
-              isRefreshing={isRendering}
-              zoomEnabled={isZoomMode}
-              viewport={activeViewport ?? null}
-              onViewportChange={applyViewport}
-              plotId={node_id}
-              globalTooltip={props.globalTooltip}
-              onGlobalTooltipChange={props.onGlobalTooltipChange}
-            />
           ) : (
-            <div className={styles.figurePlaceholder}>
-              <span className={styles.figureTag}>Awaiting render</span>
-              <div>
-                {isRendering
-                  ? "Rendering pseudocolor preview…"
-                  : "Adjust the controls to request a server-side render."}
-              </div>
-            </div>
+            <SlicedFigure
+              sliceDims={
+                fieldMetadata
+                  ? pseudocolorSliceDims(fieldMetadata, pseudocolorConfig)
+                  : []
+              }
+              coords={fieldMetadata?.coords ?? {}}
+              slices={pseudocolorConfig.slices ?? {}}
+              usedSlices={renderData?.slices}
+              onSliceChange={(dim, value) =>
+                props.onPseudocolorConfigChange(
+                  node_id,
+                  withSlice(pseudocolorConfig, dim, value),
+                )
+              }
+            >
+              {renderError ? (
+                <div className={styles.figureError} role="alert">
+                  {renderError}
+                </div>
+              ) : renderData ? (
+                <PseudocolorPreview
+                  render={renderData}
+                  isRefreshing={isRendering}
+                  zoomEnabled={isZoomMode}
+                  viewport={activeViewport ?? null}
+                  onViewportChange={applyViewport}
+                  plotId={node_id}
+                  globalTooltip={props.globalTooltip}
+                  onGlobalTooltipChange={props.onGlobalTooltipChange}
+                  xLabel={pseudocolorConfig.xCoordinate}
+                  yLabel={pseudocolorConfig.yCoordinate}
+                  colorbarLabel={pseudocolorConfig.field}
+                />
+              ) : (
+                <div className={styles.figurePlaceholder}>
+                  <span className={styles.figureTag}>Awaiting render</span>
+                  <div>
+                    {isRendering
+                      ? "Rendering pseudocolor preview…"
+                      : "Adjust the controls to request a server-side render."}
+                  </div>
+                </div>
+              )}
+            </SlicedFigure>
           )}
         </div>
       </div>
@@ -308,7 +420,9 @@ const Plot = (props: IPlotProps) => {
         <div className={styles.plotMeta}>
           <span className={styles.plotBadge}>{node_datatype}</span>
           <span className={styles.plotBadge}>{node_plottype}</span>
-          <span className={styles.plotBadge}>Simulation: {simulationLabel}</span>
+          <span className={styles.plotBadge}>
+            Simulation: {simulationLabel}
+          </span>
         </div>
       </div>
 
@@ -317,14 +431,28 @@ const Plot = (props: IPlotProps) => {
           position={menuPosition}
           simulations={props.simulations}
           selectedSimulationId={selectedSimulationId}
-          pseudocolorConfig={pseudocolorConfig}
           onSimulationChange={(simulationId) =>
             props.onPlotSimulationChange(node_id, simulationId)
           }
-          onConfigChange={(config) =>
-            props.onPseudocolorConfigChange(node_id, config)
-          }
-        />
+        >
+          {isLine ? (
+            <LineControls
+              metadata={fieldMetadata}
+              metadataError={fieldMetadataError}
+              config={lineConfig}
+              onChange={(config) => props.onLineConfigChange(node_id, config)}
+            />
+          ) : (
+            <PseudocolorControls
+              metadata={fieldMetadata}
+              metadataError={fieldMetadataError}
+              config={pseudocolorConfig}
+              onChange={(config) =>
+                props.onPseudocolorConfigChange(node_id, config)
+              }
+            />
+          )}
+        </PlotContextMenu>
       )}
     </div>
   );

@@ -1,5 +1,12 @@
 import React from "react";
+import {
+  addExpression,
+  normalizeExpression,
+  removeExpression,
+  withExpressionFields,
+} from "../expressions";
 import { IFieldMetadata, IPseudocolorConfig } from "../global";
+import { checkExpression } from "../hooks/useExpressionDims";
 import {
   fieldDims,
   isPseudocolorField,
@@ -12,7 +19,10 @@ import styles from "./PseudocolorControls.module.css";
 import lineStyles from "./LineControls.module.css";
 
 interface PseudocolorControlsProps {
+  simulationId: string | null;
+  /** Includes the plot's custom expressions as fields. */
   metadata: IFieldMetadata | null;
+  expressionErrors: Record<string, string>;
   metadataError: string | null;
   config: IPseudocolorConfig;
   onChange: (config: IPseudocolorConfig) => void;
@@ -22,7 +32,9 @@ const colorMaps = ["viridis", "plasma", "cividis", "turbo", "magma"];
 
 /** What a pseudocolor plot shows: one field, its two axes, and color limits. */
 const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
+  simulationId,
   metadata,
+  expressionErrors,
   metadataError,
   config,
   onChange,
@@ -36,6 +48,49 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
   }
 
   const dims = fieldDims(metadata, config.field);
+
+  const handleAddExpression = async (text: string) => {
+    const expression = normalizeExpression(text);
+    const field = metadata.fields.find((f) => f.name === expression);
+    if (field && !config.expressions?.includes(expression)) {
+      if (!isPseudocolorField(field)) {
+        return `'${expression}' has fewer than two dimensions`;
+      }
+      onChange(withField(config, expression, metadata));
+      return null;
+    }
+    if (!simulationId) return "No simulation selected";
+    const result = await checkExpression(simulationId, expression);
+    if ("error" in result) return result.error;
+    if (result.dims.length < 2) {
+      return `A 2D plot needs two dimensions; this has ${
+        result.dims.join(", ") || "none"
+      }`;
+    }
+    const withNew = withExpressionFields(
+      metadata,
+      { [expression]: result.dims },
+      [expression],
+    );
+    onChange(
+      withField(
+        {
+          ...config,
+          expressions: addExpression(config.expressions, expression),
+        },
+        expression,
+        withNew,
+      ),
+    );
+    return null;
+  };
+
+  const handleRemoveExpression = (expression: string) =>
+    onChange({
+      ...config,
+      expressions: removeExpression(config.expressions, expression),
+      field: config.field === expression ? "" : config.field,
+    });
   const axisSelect = (axis: "x" | "y", value: string) => (
     <select
       id={`${axis}-coordinate`}
@@ -64,6 +119,10 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
         selected={config.field ? [config.field] : []}
         showVectors={false}
         isFieldAvailable={isPseudocolorField}
+        expressions={config.expressions ?? []}
+        expressionErrors={expressionErrors}
+        onAddExpression={handleAddExpression}
+        onRemoveExpression={handleRemoveExpression}
         onToggle={(field) => onChange(withField(config, field, metadata))}
       />
 
@@ -92,7 +151,9 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
             <select
               id="colorbar"
               value={config.colorMap}
-              onChange={(e) => onChange({ ...config, colorMap: e.target.value })}
+              onChange={(e) =>
+                onChange({ ...config, colorMap: e.target.value })
+              }
             >
               {colorMaps.map((map) => (
                 <option key={map} value={map}>

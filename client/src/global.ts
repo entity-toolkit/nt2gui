@@ -29,6 +29,8 @@ export interface IPseudocolorConfig {
   colorMap: string;
   /** Coordinate value at which each dim beyond x/y is sliced (3D fields). */
   slices?: Record<string, number>;
+  /** Custom quantities (e.g. "f + g") offered alongside the fields. */
+  expressions?: string[];
 }
 
 export interface IZoomWindow {
@@ -54,6 +56,8 @@ export interface ILineConfig {
   /** Fixed value-axis limits; either may be left unset (auto). */
   yMin?: number;
   yMax?: number;
+  /** Custom quantities offered alongside the fields; selected ones are also in `quantities`. */
+  expressions?: string[];
 }
 
 export interface ITooltipDatum {

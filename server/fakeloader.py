@@ -11,6 +11,8 @@ from io import BytesIO
 
 from uuid import uuid4
 
+from fields import quantity_arrays
+
 
 class Simulation:
     def __init__(self, path: str, simulation_id: str | None = None) -> None:
@@ -97,16 +99,15 @@ class Simulation:
         if not field:
             raise ValueError("Field name is required for pseudocolor rendering")
 
-        if field not in self._fields:
-            raise KeyError(f"Field '{field}' not found in simulation")
-
-        data_array = self._fields[field]
-
-        if "t" not in data_array.coords:
-            raise ValueError("Field does not contain time coordinate")
-
-        slice_data = data_array.sel(t=time_value, method="nearest")
-        actual_time = float(slice_data.coords["t"].item())
+        # Pick the time first, so an expression is evaluated on one snapshot.
+        snapshot = self._fields.sel(t=time_value, method="nearest")
+        actual_time = float(snapshot.coords["t"].item())
+        arrays = quantity_arrays([field], snapshot)
+        if len(arrays) != 1:
+            raise ValueError(
+                f"'{field}' is a vector; plot one component or an expression"
+            )
+        slice_data = arrays[0]
 
         for coordinate in (x_coordinate, y_coordinate):
             if coordinate not in slice_data.dims:

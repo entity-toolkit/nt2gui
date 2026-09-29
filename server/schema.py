@@ -67,6 +67,8 @@ class PseudocolorConfig(_Schema):
     color_map: str
     # Coordinate value at which each dim beyond x/y is sliced (3D fields).
     slices: dict[str, float] = {}
+    # Custom quantities (e.g. "f + g") offered alongside the fields.
+    expressions: list[str] = []
 
 
 class Range(_Schema):
@@ -92,6 +94,9 @@ class LineConfig(_Schema):
     # Fixed value-axis limits (display only); unset means automatic.
     y_min: float | None = None
     y_max: float | None = None
+    # Custom quantities (e.g. "sqrt(Ex**2 + Ey**2)") offered alongside the
+    # fields; selected ones also appear in `quantities`.
+    expressions: list[str] = []
 
 
 class Plotter(_Schema):

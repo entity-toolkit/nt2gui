@@ -14,6 +14,13 @@ export interface ILineRender {
 const simulationUrl = (simulationId: string) =>
   `${SERVER_URL}/simulations/${encodeURIComponent(simulationId)}`;
 
+/** Validates a field name or expression; throws HttpError with the reason. */
+export const checkQuantity = (simulationId: string, expression: string) =>
+  requestJson<{ expression: string; dims: string[] }>(
+    `${simulationUrl(simulationId)}/quantities/check`,
+    { method: "POST", body: { expression } },
+  );
+
 export const fetchFieldMetadata = (simulationId: string) =>
   requestJson<IFieldMetadata>(`${simulationUrl(simulationId)}/fields`);
 

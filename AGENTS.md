@@ -14,6 +14,7 @@
 # Data format on the backend
 - The data will consist of two different types: fields (multi-D arrays with 1D/2D or 3D coordinates at different timesteps represented with an xarray dataset), and particles (pandas dataframe containing particle species index, coordinates, ids, velocities, and corresponding timesteps etc.).
 - Fields have names and the user should be able to combine them (and, potentially, the coordinates) to create new variables.
+  - Custom quantities are expression strings (e.g. `sqrt(Ex**2 + Ey**2)`) evaluated by `server/expressions.py`, an AST whitelist over fields, coordinates and numpy functions — never `eval`. Anywhere a field name is accepted (1D `quantities`, 2D `field`), an expression is too; each plot keeps its list in `expressions`, and `POST /simulations/<id>/quantities/check` validates one and returns its dims.
 
 # Guidelines
 - Use both react typescript and Python best-practices.

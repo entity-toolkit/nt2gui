@@ -24,6 +24,8 @@ import {
   defaultLineConfig,
 } from "../global";
 import { useFieldMetadata } from "../hooks/useFieldMetadata";
+import { useExpressionDims } from "../hooks/useExpressionDims";
+import { withExpressionFields } from "../expressions";
 import {
   activeLineRange,
   effectiveAxis,
@@ -241,8 +243,32 @@ const Plot = (props: IPlotProps) => {
   );
 
   const lineConfig = node_plotter?.lineConfig ?? defaultLineConfig;
-  const { metadata: fieldMetadata, error: fieldMetadataError } =
+  const { metadata: baseMetadata, error: fieldMetadataError } =
     useFieldMetadata(needsSimulation ? selectedSimulationId : null);
+  // Custom expressions behave like extra fields once their dims are known.
+  const plotExpressions = isLine
+    ? lineConfig.expressions
+    : pseudocolorConfig.expressions;
+  const expressionState = useExpressionDims(
+    needsSimulation ? selectedSimulationId : null,
+    plotExpressions,
+  );
+  const fieldMetadata = useMemo(
+    () =>
+      baseMetadata && expressionState.ready
+        ? withExpressionFields(
+            baseMetadata,
+            expressionState.dims,
+            plotExpressions,
+          )
+        : null,
+    [
+      baseMetadata,
+      expressionState.dims,
+      expressionState.ready,
+      plotExpressions,
+    ],
+  );
   const lineAxis = fieldMetadata
     ? effectiveAxis(
         lineConfig.axis,
@@ -437,15 +463,19 @@ const Plot = (props: IPlotProps) => {
         >
           {isLine ? (
             <LineControls
+              simulationId={selectedSimulationId}
               metadata={fieldMetadata}
               metadataError={fieldMetadataError}
+              expressionErrors={expressionState.errors}
               config={lineConfig}
               onChange={(config) => props.onLineConfigChange(node_id, config)}
             />
           ) : (
             <PseudocolorControls
+              simulationId={selectedSimulationId}
               metadata={fieldMetadata}
               metadataError={fieldMetadataError}
+              expressionErrors={expressionState.errors}
               config={pseudocolorConfig}
               onChange={(config) =>
                 props.onPseudocolorConfigChange(node_id, config)

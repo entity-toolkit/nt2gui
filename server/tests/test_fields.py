@@ -2,7 +2,13 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fields import field_metadata, render_line, resolve_quantities, vector_groups
+from fields import (
+    field_metadata,
+    quantity_dims,
+    render_line,
+    resolve_quantities,
+    vector_groups,
+)
 
 
 def make_dataset():
@@ -99,7 +105,7 @@ class TestRenderLine:
         result = render_line(make_dataset(), ["profile"], "x", {}, time=0)
 
         assert result["slices"] == {}
-        assert result["timestamp"] is None
+        assert result["timestamp"] == 0.0  # the time shown, even for static fields
         assert result["series"][0]["values"] == [0, 1, 4, 9, 16]
 
     def test_range_keeps_one_point_beyond_each_edge(self):
@@ -144,3 +150,53 @@ class TestRenderLine:
         result = render_line(ds, ["profile"], "x", {}, time=0)
 
         assert result["series"][0]["values"][1] is None
+
+
+class TestExpressions:
+    def test_expression_is_plotted_as_one_series(self):
+        result = render_line(make_dataset(), ["Bx + By"], "x", {"y": 1}, time=0)
+
+        assert result["series"] == [{"name": "Bx + By", "values": [0, 0, 0, 0, 0]}]
+
+    def test_expressions_mix_with_fields_and_vectors(self):
+        result = render_line(
+            make_dataset(), ["B", "sqrt(Bx**2 + By**2)", "N_1"], "x", {}, time=0
+        )
+
+        assert [s["name"] for s in result["series"]] == [
+            "Bx", "By", "Bz", "sqrt(Bx**2 + By**2)", "N_1",
+        ]
+
+    def test_expression_uses_the_selected_time(self):
+        early = render_line(make_dataset(), ["2 * Bx"], "x", {"y": 0}, time=0)
+        late = render_line(make_dataset(), ["2 * Bx"], "x", {"y": 0}, time=1)
+
+        assert early["series"][0]["values"] == [0, 2, 4, 6, 8]
+        assert late["series"][0]["values"] == [200, 202, 204, 206, 208]
+
+    def test_coordinate_expressions_are_sliced_like_fields(self):
+        result = render_line(make_dataset(), ["x * y + 0 * N_1"], "x", {"y": -1}, time=0)
+
+        assert result["series"][0]["values"] == [0, -1, -2, -3, -4]
+        assert result["slices"] == {"y": -1.0}
+
+    def test_bad_expression_is_a_value_error(self):
+        with pytest.raises(ValueError, match="Unknown name 'q'"):
+            render_line(make_dataset(), ["q + Bx"], "x", {}, time=0)
+
+    def test_unknown_plain_name_is_still_an_unknown_quantity(self):
+        with pytest.raises(KeyError, match="Unknown quantity 'q'"):
+            render_line(make_dataset(), ["q"], "x", {}, time=0)
+
+
+class TestQuantityDims:
+    def test_fields_vectors_and_expressions(self):
+        ds = make_dataset()
+        assert quantity_dims("Bx", ds) == ["x", "y"]
+        assert quantity_dims("rho * N_1", ds) == ["x", "y", "z"]
+        assert quantity_dims("profile * 2", ds) == ["x"]
+        assert quantity_dims("sin(z)", ds) == ["z"]
+
+    def test_invalid_expression_raises(self):
+        with pytest.raises(ValueError):
+            quantity_dims("Bx +", make_dataset())

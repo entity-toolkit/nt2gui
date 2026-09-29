@@ -9,7 +9,7 @@ from flask_cors import CORS
 from pydantic import ValidationError
 
 from fakeloader import Simulation
-from fields import field_metadata, render_line
+from fields import field_metadata, quantity_dims, render_line
 from schema import (
     DEFAULT_TIMELINE,
     LineConfig,
@@ -198,6 +198,22 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             return _error("Simulation not found", 404)
         return jsonify(field_metadata(simulation.fields))
 
+    @app.post("/simulations/<simulation_id>/quantities/check")
+    def check_quantity(simulation_id: str):
+        """Validate a field name or expression and report its spatial dims."""
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return _error("Simulation not found", 404)
+        expression = (request.get_json(silent=True) or {}).get("expression")
+        if not isinstance(expression, str) or not expression.strip():
+            return _error("An expression is required", 400)
+        try:
+            dims = quantity_dims(expression.strip(), simulation.fields)
+        except (KeyError, ValueError) as error:
+            message = error.args[0] if error.args else str(error)
+            return _error(str(message), 400)
+        return jsonify({"expression": expression.strip(), "dims": dims})
+
     @app.post("/simulations/<simulation_id>/render/line")
     def render_line_plot(simulation_id: str):
         simulation = simulations.get(simulation_id)
@@ -251,7 +267,9 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             )
         except (KeyError, ValueError) as error:
             app.logger.error("Failed to render pseudocolor: %s", error)
-            return _error(str(error), 400)
+            # KeyError's str() wraps the message in quotes.
+            message = error.args[0] if error.args else str(error)
+            return _error(str(message), 400)
 
     return app
 

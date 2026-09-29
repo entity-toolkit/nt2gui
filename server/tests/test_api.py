@@ -252,3 +252,88 @@ def test_pseudocolor_slices_round_trip_in_state(client):
     }
     assert put_state(client, 0, plotters=plotters).status_code == 200
     assert client.get("/state").get_json()["state"]["plotters"] == plotters
+
+
+def load_sim(client):
+    return client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+        "simulations"
+    ][0]["id"]
+
+
+def test_quantity_check_reports_dims_or_errors(client):
+    url = f"/simulations/{load_sim(client)}/quantities/check"
+
+    magnitude = client.post(url, json={"expression": " sqrt(Ex**2 + Ey**2 + Ez**2) "})
+    assert magnitude.status_code == 200
+    assert magnitude.get_json() == {
+        "expression": "sqrt(Ex**2 + Ey**2 + Ez**2)",
+        "dims": ["x", "y"],
+    }
+    assert client.post(url, json={"expression": "rho + f"}).get_json()["dims"] == [
+        "x", "y", "z",
+    ]
+    assert client.post(url, json={"expression": "B"}).get_json()["dims"] == ["x", "y"]
+
+    bad = client.post(url, json={"expression": "f + nope"})
+    assert bad.status_code == 400
+    assert bad.get_json()["error"] == "Unknown name 'nope'"
+    assert client.post(url, json={"expression": ""}).status_code == 400
+    assert client.post("/simulations/zzz/quantities/check", json={"expression": "f"}).status_code == 404
+
+
+def test_expressions_render_in_1d_and_2d(client):
+    sim_id = load_sim(client)
+
+    line = client.post(
+        f"/simulations/{sim_id}/render/line",
+        json={"config": {"quantities": ["f + g", "N_1"], "axis": "x"}, "time": 0.2},
+    ).get_json()
+    assert [s["name"] for s in line["series"]] == ["f + g", "N_1"]
+
+    pseudocolor = client.post(
+        f"/simulations/{sim_id}/render/pseudocolor",
+        json={
+            "config": {"field": "sqrt(Bx**2 + By**2)", "xCoordinate": "x", "yCoordinate": "y"},
+            "time": 0.2,
+        },
+    )
+    assert pseudocolor.status_code == 200
+
+    vector = client.post(
+        f"/simulations/{sim_id}/render/pseudocolor",
+        json={"config": {"field": "B", "xCoordinate": "x", "yCoordinate": "y"}, "time": 0},
+    )
+    assert vector.status_code == 400 and "is a vector" in vector.get_json()["error"]
+
+    bad = client.post(
+        f"/simulations/{sim_id}/render/pseudocolor",
+        json={"config": {"field": "f +", "xCoordinate": "x", "yCoordinate": "y"}, "time": 0},
+    )
+    assert bad.status_code == 400 and "Invalid expression" in bad.get_json()["error"]
+
+
+def test_custom_expressions_round_trip_in_state(client):
+    plotters = {
+        "p1": {
+            "plotType": "line",
+            "dataType": "fields",
+            "lineConfig": {
+                "quantities": ["f + g"],
+                "axis": "x",
+                "expressions": ["f + g", "sqrt(Ex**2 + Ey**2)"],
+            },
+        },
+        "p2": {
+            "plotType": "pseudocolor",
+            "dataType": "fields",
+            "pseudocolorConfig": {
+                "field": "log10(N_1)",
+                "xCoordinate": "x",
+                "yCoordinate": "y",
+                "colorMap": "viridis",
+                "expressions": ["log10(N_1)"],
+            },
+        },
+    }
+    assert put_state(client, 0, plotters=plotters).status_code == 200
+    assert client.get("/state").get_json()["state"]["plotters"] == plotters

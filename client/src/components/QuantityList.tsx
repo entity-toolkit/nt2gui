@@ -1,8 +1,9 @@
-import { useId } from "react";
+import { FormEvent, useId, useState } from "react";
 import { IFieldMetadata } from "../global";
 import styles from "./QuantityList.module.css";
 
 interface QuantityListProps {
+  /** Metadata with the custom expressions already added as fields. */
   metadata: IFieldMetadata;
   /** Checkboxes pick any number of quantities, radios exactly one. */
   mode: "checkbox" | "radio";
@@ -12,9 +13,16 @@ interface QuantityListProps {
   showVectors: boolean;
   /** Fields that can't be shown by this plot type are hidden. */
   isFieldAvailable?: (field: IFieldMetadata["fields"][number]) => boolean;
+  /** The plot's custom expressions, in the order they were added. */
+  expressions: string[];
+  /** Why saved expressions are invalid for this simulation, if they are. */
+  expressionErrors: Record<string, string>;
+  /** Validates and adds an expression; resolves to an error message, or null. */
+  onAddExpression: (text: string) => Promise<string | null>;
+  onRemoveExpression: (expression: string) => void;
 }
 
-/** Every quantity a simulation offers, with its components or dimensions. */
+/** Every quantity a simulation offers, plus the plot's custom expressions. */
 const QuantityList = ({
   metadata,
   mode,
@@ -22,24 +30,65 @@ const QuantityList = ({
   onToggle,
   showVectors,
   isFieldAvailable = () => true,
+  expressions,
+  expressionErrors,
+  onAddExpression,
+  onRemoveExpression,
 }: QuantityListProps) => {
   const groupName = useId();
-  const fields = metadata.fields.filter(isFieldAvailable);
+  const [draft, setDraft] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
-  const renderOption = (name: string, detail: string) => (
-    <li key={name}>
-      <label className={styles.option}>
+  const custom = new Set(expressions);
+  const fields = metadata.fields.filter(
+    (field) => !custom.has(field.name) && isFieldAvailable(field),
+  );
+  const dimsOf = (name: string) =>
+    metadata.fields.find((field) => field.name === name)?.dims ?? [];
+
+  const renderOption = (
+    name: string,
+    detail: string,
+    extra?: { error?: string; onRemove?: () => void },
+  ) => (
+    <li key={name} className={styles.item}>
+      <label
+        className={`${styles.option} ${extra?.error ? styles.invalid : ""}`}
+        title={extra?.error}
+      >
         <input
           type={mode}
           name={groupName}
           checked={selected.includes(name)}
+          disabled={!!extra?.error}
           onChange={() => onToggle(name)}
         />
         <span className={styles.optionName}>{name}</span>
-        <span className={styles.optionDetail}>{detail}</span>
+        <span className={styles.optionDetail}>{extra?.error ?? detail}</span>
       </label>
+      {extra?.onRemove && (
+        <button
+          type="button"
+          className={styles.remove}
+          aria-label={`Remove ${name}`}
+          onClick={extra.onRemove}
+        >
+          ×
+        </button>
+      )}
     </li>
   );
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft.trim()) return;
+    setIsAdding(true);
+    const error = await onAddExpression(draft);
+    setIsAdding(false);
+    setAddError(error);
+    if (!error) setDraft("");
+  };
 
   return (
     <fieldset className={styles.quantities}>
@@ -63,6 +112,45 @@ const QuantityList = ({
         </ul>
       ) : (
         <p className={styles.empty}>No suitable fields in this simulation.</p>
+      )}
+
+      <p className={styles.groupTitle}>custom</p>
+      {expressions.length > 0 && (
+        <ul className={styles.list}>
+          {expressions.map((expression) =>
+            renderOption(expression, dimsOf(expression).join("·"), {
+              error: expressionErrors[expression],
+              onRemove: () => onRemoveExpression(expression),
+            }),
+          )}
+        </ul>
+      )}
+      <form className={styles.addForm} onSubmit={submit}>
+        <input
+          type="text"
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setAddError(null);
+          }}
+          placeholder="e.g. sqrt(Ex**2 + Ey**2)"
+          aria-label="Custom quantity expression"
+          spellCheck={false}
+          disabled={isAdding}
+        />
+        <button type="submit" disabled={isAdding || !draft.trim()}>
+          add
+        </button>
+      </form>
+      {addError ? (
+        <p className={styles.addError} role="alert">
+          {addError}
+        </p>
+      ) : (
+        <p className={styles.hint}>
+          Combine fields and coordinates with + − * / ** and numpy functions
+          (sqrt, exp, log10, sin, arctan2, where, …).
+        </p>
       )}
     </fieldset>
   );

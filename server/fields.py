@@ -1,9 +1,10 @@
 """Field metadata and 1D line extraction from an xarray dataset.
 
-Quantities a line plot can request are either field names ("Ex", "N_1") or
-vector names ("E"), which expand to every component present ("Ex", "Ey",
-"Ez"). A vector is only offered when no scalar field has the same name, so an
-existing field always wins.
+Quantities a line plot can request are field names ("Ex", "N_1"), vector
+names ("E"), which expand to every component present ("Ex", "Ey", "Ez"), or
+expressions over fields and coordinates ("sqrt(Ex**2 + Ey**2)", see
+`expressions.py`). A vector is only offered when no scalar field has the same
+name, so an existing field always wins.
 """
 
 from collections.abc import Iterable, Sequence
@@ -11,6 +12,8 @@ from typing import Any
 
 import numpy as np
 import xarray as xr
+
+from expressions import evaluate
 
 TIME_DIM = "t"
 COMPONENT_SUFFIXES = ("x", "y", "z")
@@ -54,6 +57,39 @@ def resolve_quantities(requested: Sequence[str], dataset: xr.Dataset) -> list[st
     return resolved
 
 
+def quantity_arrays(
+    requested: Sequence[str], dataset: xr.Dataset
+) -> list[xr.DataArray]:
+    """One array per plotted series: fields and vector components by name,
+    anything else evaluated as an expression. Raises KeyError for unknown
+    plain names and ExpressionError (a ValueError) for bad expressions."""
+    fields = set(map(str, dataset.data_vars))
+    vectors = vector_groups(fields)
+    arrays: list[xr.DataArray] = []
+    seen: set[str] = set()
+    for quantity in requested:
+        if quantity in fields or quantity in vectors:
+            names = resolve_quantities([quantity], dataset)
+            new = [dataset[name] for name in names if name not in seen]
+        elif quantity.isidentifier() and quantity not in dataset.coords:
+            raise KeyError(f"Unknown quantity '{quantity}'")
+        else:
+            new = [] if quantity in seen else [evaluate(quantity, dataset)]
+        for array in new:
+            seen.add(str(array.name))
+            arrays.append(array)
+    return arrays
+
+
+def quantity_dims(expression: str, dataset: xr.Dataset) -> list[str]:
+    """Spatial dims of a quantity, found cheaply on a tiny cut of the data."""
+    tiny = dataset.isel({dim: slice(0, 2) for dim in dataset.dims})
+    dims: list[str] = []
+    for array in quantity_arrays([expression], tiny):
+        dims.extend(dim for dim in spatial_dims(array) if dim not in dims)
+    return dims
+
+
 def spatial_dims(data: xr.DataArray) -> list[str]:
     return [str(dim) for dim in data.dims if dim != TIME_DIM]
 
@@ -95,11 +131,17 @@ def render_line(
     actually used are returned so the client can show them. `value_range`
     crops the result to [min, max] along `axis` (see `_range_window`).
     """
-    names = resolve_quantities(quantities, dataset)
-    if not names:
+    if not quantities:
         raise ValueError("Select at least one quantity to plot")
     if axis not in dataset.coords:
         raise ValueError(f"Unknown coordinate '{axis}'")
+
+    # Pick the time first so expressions are evaluated on one snapshot only.
+    timestamp: float | None = None
+    if TIME_DIM in dataset.dims:
+        dataset = dataset.sel({TIME_DIM: time}, method="nearest")
+        timestamp = float(dataset.coords[TIME_DIM].item())
+    arrays = quantity_arrays(quantities, dataset)
 
     coordinates = np.asarray(dataset.coords[axis].values, dtype=float)
     window = (
@@ -110,15 +152,10 @@ def render_line(
 
     series = []
     used_slices: dict[str, float] = {}
-    timestamp: float | None = None
-    for name in names:
-        data = dataset[name]
+    for data in arrays:
+        name = str(data.name)
         if axis not in data.dims:
             raise ValueError(f"'{name}' does not depend on '{axis}'")
-
-        if TIME_DIM in data.dims:
-            data = data.sel({TIME_DIM: time}, method="nearest")
-            timestamp = float(data.coords[TIME_DIM].item())
 
         for dim in spatial_dims(data):
             if dim == axis:

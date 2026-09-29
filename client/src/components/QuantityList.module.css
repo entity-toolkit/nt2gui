@@ -63,3 +63,91 @@
   font-size: 12px;
   color: var(--color-muted);
 }
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.item .option {
+  flex: 1;
+  min-width: 0;
+}
+
+.optionName {
+  overflow-wrap: anywhere;
+}
+
+.invalid .optionName {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+
+.invalid .optionDetail {
+  color: #fca5a5;
+}
+
+.remove {
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.remove:hover {
+  color: #fca5a5;
+  background: #111827;
+}
+
+.addForm {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.addForm input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-subtle);
+  color: #e5e7eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.addForm input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.addForm button {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: #111827;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.addForm button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hint,
+.addError {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.addError {
+  color: #fca5a5;
+}

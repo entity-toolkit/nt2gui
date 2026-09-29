@@ -16,6 +16,8 @@ import {
 } from "react";
 import type { PseudocolorResponse } from "../services/renderService";
 import { ITooltipDatum, IZoomWindow } from "../global";
+import { fitToBox } from "../fitToBox";
+import { useElementSize } from "../hooks/useElementSize";
 import styles from "./PseudocolorPreview.module.css";
 import plotStyles from "./Plot.module.css";
 
@@ -85,6 +87,8 @@ const PseudocolorPreview = ({
   const yAxisRef = useRef<SVGGElement | null>(null);
   const colorbarAxisRef = useRef<SVGGElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerSize = useElementSize(containerRef);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dragStart, setDragStart] = useState<PointerPoint | null>(null);
   const [dragCurrent, setDragCurrent] = useState<PointerPoint | null>(null);
@@ -101,6 +105,12 @@ const PseudocolorPreview = ({
   const innerHeight = innerWidth * extentAspect;
   const outerWidth = innerWidth + margin.left + margin.right;
   const outerHeight = innerHeight + margin.top + margin.bottom;
+  // Scale the whole figure (axes and colorbar included) to fit the panel
+  // along its limiting side, keeping the aspect ratio so it never overflows.
+  const fittedSize = fitToBox(
+    { width: outerWidth, height: outerHeight },
+    containerSize,
+  );
 
   const imageHref = useMemo(
     () => `data:image/png;base64,${render.image}`,
@@ -393,11 +403,13 @@ const PseudocolorPreview = ({
   }, [render.colorbar.colors]);
 
   return (
-    <div className={plotStyles.figurePreview}>
+    <div className={plotStyles.figurePreview} ref={containerRef}>
       <svg
         className={styles.pseudocolorSvg}
+        width={fittedSize.width}
+        height={fittedSize.height}
         viewBox={`0 0 ${outerWidth} ${outerHeight}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Pseudocolor preview"
         ref={svgRef}

@@ -77,3 +77,10 @@ export const defaultPseudocolorConfig: IPseudocolorConfig = {
   vmax: undefined,
   colorMap: "viridis",
 };
+
+/** What the server returns for every state read or change. */
+export interface IServerSnapshot {
+  revision: number;
+  state: IUiState;
+  simulations: ISimulation[];
+}

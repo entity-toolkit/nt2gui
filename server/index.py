@@ -1,205 +1,141 @@
-from typing import Any
-import logging
-from flask import Flask
-from flask_cors import CORS
-from flask import request, Response
 import json
-from model import Model
+import logging
+import os
+from pathlib import Path
+from typing import Any
+
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from pydantic import ValidationError
+
 from fakeloader import Simulation
+from schema import (
+    DEFAULT_TIMELINE,
+    Plotter,
+    Session,
+    SimulationRecord,
+    Timeline,
+    UiState,
+)
+from session_store import RevisionConflict, SessionStore
+
+DEFAULT_STATE_FILE = Path(".nt2gui") / "session.json"
 
 
-app = Flask(__name__)
-app.logger.setLevel(logging.INFO)
-
-cors = CORS(app, resources={r"/*": {"origins": "*"}})
+def _error(message: str, status: int, **extra: Any):
+    return jsonify({"error": message, **extra}), status
 
 
-state: dict[str, Any] = {"model": None, "simulations": []}
+def create_app(state_file: Path | str | None = None) -> Flask:
+    """Build the app. `state_file` defaults to $NT2GUI_STATE_FILE, then
+    `.nt2gui/session.json` in the working directory."""
+    app = Flask(__name__)
+    app.logger.setLevel(logging.INFO)
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
+    path = Path(state_file or os.environ.get("NT2GUI_STATE_FILE", DEFAULT_STATE_FILE))
+    store = SessionStore(path)
+    app.logger.info("Session file: %s", path.resolve())
 
-def serialize_simulations() -> list[dict[str, str]]:
-    return [simulation.to_json() for simulation in state["simulations"]]
+    # Loaded simulation data lives only in memory; the session records which
+    # paths were open so they are re-opened (with the same ids) on restart.
+    simulations: dict[str, Simulation] = {}
+    failed: list[str] = []
+    for record in store.session.simulations:
+        try:
+            simulations[record.id] = Simulation(record.path, record.id)
+        except Exception as error:  # a real loader may fail on moved/deleted data
+            app.logger.error("Could not re-open %s: %s", record.path, error)
+            failed.append(record.id)
+    if failed:
+        store.update(lambda session: _forget_simulations(session, set(failed)))
 
+    @app.get("/state")
+    def get_state():
+        return jsonify(store.snapshot())
 
-def get_model() -> Model:
-    if state["model"] is None:
-        state["model"] = Model()
-    return state["model"]
+    @app.put("/state")
+    def put_state():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or not isinstance(
+            payload.get("revision"), int
+        ):
+            return _error("Expected {revision: int, state: object}", 400)
+        try:
+            state = UiState.model_validate(payload.get("state"))
+        except ValidationError as error:
+            return _error("Invalid state", 400, details=json.loads(error.json(include_url=False)))
+        try:
+            return jsonify(store.replace_state(state, payload["revision"]))
+        except RevisionConflict as conflict:
+            return _error("Revision conflict", 409, **conflict.snapshot)
 
+    @app.post("/simulations")
+    def add_simulation():
+        payload = request.get_json(silent=True) or {}
+        sim_path = payload.get("path")
+        if not isinstance(sim_path, str) or not sim_path.strip():
+            return _error("Simulation path is required", 400)
+        sim_path = sim_path.strip()
 
-def get_simulation(simulation_id: str) -> Simulation | None:
-    for simulation in state["simulations"]:
-        if simulation.id == simulation_id:
-            return simulation
-    return None
+        if any(sim.path == sim_path for sim in simulations.values()):
+            return jsonify(store.snapshot())
 
+        simulation = Simulation(sim_path)
 
-def current_timeline() -> dict[str, Any]:
-    return get_model().get_timeline()
-
-
-def load_simulation(path: str) -> dict[str, Any]:
-    if any(simulation.path == path for simulation in state["simulations"]):
-        app.logger.info("Simulation already loaded: %s", path)
-        return {
-            "message": "Simulation already loaded",
-            "simulations": serialize_simulations(),
-            "timeline": get_model().get_timeline(),
-        }
-
-    simulation = Simulation(path)
-    state["simulations"].append(simulation)
-
-    model = get_model()
-    model.set_timeline(simulation.timeline)
-
-    return {
-        "message": "Simulation added",
-        "simulations": serialize_simulations(),
-        "timeline": model.get_timeline(),
-    }
-
-
-@app.route("/")
-def hello_world():
-    if state["model"] is None:
-        return Response("Model not initialized", status=500)
-    return json.dumps({"message": state["model"].to_json()})
-
-
-@app.route("/model_init", methods=["GET", "POST"])
-def init_model():
-    if request.method == "GET":
-        return json.dumps(
-            {
-                "message": (
-                    "Model initialized" if state["model"] else "Model not initialized"
-                ),
-                "model": state["model"].to_json() if state["model"] else None,
-            }
-        )
-
-    if state["model"] is not None:
-        app.logger.info("Model already initialized")
-        return json.dumps(
-            {
-                "message": "Model already initialized",
-                "model": state["model"].to_json(),
-            }
-        )
-    else:
-        payload = request.json or {}
-        data = payload.get("model", {})
-        if not data:
-            app.logger.info("No model data provided, initializing empty model")
-        state["model"] = Model().from_json(data)
-        return json.dumps(
-            {
-                "message": "Model initialized",
-                "model": state["model"].to_json(),
-            }
-        )
-
-
-@app.route("/model_sync", methods=["POST"])
-def sync_model():
-    payload = request.json or {}
-    data = payload.get("model", {})
-    if state["model"] is None:
-        app.logger.error("Attempted to sync before initialization")
-        return Response("Model not initialized", status=500)
-    state["model"] = Model().from_json(data)
-    return json.dumps(
-        {
-            "message": "Model synchronized",
-            "model": state["model"].to_json(),
-        }
-    )
-
-
-@app.route("/simulations", methods=["GET", "POST"])
-def manage_simulations():
-    if request.method == "GET":
-        return json.dumps(
-            {"simulations": serialize_simulations(), "timeline": current_timeline()}
-        )
-
-    payload = request.json or {}
-    path = payload.get("path")
-    if not path:
-        return Response("Simulation path is required", status=400)
-
-    return json.dumps(load_simulation(path))
-
-
-@app.route("/simulations/<simulation_id>", methods=["DELETE"])
-def unload_simulation(simulation_id: str):
-    simulations = state["simulations"]
-    for index, simulation in enumerate(simulations):
-        if simulation.id == simulation_id:
-            simulations.pop(index)
-            if not simulations:
-                get_model().set_timeline(get_model().default_timeline)
-            return json.dumps(
-                {
-                    "message": "Simulation removed",
-                    "simulations": serialize_simulations(),
-                    "timeline": current_timeline(),
-                }
+        def mutate(session: Session) -> None:
+            session.simulations.append(
+                SimulationRecord(id=simulation.id, path=simulation.path)
             )
+            session.state.timeline = Timeline.model_validate(simulation.timeline)
 
-    return Response("Simulation not found", status=404)
+        snapshot = store.update(mutate)
+        simulations[simulation.id] = simulation
+        return jsonify(snapshot)
 
-
-@app.route("/simulations/<simulation_id>/render/pseudocolor", methods=["POST"])
-def render_pseudocolor(simulation_id: str):
-    simulation = get_simulation(simulation_id)
-    if simulation is None:
-        return Response("Simulation not found", status=404)
-
-    payload = request.json or {}
-    config = payload.get("config", {})
-    time_value = payload.get("time")
-    viewport = payload.get("viewport")
-
-    if time_value is None:
-        return Response("Time value is required", status=400)
-
-    try:
-        render_result = simulation.render_pseudocolor(
-            config, float(time_value), viewport
+    @app.delete("/simulations/<simulation_id>")
+    def unload_simulation(simulation_id: str):
+        if simulation_id not in simulations:
+            return _error("Simulation not found", 404)
+        snapshot = store.update(
+            lambda session: _forget_simulations(session, {simulation_id})
         )
-    except (KeyError, ValueError) as error:
-        app.logger.error("Failed to render pseudocolor: %s", error)
-        return Response(str(error), status=400)
+        del simulations[simulation_id]
+        return jsonify(snapshot)
 
-    return json.dumps(render_result)
+    @app.post("/simulations/<simulation_id>/render/pseudocolor")
+    def render_pseudocolor(simulation_id: str):
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return _error("Simulation not found", 404)
 
+        payload = request.get_json(silent=True) or {}
+        time_value = payload.get("time")
+        if time_value is None:
+            return _error("Time value is required", 400)
 
-# @app.route("/get_model")
-# def get_model():
-#     return json.dumps(model.to_json())
+        try:
+            return jsonify(
+                simulation.render_pseudocolor(
+                    payload.get("config", {}), float(time_value), payload.get("viewport")
+                )
+            )
+        except (KeyError, ValueError) as error:
+            app.logger.error("Failed to render pseudocolor: %s", error)
+            return _error(str(error), 400)
 
-
-# @app.route("/add_tab", methods=["POST"])
-# def add_tab():
-#     data = request.json
-#     tabset_id = data.get("tabset_id")
-#     tab_id = data.get("tab_id")
-#     tab_name = data.get("tab_name")
-#     tab_component = data.get("tab_component")
-#
-#     tabset_node = model.root.get_child(tabset_id)
-#     if not isinstance(tabset_node, TabsetNode):
-#         return Response("Tabset not found", status=404)
-#
-#     new_tab = TabNode(tab_id, tab_name, tab_component)
-#     tabset_node.add_child(new_tab)
-#
-#     return json.dumps({"message": "Tab added successfully", "tab": new_tab.to_json()})
+    return app
 
 
-@app.before_request
-def basic_authentication():
-    if request.method.lower() == "options":
-        return Response()
+def _forget_simulations(session: Session, ids: set[str]) -> None:
+    session.simulations = [sim for sim in session.simulations if sim.id not in ids]
+    plotters = session.state.plotters
+    for panel_id, plotter in plotters.items():
+        if plotter.simulation_id in ids:
+            # Drop the field (rather than null it) to match the client's
+            # optional `simulationId?: string`.
+            wire = plotter.to_wire()
+            wire.pop("simulationId")
+            plotters[panel_id] = Plotter.model_validate(wire)
+    if not session.simulations:
+        session.state.timeline = Timeline.model_validate(DEFAULT_TIMELINE)

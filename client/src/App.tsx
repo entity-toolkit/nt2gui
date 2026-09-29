@@ -21,27 +21,41 @@ import { useSimulations } from "./hooks/useSimulations";
 const App = () => {
   const {
     model,
-    plotters,
-    timeline,
+    uiState,
+    simulations,
+    syncStatus,
+    loadError,
+    runServerCommand,
     onDataTypeChange,
     onPlotTypeChange,
     onPseudocolorConfigChange,
     onPlotSimulationChange,
     onTimelineChange,
-    globalViewport,
     onGlobalViewportChange,
     onLocalViewportChange,
     onSyncViewportToggle,
     handleModelChange,
   } = useUiState();
-  const { simulations, isLoading, addSimulation, unloadSimulation } =
-    useSimulations({ onTimelineUpdate: onTimelineChange });
+  const { isLoading, addSimulation, unloadSimulation } =
+    useSimulations(runServerCommand);
 
   const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(null);
   const handleGlobalTooltipChange = useCallback(
     (tooltip: ITooltipDatum | null) => setGlobalTooltip(tooltip),
     [],
   );
+
+  if (!model || !uiState) {
+    return (
+      <div className="app-loading" role="status">
+        {loadError
+          ? `Cannot reach the server (${loadError}). Retrying…`
+          : "Loading session…"}
+      </div>
+    );
+  }
+
+  const { plotters, timeline, globalViewport } = uiState;
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -67,9 +81,7 @@ const App = () => {
         );
       case "json":
         return (
-          <ModelJson
-            uiState={{ layout: model.toJson(), plotters, timeline, globalViewport }}
-          />
+          <ModelJson uiState={uiState} />
         );
       default:
         return <div>{`unknown component: ${component}`}</div>;
@@ -111,7 +123,12 @@ const App = () => {
           realtimeResize={true}
         />
       </div>
-      <FooterBar timeline={timeline} onTimelineChange={onTimelineChange} />
+      <FooterBar
+        timeline={timeline}
+        onTimelineChange={onTimelineChange}
+        syncStatus={syncStatus}
+        showTimeline={simulations.length > 0}
+      />
     </div>
   );
 };

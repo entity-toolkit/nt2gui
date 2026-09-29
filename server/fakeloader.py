@@ -13,8 +13,10 @@ from uuid import uuid4
 
 
 class Simulation:
-    def __init__(self, path: str) -> None:
-        self.id = uuid4().hex
+    def __init__(self, path: str, simulation_id: str | None = None) -> None:
+        # A persisted id is passed back in when re-opening a saved session so
+        # plotters referencing this simulation stay valid across restarts.
+        self.id = simulation_id or uuid4().hex
         self.path = path
 
         self._t = np.linspace(0, 1, 50)

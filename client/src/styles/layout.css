@@ -22,3 +22,11 @@
   position: absolute;
   inset: 0;
 }
+
+.app-loading {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  color: var(--color-muted);
+  background: var(--color-bg);
+}

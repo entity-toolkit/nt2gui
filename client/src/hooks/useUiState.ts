@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Model } from "flexlayout-react";
 import {
   DataType,
   IPlotters,
+  IServerSnapshot,
   IUiState,
   ITimeline,
   IPseudocolorConfig,
@@ -10,13 +11,9 @@ import {
   PlotType,
   defaultPseudocolorConfig,
 } from "../global";
-import { initialUiState } from "../layoutDefaults";
 import { collectPanelIds, reconcilePlotters } from "../plotterSync";
-import {
-  fetchExistingUiState,
-  initializeUiState,
-  persistUiState,
-} from "../services/uiStateService";
+import { fetchState, putState } from "../services/uiStateService";
+import { StateSync, SyncStatus } from "../sync/StateSync";
 
 const viewportsEqual = (a: IZoomWindow | null, b: IZoomWindow | null) => {
   if (a === b) return true;
@@ -29,46 +26,109 @@ const viewportsEqual = (a: IZoomWindow | null, b: IZoomWindow | null) => {
   );
 };
 
-export const useUiState = () => {
-  const [model, setModel] = useState<Model>(
-    Model.fromJson(initialUiState.layout),
-  );
-  const [plotters, setPlotters] = useState<IPlotters>(initialUiState.plotters);
-  const [timeline, setTimeline] = useState<ITimeline>(initialUiState.timeline);
-  const [globalViewport, setGlobalViewport] = useState<IZoomWindow | null>(
-    initialUiState.globalViewport,
-  );
+const BOOTSTRAP_RETRY_MAX_MS = 10_000;
 
-  const persistState = useCallback(
-    (
-      layoutJson: IUiState["layout"],
-      plotterState: IPlotters,
-      timelineState: ITimeline,
-      viewportState: IZoomWindow | null,
-    ) => {
-      persistUiState({
-        layout: layoutJson,
-        plotters: plotterState,
-        timeline: timelineState,
-        globalViewport: viewportState,
-      });
+/**
+ * UI state owned by the server. The hook loads it once, renders nothing until
+ * it arrives, and from then on every local change flows through a single
+ * `StateSync` (debounced, serialized, retried). Server-side changes — revision
+ * conflicts or commands such as loading a simulation — come back as snapshots
+ * and replace the local state.
+ */
+export const useUiState = () => {
+  const [model, setModel] = useState<Model | null>(null);
+  const [uiState, setUiState] = useState<IUiState | null>(null);
+  const [simulations, setSimulations] = useState<
+    IServerSnapshot["simulations"]
+  >([]);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("synced");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const syncRef = useRef<StateSync | null>(null);
+  const layoutRef = useRef<string | null>(null);
+
+  const applySnapshot = useCallback((snapshot: IServerSnapshot) => {
+    // Rebuilding the flexlayout model remounts every panel, so only do it
+    // when the layout itself changed.
+    const layout = JSON.stringify(snapshot.state.layout);
+    if (layout !== layoutRef.current) {
+      layoutRef.current = layout;
+      setModel(Model.fromJson(snapshot.state.layout));
+    }
+    setUiState(snapshot.state);
+    setSimulations(snapshot.simulations);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const load = async (attempt: number) => {
+      try {
+        const snapshot = await fetchState();
+        if (cancelled) return;
+        syncRef.current = new StateSync(snapshot, {
+          push: putState,
+          onRemoteSnapshot: applySnapshot,
+          onStatusChange: setSyncStatus,
+        });
+        setLoadError(null);
+        applySnapshot(snapshot);
+      } catch (error) {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : String(error));
+        retryTimer = setTimeout(
+          () => void load(attempt + 1),
+          Math.min(1000 * 2 ** attempt, BOOTSTRAP_RETRY_MAX_MS),
+        );
+      }
+    };
+    void load(0);
+
+    // Catch up with changes made elsewhere (another tab, a server restart).
+    const onFocus = () => void syncRef.current?.refresh(fetchState);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+      window.removeEventListener("focus", onFocus);
+      syncRef.current?.dispose();
+      syncRef.current = null;
+    };
+  }, [applySnapshot]);
+
+  // The one place local state is sent to the server.
+  useEffect(() => {
+    if (!uiState) return;
+    layoutRef.current = JSON.stringify(uiState.layout);
+    syncRef.current?.schedule(uiState);
+  }, [uiState]);
+
+  const updateUiState = useCallback(
+    (updater: (prev: IUiState) => IUiState) => {
+      setUiState((prev) => (prev ? updater(prev) : prev));
     },
     [],
   );
 
   const applyPlotterChange = useCallback(
     (updater: (prev: IPlotters) => IPlotters) => {
-      setPlotters((prev) => {
-        const next = updater(prev);
-        if (next === prev) {
-          return prev;
-        }
-
-        persistState(model.toJson(), next, timeline, globalViewport);
-        return next;
+      updateUiState((prev) => {
+        const plotters = updater(prev.plotters);
+        return plotters === prev.plotters ? prev : { ...prev, plotters };
       });
     },
-    [globalViewport, model, persistState, timeline],
+    [updateUiState],
+  );
+
+  /** Run a server command (e.g. load a simulation) and adopt its result. */
+  const runServerCommand = useCallback(
+    async (command: () => Promise<IServerSnapshot>) => {
+      const sync = syncRef.current;
+      if (!sync) throw new Error("Not connected to the server yet");
+      return sync.run(command);
+    },
+    [],
   );
 
   const onPlotTypeChange = useCallback(
@@ -126,44 +186,16 @@ export const useUiState = () => {
 
   const handleModelChange = useCallback(
     (updatedModel: Model) => {
-      const jsonModel = updatedModel.toJson();
-      const panelIds = collectPanelIds(jsonModel);
-
-      setPlotters((prevPlotters) => {
-        const reconciledPlotters = reconcilePlotters(prevPlotters, panelIds);
-        persistState(jsonModel, reconciledPlotters, timeline, globalViewport);
-        return reconciledPlotters;
-      });
-
-      setModel(updatedModel);
+      const layout = updatedModel.toJson();
+      const panelIds = collectPanelIds(layout);
+      updateUiState((prev) => ({
+        ...prev,
+        layout,
+        plotters: reconcilePlotters(prev.plotters, panelIds),
+      }));
     },
-    [globalViewport, persistState, timeline],
+    [updateUiState],
   );
-
-  useEffect(() => {
-    const bootstrapModel = async () => {
-      try {
-        const restoredState = await fetchExistingUiState();
-        if (restoredState?.layout) {
-          setModel(Model.fromJson(restoredState.layout));
-          setPlotters(restoredState.plotters ?? {});
-          setTimeline(restoredState.timeline ?? initialUiState.timeline);
-          setGlobalViewport(restoredState.globalViewport ?? null);
-          return;
-        }
-
-        const serverState = await initializeUiState(initialUiState);
-        setModel(Model.fromJson(serverState.layout));
-        setPlotters(serverState.plotters ?? {});
-        setTimeline(serverState.timeline ?? initialUiState.timeline);
-        setGlobalViewport(serverState.globalViewport ?? null);
-      } catch (error) {
-        console.error("Error initializing model:", error);
-      }
-    };
-
-    bootstrapModel();
-  }, []);
 
   const onPseudocolorConfigChange = useCallback(
     (nodeId: string, config: IPseudocolorConfig) => {
@@ -206,28 +238,21 @@ export const useUiState = () => {
   );
 
   const onTimelineChange = useCallback(
-    (nextTimeline: ITimeline) => {
-      setTimeline(() => {
-        persistState(model.toJson(), plotters, nextTimeline, globalViewport);
-        return nextTimeline;
-      });
+    (timeline: ITimeline) => {
+      updateUiState((prev) => ({ ...prev, timeline }));
     },
-    [globalViewport, model, persistState, plotters],
+    [updateUiState],
   );
 
   const onGlobalViewportChange = useCallback(
     (viewport: IZoomWindow | null) => {
-      setGlobalViewport((prev) => {
-        if (viewportsEqual(prev, viewport)) {
-          return prev;
-        }
-
-        const nextViewport = viewport ?? null;
-        persistState(model.toJson(), plotters, timeline, nextViewport);
-        return nextViewport;
-      });
+      updateUiState((prev) =>
+        viewportsEqual(prev.globalViewport, viewport)
+          ? prev
+          : { ...prev, globalViewport: viewport ?? null },
+      );
     },
-    [model, persistState, plotters, timeline],
+    [updateUiState],
   );
 
   const onLocalViewportChange = useCallback(
@@ -277,9 +302,11 @@ export const useUiState = () => {
   return useMemo(
     () => ({
       model,
-      plotters,
-      timeline,
-      globalViewport,
+      uiState,
+      simulations,
+      syncStatus,
+      loadError,
+      runServerCommand,
       onDataTypeChange,
       onPlotTypeChange,
       onPseudocolorConfigChange,
@@ -291,11 +318,12 @@ export const useUiState = () => {
       handleModelChange,
     }),
     [
-      handleModelChange,
-      globalViewport,
       model,
-      plotters,
-      timeline,
+      uiState,
+      simulations,
+      syncStatus,
+      loadError,
+      runServerCommand,
       onDataTypeChange,
       onPlotTypeChange,
       onPseudocolorConfigChange,
@@ -304,6 +332,7 @@ export const useUiState = () => {
       onGlobalViewportChange,
       onLocalViewportChange,
       onSyncViewportToggle,
+      handleModelChange,
     ],
   );
 };

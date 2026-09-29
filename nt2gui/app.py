@@ -1,18 +1,18 @@
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Blueprint, Flask, jsonify, request, send_from_directory
 from pydantic import ValidationError
 
-from pseudocolor import render_pseudocolor as shade_pseudocolor
-from sources import SimulationSource, open_simulation
-from summary import summarize
-from fields import field_metadata, quantity_dims, render_line
-from particles import (
+from .pseudocolor import render_pseudocolor as shade_pseudocolor
+from .sources import SimulationSource, open_simulation
+from .summary import summarize
+from .fields import field_metadata, quantity_dims, render_line
+from .particles import (
     builtin_quantities,
     default_scale,
     histogram_1d,
@@ -21,7 +21,7 @@ from particles import (
     quantity_values,
     render_counts,
 )
-from schema import (
+from .schema import (
     DEFAULT_TIMELINE,
     LineConfig,
     ParticleHistogramConfig,
@@ -34,15 +34,17 @@ from schema import (
     Timeline,
     UiState,
 )
-from session_files import (
+from .session_files import (
     parse_document,
     read_document,
     resolve_session_path,
     write_document,
 )
-from session_store import RevisionConflict, SessionStore
+from .session_store import RevisionConflict, SessionStore
 
 DEFAULT_STATE_FILE = Path(".nt2gui") / "session.json"
+# The built client (`npm run build`), bundled into the wheel as package data.
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def _error(message: str, status: int, **extra: Any):
@@ -60,12 +62,16 @@ def _validation_error(error: ValidationError, what: str):
     )
 
 
-def create_app(state_file: Path | str | None = None) -> Flask:
-    """Build the app. `state_file` defaults to $NT2GUI_STATE_FILE, then
-    `.nt2gui/session.json` in the working directory."""
-    app = Flask(__name__)
+def create_app(
+    state_file: Path | str | None = None, static_dir: Path | str | None = None
+) -> Flask:
+    """Build the app: the JSON API under `/api` and the built client at `/`.
+
+    `state_file` defaults to $NT2GUI_STATE_FILE, then `.nt2gui/session.json` in
+    the working directory. `static_dir` defaults to the bundled client."""
+    app = Flask(__name__, static_folder=None)
     app.logger.setLevel(logging.INFO)
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    api = Blueprint("api", __name__)
 
     path = Path(state_file or os.environ.get("NT2GUI_STATE_FILE", DEFAULT_STATE_FILE))
     store = SessionStore(path)
@@ -74,6 +80,9 @@ def create_app(state_file: Path | str | None = None) -> Flask:
     # Loaded simulation data lives only in memory; the session records which
     # paths were open so they are re-opened (with the same ids) on restart.
     simulations: dict[str, SimulationSource] = {}
+    # Requests are served from several threads; commands that change which
+    # simulations are open are serialized so the dict and the session agree.
+    simulations_lock = threading.Lock()
     failed: list[str] = []
     for record in store.session.simulations:
         try:
@@ -84,11 +93,11 @@ def create_app(state_file: Path | str | None = None) -> Flask:
     if failed:
         store.update(lambda session: _forget_simulations(session, set(failed)))
 
-    @app.get("/state")
+    @api.get("/state")
     def get_state():
         return jsonify(store.snapshot())
 
-    @app.put("/state")
+    @api.put("/state")
     def put_state():
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict) or not isinstance(
@@ -104,14 +113,17 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         except RevisionConflict as conflict:
             return _error("Revision conflict", 409, **conflict.snapshot)
 
-    @app.post("/simulations")
+    @api.post("/simulations")
     def add_simulation():
         payload = request.get_json(silent=True) or {}
         sim_path = payload.get("path")
         if not isinstance(sim_path, str) or not sim_path.strip():
             return _error("Simulation path is required", 400)
         sim_path = sim_path.strip()
+        with simulations_lock:
+            return add_simulation_locked(sim_path)
 
+    def add_simulation_locked(sim_path: str):
         if any(sim.path == sim_path for sim in simulations.values()):
             return jsonify(store.snapshot())
 
@@ -131,18 +143,23 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         simulations[simulation.id] = simulation
         return jsonify(snapshot)
 
-    @app.delete("/simulations/<simulation_id>")
+    @api.delete("/simulations/<simulation_id>")
     def unload_simulation(simulation_id: str):
-        if simulation_id not in simulations:
-            return _error("Simulation not found", 404)
-        snapshot = store.update(
-            lambda session: _forget_simulations(session, {simulation_id})
-        )
-        del simulations[simulation_id]
-        return jsonify(snapshot)
+        with simulations_lock:
+            if simulation_id not in simulations:
+                return _error("Simulation not found", 404)
+            snapshot = store.update(
+                lambda session: _forget_simulations(session, {simulation_id})
+            )
+            del simulations[simulation_id]
+            return jsonify(snapshot)
 
     def apply_document(document: SessionDocument) -> dict[str, Any]:
         """Replace the whole session with a saved one, re-opening its simulations."""
+        with simulations_lock:
+            return apply_document_locked(document)
+
+    def apply_document_locked(document: SessionDocument) -> dict[str, Any]:
         opened: dict[str, SimulationSource] = {}
         warnings: list[str] = []
         for record in document.simulations:
@@ -175,11 +192,11 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             raise ValueError("path is required")
         return resolve_session_path(raw_path)
 
-    @app.get("/session/export")
+    @api.get("/session/export")
     def export_session():
         return jsonify(store.document().to_wire())
 
-    @app.post("/session/import")
+    @api.post("/session/import")
     def import_session():
         payload = request.get_json(silent=True) or {}
         try:
@@ -188,7 +205,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             return _error(f"Invalid session file: {error}", 400)
         return jsonify(apply_document(document))
 
-    @app.post("/session/save")
+    @api.post("/session/save")
     def save_session():
         payload = request.get_json(silent=True) or {}
         try:
@@ -204,7 +221,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         app.logger.info("Session saved to %s", path)
         return jsonify({**store.snapshot(), "path": str(path)})
 
-    @app.post("/session/load")
+    @api.post("/session/load")
     def load_session():
         payload = request.get_json(silent=True) or {}
         try:
@@ -219,14 +236,14 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         app.logger.info("Session loaded from %s", path)
         return jsonify({**apply_document(document), "path": str(path)})
 
-    @app.get("/simulations/<simulation_id>/fields")
+    @api.get("/simulations/<simulation_id>/fields")
     def get_fields(simulation_id: str):
         simulation = simulations.get(simulation_id)
         if simulation is None:
             return _error("Simulation not found", 404)
         return jsonify(field_metadata(simulation.fields))
 
-    @app.post("/simulations/<simulation_id>/quantities/check")
+    @api.post("/simulations/<simulation_id>/quantities/check")
     def check_quantity(simulation_id: str):
         """Validate a field name or expression and report its spatial dims."""
         simulation = simulations.get(simulation_id)
@@ -242,7 +259,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             return _error(str(message), 400)
         return jsonify({"expression": expression.strip(), "dims": dims})
 
-    @app.post("/simulations/<simulation_id>/render/line")
+    @api.post("/simulations/<simulation_id>/render/line")
     def render_line_plot(simulation_id: str):
         simulation = simulations.get(simulation_id)
         if simulation is None:
@@ -288,14 +305,14 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         frame = simulation.particles(float(time))
         return (particle_dataset(frame), simulation.particle_time(float(time))), None
 
-    @app.get("/simulations/<simulation_id>/summary")
+    @api.get("/simulations/<simulation_id>/summary")
     def get_summary(simulation_id: str):
         simulation = simulations.get(simulation_id)
         if simulation is None:
             return _error("Simulation not found", 404)
         return jsonify(summarize(simulation))
 
-    @app.get("/simulations/<simulation_id>/particles")
+    @api.get("/simulations/<simulation_id>/particles")
     def get_particle_metadata(simulation_id: str):
         simulation = simulations.get(simulation_id)
         if simulation is None:
@@ -314,7 +331,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             }
         )
 
-    @app.post("/simulations/<simulation_id>/particles/check")
+    @api.post("/simulations/<simulation_id>/particles/check")
     def check_particle_quantity(simulation_id: str):
         simulation = simulations.get(simulation_id)
         if simulation is None:
@@ -332,7 +349,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             return _error(_message(error), 400)
         return jsonify({"expression": expression.strip()})
 
-    @app.post("/simulations/<simulation_id>/render/particles/histogram")
+    @api.post("/simulations/<simulation_id>/render/particles/histogram")
     def render_particle_histogram(simulation_id: str):
         payload = request.get_json(silent=True) or {}
         loaded, failure = particles_at(simulation_id, payload.get("time"))
@@ -358,7 +375,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             return _error(_message(error), 400)
         return jsonify({**result, "timestamp": timestamp})
 
-    @app.post("/simulations/<simulation_id>/render/particles/phase")
+    @api.post("/simulations/<simulation_id>/render/particles/phase")
     def render_particle_phase(simulation_id: str):
         payload = request.get_json(silent=True) or {}
         loaded, failure = particles_at(simulation_id, payload.get("time"))
@@ -395,7 +412,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             }
         )
 
-    @app.post("/simulations/<simulation_id>/render/pseudocolor")
+    @api.post("/simulations/<simulation_id>/render/pseudocolor")
     def render_pseudocolor(simulation_id: str):
         simulation = simulations.get(simulation_id)
         if simulation is None:
@@ -421,7 +438,26 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             message = error.args[0] if error.args else str(error)
             return _error(str(message), 400)
 
+    app.register_blueprint(api, url_prefix="/api")
+    _serve_client(app, Path(static_dir) if static_dir else STATIC_DIR)
     return app
+
+
+def _serve_client(app: Flask, static_dir: Path) -> None:
+    """Serve the single-page client. Asset URLs are relative (vite `base: "./"`)
+    so the app also works behind a path-prefixing proxy."""
+
+    @app.get("/")
+    @app.get("/<path:filename>")
+    def client(filename: str = "index.html"):
+        if not (static_dir / "index.html").is_file():
+            return (
+                "The nt2gui client is not built. Run `npm run build`, or use "
+                "`npm run dev` for development.",
+                404,
+                {"Content-Type": "text/plain; charset=utf-8"},
+            )
+        return send_from_directory(static_dir, filename)
 
 
 def _forget_simulations(session: Session, ids: set[str]) -> None:

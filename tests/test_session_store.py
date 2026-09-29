@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from schema import SCHEMA_VERSION, SimulationRecord, UiState, default_session
-from session_store import RevisionConflict, SessionStore
+from nt2gui.schema import SCHEMA_VERSION, SimulationRecord, UiState, default_session
+from nt2gui.session_store import RevisionConflict, SessionStore
 
 
 def make_state(**overrides):

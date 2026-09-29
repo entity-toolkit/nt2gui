@@ -35,7 +35,7 @@ import xarray as xr
 from matplotlib import colormaps
 from matplotlib.colors import LogNorm, Normalize, to_hex
 
-from expressions import evaluate
+from .expressions import evaluate
 
 PARTICLE_DIM = "particle"
 # Cartesian and spherical runs name their columns differently.

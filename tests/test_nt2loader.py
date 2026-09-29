@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fakeloader import FakeSimulation
-from nt2loader import combined_timeline, parse_species_info
-from pseudocolor import render_pseudocolor
-from sources import open_simulation
+from nt2gui.fakeloader import FakeSimulation
+from nt2gui.nt2loader import combined_timeline, parse_species_info
+from nt2gui.pseudocolor import render_pseudocolor
+from nt2gui.sources import open_simulation
 
 INFO = """
     Particles
@@ -114,10 +114,10 @@ real_data = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def real_client(tmp_path_factory):
     pytest.importorskip("nt2")
-    from index import create_app
+    from nt2gui.app import create_app
 
     client = create_app(tmp_path_factory.mktemp("state") / "s.json").test_client()
-    added = client.post("/simulations", json={"path": str(DATA)})
+    added = client.post("/api/simulations", json={"path": str(DATA)})
     assert added.status_code == 200, added.get_json()
     return client, added.get_json()
 
@@ -133,13 +133,13 @@ def test_real_output_opens_with_a_timeline(real_client):
 def test_real_fields_render_in_1d_and_2d(real_client):
     client, snapshot = real_client
     sim_id = snapshot["simulations"][0]["id"]
-    meta = client.get(f"/simulations/{sim_id}/fields").get_json()
+    meta = client.get(f"/api/simulations/{sim_id}/fields").get_json()
     field = meta["fields"][0]
     dims = field["dims"]
     time = snapshot["state"]["timeline"]["max"]
 
     line = client.post(
-        f"/simulations/{sim_id}/render/line",
+        f"/api/simulations/{sim_id}/render/line",
         json={"config": {"quantities": [field["name"]], "axis": dims[0]}, "time": time},
     )
     assert line.status_code == 200, line.get_json()
@@ -147,7 +147,7 @@ def test_real_fields_render_in_1d_and_2d(real_client):
 
     if len(dims) >= 2:
         image = client.post(
-            f"/simulations/{sim_id}/render/pseudocolor",
+            f"/api/simulations/{sim_id}/render/pseudocolor",
             json={
                 "config": {
                     "field": field["name"],
@@ -165,13 +165,13 @@ def test_real_fields_render_in_1d_and_2d(real_client):
 def test_real_particles_histogram(real_client):
     client, snapshot = real_client
     sim_id = snapshot["simulations"][0]["id"]
-    meta = client.get(f"/simulations/{sim_id}/particles").get_json()
+    meta = client.get(f"/api/simulations/{sim_id}/particles").get_json()
     if not meta["species"]:
         pytest.skip("this output has no particles")
 
     assert "gamma" in [q["name"] for q in meta["quantities"]]
     histogram = client.post(
-        f"/simulations/{sim_id}/render/particles/histogram",
+        f"/api/simulations/{sim_id}/render/particles/histogram",
         json={
             "config": {
                 "x": {"quantity": "gamma", "scale": "log", "bins": 20},
@@ -188,7 +188,7 @@ def test_real_particles_histogram(real_client):
 def test_real_output_summary(real_client):
     client, snapshot = real_client
     sim_id = snapshot["simulations"][0]["id"]
-    summary = client.get(f"/simulations/{sim_id}/summary").get_json()
+    summary = client.get(f"/api/simulations/{sim_id}/summary").get_json()
 
     assert summary["fields"]["axes"] and summary["fields"]["quantities"]
     assert summary["fields"]["times"]["count"] >= 1

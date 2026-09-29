@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from schema import SCHEMA_VERSION, SessionDocument
+from .schema import SCHEMA_VERSION, SessionDocument
 
 SESSION_SUFFIX = ".json"
 

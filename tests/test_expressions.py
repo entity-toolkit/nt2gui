@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from expressions import ExpressionError, evaluate
+from nt2gui.expressions import ExpressionError, evaluate
 
 
 @pytest.fixture

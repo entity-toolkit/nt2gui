@@ -9,6 +9,7 @@ knows species only by index, so labels and masses are read from the
 
 import logging
 import re
+import threading
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -127,6 +128,8 @@ class Nt2Simulation:
             for index in (self._particles.species if self._particles else [])
         ]
         self._particle_cache: dict[int, pd.DataFrame] = {}
+        # Held while loading so concurrent requests share one read of a step.
+        self._particle_lock = threading.Lock()
 
     @property
     def fields(self) -> xr.Dataset:
@@ -169,14 +172,15 @@ class Nt2Simulation:
 
     def particles(self, time: float) -> pd.DataFrame:
         step = self._particle_step(time)
-        if step not in self._particle_cache:
-            if len(self._particle_cache) >= PARTICLE_CACHE_SIZE:
-                self._particle_cache.pop(next(iter(self._particle_cache)))
-            frame = self._require_particles().isel(t=step).load()
-            self._particle_cache[step] = frame.drop(
-                columns=[c for c in PARTICLE_INDEX_COLUMNS if c in frame.columns]
-            )
-        return self._particle_cache[step]
+        with self._particle_lock:
+            if step not in self._particle_cache:
+                if len(self._particle_cache) >= PARTICLE_CACHE_SIZE:
+                    self._particle_cache.pop(next(iter(self._particle_cache)))
+                frame = self._require_particles().isel(t=step).load()
+                self._particle_cache[step] = frame.drop(
+                    columns=[c for c in PARTICLE_INDEX_COLUMNS if c in frame.columns]
+                )
+            return self._particle_cache[step]
 
     def to_json(self) -> dict[str, str]:
         return {"id": self.id, "path": self.path}

@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fakeloader import FakeSimulation
-from summary import describe_grid, describe_times, summarize
+from nt2gui.fakeloader import FakeSimulation
+from nt2gui.summary import describe_grid, describe_times, summarize
 
 
 def test_describe_times():
@@ -51,20 +51,20 @@ def test_summary_of_demo_simulation():
 
 
 def test_summary_endpoint(tmp_path):
-    from index import create_app
+    from nt2gui.app import create_app
 
     client = create_app(tmp_path / "s.json").test_client()
-    sim_id = client.post("/simulations", json={"path": "demo:run"}).get_json()["simulations"][0]["id"]
+    sim_id = client.post("/api/simulations", json={"path": "demo:run"}).get_json()["simulations"][0]["id"]
 
-    body = client.get(f"/simulations/{sim_id}/summary").get_json()
+    body = client.get(f"/api/simulations/{sim_id}/summary").get_json()
     assert body["fields"]["times"]["count"] == 50
-    assert client.get("/simulations/nope/summary").status_code == 404
+    assert client.get("/api/simulations/nope/summary").status_code == 404
 
 
 def test_sidebar_state_round_trips(tmp_path):
-    from index import create_app
+    from nt2gui.app import create_app
 
     client = create_app(tmp_path / "s.json").test_client()
-    state = client.get("/state").get_json()["state"] | {"sidebarCollapsed": True}
-    assert client.put("/state", json={"revision": 0, "state": state}).status_code == 200
-    assert client.get("/state").get_json()["state"]["sidebarCollapsed"] is True
+    state = client.get("/api/state").get_json()["state"] | {"sidebarCollapsed": True}
+    assert client.put("/api/state", json={"revision": 0, "state": state}).status_code == 200
+    assert client.get("/api/state").get_json()["state"]["sidebarCollapsed"] is True

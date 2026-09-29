@@ -224,3 +224,6 @@ devenv.local.nix
 
 # nt2gui session state
 .nt2gui/
+
+# Built client, bundled into the Python package
+nt2gui/static/

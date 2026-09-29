@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from particles import (
+from nt2gui.particles import (
     bin_edges,
     builtin_quantities,
     default_scale,

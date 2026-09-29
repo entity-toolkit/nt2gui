@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
-from sources import SimulationSource
+from .sources import SimulationSource
 
 TIME_DIM = "t"
 

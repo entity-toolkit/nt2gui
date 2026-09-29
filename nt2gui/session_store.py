@@ -15,8 +15,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from schema import Session, SessionDocument, UiState, default_session
-from session_files import migrate, write_json_atomic
+from .schema import Session, SessionDocument, UiState, default_session
+from .session_files import migrate, write_json_atomic
 
 logger = logging.getLogger(__name__)
 

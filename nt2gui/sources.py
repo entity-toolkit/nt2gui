@@ -55,9 +55,9 @@ def open_simulation(path: str, simulation_id: str | None = None) -> SimulationSo
     """Open `path`: `demo:<name>` gives synthetic data, anything else is read
     as Entity output with nt2py. Raises on unreadable paths."""
     if path.startswith(DEMO_PREFIX):
-        from fakeloader import FakeSimulation
+        from .fakeloader import FakeSimulation
 
         return FakeSimulation(path, simulation_id)
-    from nt2loader import Nt2Simulation
+    from .nt2loader import Nt2Simulation
 
     return Nt2Simulation(path, simulation_id)

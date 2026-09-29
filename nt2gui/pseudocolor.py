@@ -11,7 +11,7 @@ import numpy as np
 import xarray as xr
 from matplotlib.colors import LogNorm, Normalize, to_hex
 
-from fields import quantity_arrays
+from .fields import quantity_arrays
 
 
 def color_norm(

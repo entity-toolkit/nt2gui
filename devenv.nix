@@ -38,6 +38,10 @@
   };
 
   enterShell = ''
+    # Editable install of the project itself, for the `nt2gui` command (once).
+    if [ ! -x "$DEVENV_STATE/venv/bin/nt2gui" ]; then
+      "$DEVENV_STATE/venv/bin/python" -m pip install --quiet --no-deps -e .
+    fi
     echo "nt2gui devenv activated"
   '';
 }

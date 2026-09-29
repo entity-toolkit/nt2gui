@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fields import (
+from nt2gui.fields import (
     field_metadata,
     quantity_dims,
     render_line,

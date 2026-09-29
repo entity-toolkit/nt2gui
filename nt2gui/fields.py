@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
-from expressions import evaluate
+from .expressions import evaluate
 
 TIME_DIM = "t"
 COMPONENT_SUFFIXES = ("x", "y", "z")

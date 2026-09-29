@@ -7,7 +7,7 @@ import pytest
 import xarray as xr
 from matplotlib.colors import LogNorm
 
-from pseudocolor import color_norm, log_ticks, render_pseudocolor
+from nt2gui.pseudocolor import color_norm, log_ticks, render_pseudocolor
 
 
 def make_dataset(values):

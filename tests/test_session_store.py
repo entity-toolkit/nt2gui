@@ -2,8 +2,13 @@ import json
 
 import pytest
 
-from nt2gui.schema import SCHEMA_VERSION, SimulationRecord, UiState, default_session
-from nt2gui.session_store import RevisionConflict, SessionStore
+from nt2gui.session.schema import (
+    SCHEMA_VERSION,
+    SimulationRecord,
+    UiState,
+    default_session,
+)
+from nt2gui.session.store import RevisionConflict, SessionStore
 
 
 def make_state(**overrides):
@@ -42,7 +47,9 @@ def test_replace_state_bumps_revision_and_persists(tmp_path):
 def test_session_survives_restart(tmp_path):
     path = tmp_path / "session.json"
     store = SessionStore(path)
-    store.replace_state(make_state(timeline={"current": 3, "min": 0, "max": 9, "step": 1}), 0)
+    store.replace_state(
+        make_state(timeline={"current": 3, "min": 0, "max": 9, "step": 1}), 0
+    )
 
     reopened = SessionStore(path)
 

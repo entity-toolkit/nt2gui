@@ -5,103 +5,101 @@ import matplotlib.image as mpimg
 import numpy as np
 import pytest
 import xarray as xr
-from matplotlib.colors import LogNorm
 
-from nt2gui.pseudocolor import color_norm, log_ticks, render_pseudocolor
+from nt2gui.errors import UserError
+from nt2gui.plots.pseudocolor import render_pseudocolor
+from nt2gui.session.schema import PseudocolorConfig, ZoomWindow
 
 
-def make_dataset(values):
-    x = np.linspace(0, 1, values.shape[0])
-    y = np.linspace(0, 1, values.shape[1])
+def make_dataset(values, x=None, y=None):
+    x = np.linspace(0, 1, values.shape[0]) if x is None else x
+    y = np.linspace(0, 1, values.shape[1]) if y is None else y
     return xr.Dataset({"f": (("x", "y"), values)}, coords={"x": x, "y": y})
 
 
-class TestColorNorm:
-    def test_linear_keeps_given_limits(self):
-        norm = color_norm(np.array([1.0, 5.0]), "linear", 0, 10)
-        assert (norm.vmin, norm.vmax) == (0, 10)
-
-    def test_log_defaults_to_the_positive_data(self):
-        norm = color_norm(np.array([-3.0, 0.0, 0.01, 100.0, np.nan]), "log", None, None)
-        assert isinstance(norm, LogNorm)
-        assert (norm.vmin, norm.vmax) == (0.01, 100.0)
-
-    def test_log_with_one_limit(self):
-        norm = color_norm(np.array([0.5, 20.0]), "log", 1, None)
-        assert (norm.vmin, norm.vmax) == (1, 20)
-
-    def test_log_constant_data_gets_a_decade(self):
-        norm = color_norm(np.array([3.0, 3.0]), "log", None, None)
-        assert (norm.vmin, norm.vmax) == (3, 30)
-
-    @pytest.mark.parametrize(
-        ("values", "vmin", "message"),
-        [
-            (np.array([1.0]), 0, "positive minimum"),
-            (np.array([-1.0, 0.0]), None, "No positive values"),
-        ],
-    )
-    def test_log_errors(self, values, vmin, message):
-        with pytest.raises(ValueError, match=message):
-            color_norm(values, "log", vmin, None)
-
-    def test_unknown_scale(self):
-        with pytest.raises(ValueError, match="Unknown color scale"):
-            color_norm(np.array([1.0]), "cubic", None, None)
-
-
-class TestLogTicks:
-    def test_decades(self):
-        assert log_ticks(0.01, 1000) == [0.01, 0.1, 1, 10, 100, 1000]
-
-    def test_falls_back_to_finer_steps_within_a_decade(self):
-        assert log_ticks(1.5, 8) == [2, 5]
-        assert log_ticks(1.1, 1.9) == [1.1, 1.9]
-
-    def test_mixed(self):
-        assert log_ticks(3, 400) == [10, 100]
+def config(**extra):
+    return PseudocolorConfig.model_validate({"field": "f", "colorMap": "gray"} | extra)
 
 
 def decode(result):
     return mpimg.imread(BytesIO(base64.b64decode(result["image"])))
 
 
-def test_log_render_leaves_non_positive_values_transparent():
+def test_y_is_vertical_and_x_horizontal():
+    # Non-square grid, value increasing along x only.
+    xx, _ = np.meshgrid(np.linspace(0, 1, 40), np.linspace(0, 1, 10), indexing="ij")
+    result = render_pseudocolor(make_dataset(xx), config(), 0)
+
+    image = decode(result)[..., 0]
+    assert image.shape == (10, 40)
+    assert image[5, -2] > image[5, 1] + 0.5  # brighter to the right
+    assert np.ptp(image[:, 20]) < 0.05  # constant top to bottom
+
+
+def test_extent_spans_the_outer_cell_edges():
+    x = np.array([0.5, 1.5, 2.5, 3.5])
+    y = np.array([10.0, 20.0])
+    result = render_pseudocolor(make_dataset(np.ones((4, 2)), x, y), config(), 0)
+    assert result["extent"] == {"xMin": 0, "xMax": 4, "yMin": 5, "yMax": 25}
+
+
+def test_viewport_shades_only_the_cells_inside():
+    x = np.arange(10) + 0.5
+    result = render_pseudocolor(
+        make_dataset(np.ones((10, 4)), x=x),
+        config(),
+        0,
+        ZoomWindow(x_min=2, x_max=5, y_min=0, y_max=1),
+    )
+    assert result["imageSize"]["width"] == 3  # cells at 2.5, 3.5, 4.5
+    assert result["extent"]["xMin"] == 2 and result["extent"]["xMax"] == 5
+
+
+def test_empty_viewport_is_an_error():
+    with pytest.raises(UserError, match="zoom window is empty"):
+        render_pseudocolor(
+            make_dataset(np.ones((4, 4))),
+            config(),
+            0,
+            ZoomWindow(x_min=0.1, x_max=0.2, y_min=0.1, y_max=0.2),
+        )
+
+
+def test_log_colors_leave_non_positive_values_transparent():
     values = np.ones((20, 10))
-    values[:10] = -1.0  # left half (x < 0.5) negative
+    values[:10] = -1.0  # x < 0.5 negative
     values[10:] = np.logspace(0, 2, 10)[:, None]
 
-    result = render_pseudocolor(
-        make_dataset(values),
-        {"field": "f", "xCoordinate": "x", "yCoordinate": "y", "colorScale": "log"},
-        0,
-    )
+    result = render_pseudocolor(make_dataset(values), config(colorScale="log"), 0)
 
-    image = decode(result)
-    alpha = image[..., 3]
-    middle = image.shape[0] // 2
-    assert alpha[middle, 5] == 0  # negative: transparent
-    assert alpha[middle, -5] == 1  # positive: drawn
+    alpha = decode(result)[..., 3]
+    assert alpha[5, 2] == 0 and alpha[5, -2] == 1
     colorbar = result["colorbar"]
     assert colorbar["scale"] == "log"
-    assert colorbar["vmin"] == pytest.approx(1) and colorbar["vmax"] == pytest.approx(100)
-    assert colorbar["labels"] == ["1", "10", "100"]
+    assert colorbar["vmin"] == pytest.approx(1) and colorbar["vmax"] == pytest.approx(
+        100
+    )
 
 
-def test_linear_render_is_unchanged_and_reports_its_scale():
+def test_linear_limits_and_timestamp_of_static_data():
     result = render_pseudocolor(
         make_dataset(np.linspace(-1, 1, 200).reshape(20, 10)),
-        {"field": "f", "xCoordinate": "x", "yCoordinate": "y", "vmin": -2, "vmax": 2},
-        0,
+        config(vmin=-2, vmax=2),
+        0.7,
     )
-    assert result["colorbar"]["scale"] == "linear"
     assert (result["colorbar"]["vmin"], result["colorbar"]["vmax"]) == (-2, 2)
+    assert result["timestamp"] == 0.7
 
 
-def test_log_of_negative_only_field_is_an_error():
-    with pytest.raises(ValueError, match="No positive values"):
-        render_pseudocolor(
-            make_dataset(-np.ones((4, 4))),
-            {"field": "f", "xCoordinate": "x", "yCoordinate": "y", "colorScale": "log"},
-            0,
-        )
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        ({"field": ""}, "Choose a field"),
+        ({"yCoordinate": "x"}, "must be different"),
+        ({"yCoordinate": "z"}, "does not depend on 'z'"),
+        ({"colorScale": "log"}, "No positive values"),
+    ],
+)
+def test_invalid_requests(extra, message):
+    with pytest.raises(UserError, match=message):
+        render_pseudocolor(make_dataset(-np.ones((4, 4))), config(**extra), 0)

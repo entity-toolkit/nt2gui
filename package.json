@@ -1,7 +1,6 @@
 {
   "name": "nt2gui",
   "private": true,
-  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
@@ -9,9 +8,10 @@
     "dev:server": "python3 -m flask --app nt2gui.app run --reload --port ${NT2GUI_DEV_PORT:-5000}",
     "build": "vite build",
     "package": "npm run build && python3 -m build",
-    "test": "npm run test:client && npm run test:server",
+    "test": "npm run typecheck && npm run test:client && npm run test:server",
     "test:client": "vitest run",
-    "test:server": "python3 -m pytest"
+    "test:server": "python3 -m pytest",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "d3": "^7.9.0",
@@ -21,6 +21,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/d3": "^7.4.3",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -30,7 +32,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "jsdom": "^26.1.0",
     "prettier": "^3.7.4",
+    "typescript": "^5.9.3",
     "vite": "^7.2.4",
     "vitest": "^3.0.5"
   }

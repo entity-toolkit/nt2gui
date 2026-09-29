@@ -1,56 +1,29 @@
-import { useCallback, useState } from "react";
-import { IServerSnapshot } from "../global";
-import {
-  addSimulation,
-  unloadSimulation,
-} from "../services/simulationService";
-
-export type RunServerCommand = <T extends IServerSnapshot>(
-  command: () => Promise<T>,
-) => Promise<T>;
+import { useState } from "react";
+import { addSimulation, unloadSimulation } from "../api/simulations";
+import { IServerSnapshot } from "../api/types";
+import { useUiActions } from "../state/UiContext";
 
 /**
- * Simulation commands. The loaded simulations are part of the server
- * snapshot (see useUiState); this hook only tracks the in-flight request.
+ * Loading and unloading simulations. The loaded simulations come back in the
+ * server snapshot; this hook only tracks the request in flight. Errors are
+ * thrown to the caller, which shows them.
  */
-export const useSimulations = (runServerCommand: RunServerCommand) => {
+export const useSimulations = () => {
+  const { runServerCommand } = useUiActions();
   const [isLoading, setIsLoading] = useState(false);
 
-  const run = useCallback(
-    async (command: () => Promise<IServerSnapshot>, action: string) => {
-      setIsLoading(true);
-      try {
-        await runServerCommand(command);
-      } catch (error) {
-        console.error(`Failed to ${action}`, error);
-        throw error;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [runServerCommand],
-  );
-
-  const handleAddSimulation = useCallback(
-    async (path: string) => {
-      const trimmedPath = path.trim();
-      if (!trimmedPath) {
-        console.error("Simulation path is required");
-        return;
-      }
-      await run(() => addSimulation(trimmedPath), "add simulation");
-    },
-    [run],
-  );
-
-  const handleUnloadSimulation = useCallback(
-    (id: string) => run(() => unloadSimulation(id), "unload simulation"),
-    [run],
-  );
+  const run = async (command: () => Promise<IServerSnapshot>) => {
+    setIsLoading(true);
+    try {
+      await runServerCommand(command);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return {
     isLoading,
-    addSimulation: handleAddSimulation,
-    unloadSimulation: handleUnloadSimulation,
+    addSimulation: (path: string) => run(() => addSimulation(path)),
+    unloadSimulation: (id: string) => run(() => unloadSimulation(id)),
   };
 };

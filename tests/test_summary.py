@@ -2,8 +2,9 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from nt2gui.fakeloader import FakeSimulation
-from nt2gui.summary import describe_grid, describe_times, summarize
+from helpers import load_demo
+from nt2gui.data.metadata import describe_grid, describe_times, summarize
+from nt2gui.sources.demo import DemoSimulation
 
 
 def test_describe_times():
@@ -13,7 +14,10 @@ def test_describe_times():
 
 def test_describe_grid_reports_axes_quantities_and_times():
     ds = xr.Dataset(
-        {"Bx": (("t", "y", "x"), np.zeros((3, 2, 4))), "Ex": (("t", "y", "x"), np.zeros((3, 2, 4)))},
+        {
+            "Bx": (("t", "y", "x"), np.zeros((3, 2, 4))),
+            "Ex": (("t", "y", "x"), np.zeros((3, 2, 4))),
+        },
         coords={"t": [0.0, 1.0, 2.0], "x": [0.5, 1.5, 2.5, 3.5], "y": [-1.0, 1.0]},
     )
     assert describe_grid(ds) == {
@@ -31,7 +35,7 @@ def test_describe_grid_of_empty_dataset():
 
 
 def test_summary_of_demo_simulation():
-    summary = summarize(FakeSimulation("demo:x"))
+    summary = summarize(DemoSimulation("demo:x"))
 
     fields = summary["fields"]
     assert [a["name"] for a in fields["axes"]] == ["x", "y", "z"]
@@ -50,21 +54,9 @@ def test_summary_of_demo_simulation():
     assert summary["spectra"] is None
 
 
-def test_summary_endpoint(tmp_path):
-    from nt2gui.app import create_app
-
-    client = create_app(tmp_path / "s.json").test_client()
-    sim_id = client.post("/api/simulations", json={"path": "demo:run"}).get_json()["simulations"][0]["id"]
+def test_summary_endpoint(client):
+    sim_id = load_demo(client)
 
     body = client.get(f"/api/simulations/{sim_id}/summary").get_json()
     assert body["fields"]["times"]["count"] == 50
     assert client.get("/api/simulations/nope/summary").status_code == 404
-
-
-def test_sidebar_state_round_trips(tmp_path):
-    from nt2gui.app import create_app
-
-    client = create_app(tmp_path / "s.json").test_client()
-    state = client.get("/api/state").get_json()["state"] | {"sidebarCollapsed": True}
-    assert client.put("/api/state", json={"revision": 0, "state": state}).status_code == 200
-    assert client.get("/api/state").get_json()["state"]["sidebarCollapsed"] is True

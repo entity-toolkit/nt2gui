@@ -1,0 +1,20 @@
+/* Shared look of d3-drawn axes (see charts/axis.ts). */
+.chart-axis text {
+  fill: var(--color-axis-text);
+  font-size: 12px;
+}
+
+.chart-axis line,
+.chart-axis path {
+  stroke: var(--color-axis-line);
+}
+
+.chart-grid line {
+  stroke: var(--color-border);
+}
+
+.chart-title {
+  fill: var(--color-axis-text);
+  font-size: 13px;
+  font-style: italic;
+}

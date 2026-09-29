@@ -21,7 +21,6 @@
     ]
   },
   "include": [
-    "client/src",
-    "vite.config.ts"
+    "client/src"
   ]
 }

@@ -2,13 +2,17 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from nt2gui.fields import (
-    field_metadata,
+from nt2gui.data.metadata import field_metadata
+from nt2gui.data.quantities import (
+    QuantityError,
+    cell_edges,
+    cut,
     quantity_dims,
-    render_line,
     resolve_quantities,
+    snapshot_at,
     vector_groups,
 )
+from nt2gui.plots.line import render_line
 
 
 def make_dataset():
@@ -64,7 +68,7 @@ class TestResolveQuantities:
         assert resolve_quantities(["By", "B"], make_dataset()) == ["By", "Bx", "Bz"]
 
     def test_unknown_quantity_raises(self):
-        with pytest.raises(KeyError):
+        with pytest.raises(QuantityError):
             resolve_quantities(["nope"], make_dataset())
 
 
@@ -112,14 +116,21 @@ class TestRenderLine:
         x = np.linspace(0, 9, 10)
         ds = xr.Dataset({"p": (("x",), x**2)}, coords={"x": x})
 
-        result = render_line(ds, ["p"], "x", {}, time=0, value_range={"min": 5.5, "max": 2.5})
+        result = render_line(
+            ds, ["p"], "x", {}, time=0, value_range={"min": 5.5, "max": 2.5}
+        )
 
         assert result["coordinates"] == [2, 3, 4, 5, 6]
         assert result["series"][0]["values"] == [4, 9, 16, 25, 36]
 
     def test_range_is_clamped_at_the_data_edges(self):
         result = render_line(
-            make_dataset(), ["profile"], "x", {}, time=0, value_range={"min": -3, "max": 0.5}
+            make_dataset(),
+            ["profile"],
+            "x",
+            {},
+            time=0,
+            value_range={"min": -3, "max": 0.5},
         )
 
         # Only x=0 is inside; nothing exists below it, one point is added above.
@@ -164,7 +175,11 @@ class TestExpressions:
         )
 
         assert [s["name"] for s in result["series"]] == [
-            "Bx", "By", "Bz", "sqrt(Bx**2 + By**2)", "N_1",
+            "Bx",
+            "By",
+            "Bz",
+            "sqrt(Bx**2 + By**2)",
+            "N_1",
         ]
 
     def test_expression_uses_the_selected_time(self):
@@ -175,7 +190,9 @@ class TestExpressions:
         assert late["series"][0]["values"] == [200, 202, 204, 206, 208]
 
     def test_coordinate_expressions_are_sliced_like_fields(self):
-        result = render_line(make_dataset(), ["x * y + 0 * N_1"], "x", {"y": -1}, time=0)
+        result = render_line(
+            make_dataset(), ["x * y + 0 * N_1"], "x", {"y": -1}, time=0
+        )
 
         assert result["series"][0]["values"] == [0, -1, -2, -3, -4]
         assert result["slices"] == {"y": -1.0}
@@ -185,7 +202,7 @@ class TestExpressions:
             render_line(make_dataset(), ["q + Bx"], "x", {}, time=0)
 
     def test_unknown_plain_name_is_still_an_unknown_quantity(self):
-        with pytest.raises(KeyError, match="Unknown quantity 'q'"):
+        with pytest.raises(QuantityError, match="Unknown quantity 'q'"):
             render_line(make_dataset(), ["q"], "x", {}, time=0)
 
 

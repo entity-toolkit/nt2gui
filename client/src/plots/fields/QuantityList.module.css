@@ -1,0 +1,105 @@
+.quantities {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin: 0;
+  padding: 6px 10px 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.quantities legend {
+  color: var(--color-axis-text);
+  font-size: 13px;
+  padding: 0 4px;
+}
+
+.groupTitle {
+  margin: 6px 0 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-soft);
+  cursor: pointer;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+
+.option:hover {
+  background: var(--color-hover);
+}
+
+.option input {
+  accent-color: var(--color-accent);
+}
+
+.optionName {
+  font-weight: 600;
+}
+
+.optionDetail {
+  margin-left: auto;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.item .option {
+  flex: 1;
+  min-width: 0;
+}
+
+.optionName {
+  overflow-wrap: anywhere;
+}
+
+.invalid .optionName {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+
+.invalid .optionDetail {
+  color: var(--color-danger);
+}
+
+.remove {
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.remove:hover {
+  color: var(--color-danger);
+  background: var(--color-hover);
+}

@@ -1,22 +1,7 @@
 import pytest
 
+from helpers import load_demo, put_state
 from nt2gui.app import create_app
-
-
-@pytest.fixture
-def state_file(tmp_path):
-    return tmp_path / "session.json"
-
-
-@pytest.fixture
-def client(state_file):
-    return create_app(state_file).test_client()
-
-
-def put_state(client, revision, **overrides):
-    state = client.get("/api/state").get_json()["state"]
-    state.update(overrides)
-    return client.put("/api/state", json={"revision": revision, "state": state})
 
 
 def test_state_is_available_without_initialization(client):
@@ -35,7 +20,9 @@ def test_state_is_available_without_initialization(client):
 
 
 def test_put_state_accepts_current_revision(client):
-    response = put_state(client, 0, globalViewport={"xMin": 0, "xMax": 1, "yMin": 0, "yMax": 1})
+    response = put_state(
+        client, 0, globalViewport={"xMin": 0, "xMax": 1, "yMin": 0, "yMax": 1}
+    )
 
     assert response.status_code == 200
     assert response.get_json()["revision"] == 1
@@ -81,7 +68,9 @@ def test_state_and_simulations_survive_restart(state_file):
     client = create_app(state_file).test_client()
     added = client.post("/api/simulations", json={"path": "demo:run1"}).get_json()
     sim_id = added["simulations"][0]["id"]
-    plotters = {"p1": {"plotType": "pseudocolor", "dataType": "fields", "simulationId": sim_id}}
+    plotters = {
+        "p1": {"plotType": "pseudocolor", "dataType": "fields", "simulationId": sim_id}
+    }
     put_state(client, added["revision"], plotters=plotters)
     before = client.get("/api/state").get_json()
 
@@ -99,7 +88,9 @@ def test_adding_simulation_sets_timeline_and_is_idempotent(client):
     first = client.post("/api/simulations", json={"path": " demo:run1 "}).get_json()
     second = client.post("/api/simulations", json={"path": "demo:run1"}).get_json()
 
-    assert first["simulations"] == [{"id": first["simulations"][0]["id"], "path": "demo:run1"}]
+    assert first["simulations"] == [
+        {"id": first["simulations"][0]["id"], "path": "demo:run1"}
+    ]
     assert first["state"]["timeline"]["max"] == 1.0
     assert second["revision"] == first["revision"]
 
@@ -111,7 +102,9 @@ def test_add_simulation_requires_path(client):
 def test_unloading_simulation_clears_references_and_resets_timeline(client):
     added = client.post("/api/simulations", json={"path": "demo:run1"}).get_json()
     sim_id = added["simulations"][0]["id"]
-    plotters = {"p1": {"plotType": "line", "dataType": "fields", "simulationId": sim_id}}
+    plotters = {
+        "p1": {"plotType": "line", "dataType": "fields", "simulationId": sim_id}
+    }
     put_state(client, added["revision"], plotters=plotters)
 
     response = client.delete(f"/api/simulations/{sim_id}")
@@ -125,7 +118,12 @@ def test_unloading_simulation_clears_references_and_resets_timeline(client):
 
 def test_unknown_simulation_is_404(client):
     assert client.delete("/api/simulations/nope").status_code == 404
-    assert client.post("/api/simulations/nope/render/pseudocolor", json={"time": 0}).status_code == 404
+    assert (
+        client.post(
+            "/api/simulations/nope/render/pseudocolor", json={"time": 0}
+        ).status_code
+        == 404
+    )
 
 
 def test_field_metadata_endpoint(client):
@@ -147,7 +145,9 @@ def test_line_render_endpoint(client):
     url = f"/api/simulations/{sim_id}/render/line"
     config = {"quantities": ["E", "N_1"], "axis": "x", "slices": {"y": 0.0}}
 
-    ok = client.post(url, json={"config": config, "time": 0.5, "range": {"min": 2, "max": 4}})
+    ok = client.post(
+        url, json={"config": config, "time": 0.5, "range": {"min": 2, "max": 4}}
+    )
     body = ok.get_json()
     assert ok.status_code == 200
     assert [s["name"] for s in body["series"]] == ["Ex", "Ey", "Ez", "N_1"]
@@ -155,12 +155,16 @@ def test_line_render_endpoint(client):
     inside = [c for c in body["coordinates"] if 2 <= c <= 4]
     assert len(body["coordinates"]) == len(inside) + 2
 
-    unknown = client.post(url, json={"config": {**config, "quantities": ["zzz"]}, "time": 0})
+    unknown = client.post(
+        url, json={"config": {**config, "quantities": ["zzz"]}, "time": 0}
+    )
     assert unknown.status_code == 400
     assert unknown.get_json()["error"] == "Unknown quantity 'zzz'"
 
     assert client.post(url, json={"config": config}).status_code == 400
-    assert client.post(url, json={"config": {"axis": "x"}, "time": 0}).status_code == 400
+    assert (
+        client.post(url, json={"config": {"axis": "x"}, "time": 0}).status_code == 400
+    )
     bad_range = {"config": config, "time": 0, "range": {"min": 3, "max": 1}}
     assert client.post(url, json=bad_range).status_code == 400
 
@@ -202,12 +206,33 @@ def test_pseudocolor_rejects_axes_the_field_lacks(client):
     ][0]["id"]
     url = f"/api/simulations/{sim_id}/render/pseudocolor"
 
-    ok = client.post(url, json={"config": {"field": "f", "xCoordinate": "y", "yCoordinate": "x"}, "time": 0})
-    missing = client.post(url, json={"config": {"field": "f", "xCoordinate": "x", "yCoordinate": "z"}, "time": 0})
-    same = client.post(url, json={"config": {"field": "f", "xCoordinate": "x", "yCoordinate": "x"}, "time": 0})
+    ok = client.post(
+        url,
+        json={
+            "config": {"field": "f", "xCoordinate": "y", "yCoordinate": "x"},
+            "time": 0,
+        },
+    )
+    missing = client.post(
+        url,
+        json={
+            "config": {"field": "f", "xCoordinate": "x", "yCoordinate": "z"},
+            "time": 0,
+        },
+    )
+    same = client.post(
+        url,
+        json={
+            "config": {"field": "f", "xCoordinate": "x", "yCoordinate": "x"},
+            "time": 0,
+        },
+    )
 
     assert ok.status_code == 200
-    assert missing.status_code == 400 and "does not depend on 'z'" in missing.get_json()["error"]
+    assert (
+        missing.status_code == 400
+        and "does not depend on 'z'" in missing.get_json()["error"]
+    )
     assert same.status_code == 400
 
 
@@ -226,7 +251,9 @@ def test_pseudocolor_of_3d_field_is_sliced_at_requested_coordinate(client):
         url,
         json={"config": {**config, "yCoordinate": "z", "slices": {"y": -5}}, "time": 0},
     ).get_json()
-    two_d = client.post(url, json={"config": {**config, "field": "f"}, "time": 0}).get_json()
+    two_d = client.post(
+        url, json={"config": {**config, "field": "f"}, "time": 0}
+    ).get_json()
 
     assert middle["slices"] == {"z": 0.0}
     assert chosen["slices"] == {"z": 1.5}  # nearest grid point (z step is 0.5)
@@ -254,14 +281,8 @@ def test_pseudocolor_slices_round_trip_in_state(client):
     assert client.get("/api/state").get_json()["state"]["plotters"] == plotters
 
 
-def load_sim(client):
-    return client.post("/api/simulations", json={"path": "demo:run1"}).get_json()[
-        "simulations"
-    ][0]["id"]
-
-
 def test_quantity_check_reports_dims_or_errors(client):
-    url = f"/api/simulations/{load_sim(client)}/quantities/check"
+    url = f"/api/simulations/{load_demo(client)}/quantities/check"
 
     magnitude = client.post(url, json={"expression": " sqrt(Ex**2 + Ey**2 + Ez**2) "})
     assert magnitude.status_code == 200
@@ -270,7 +291,9 @@ def test_quantity_check_reports_dims_or_errors(client):
         "dims": ["x", "y"],
     }
     assert client.post(url, json={"expression": "rho + f"}).get_json()["dims"] == [
-        "x", "y", "z",
+        "x",
+        "y",
+        "z",
     ]
     assert client.post(url, json={"expression": "B"}).get_json()["dims"] == ["x", "y"]
 
@@ -278,11 +301,16 @@ def test_quantity_check_reports_dims_or_errors(client):
     assert bad.status_code == 400
     assert bad.get_json()["error"] == "Unknown name 'nope'"
     assert client.post(url, json={"expression": ""}).status_code == 400
-    assert client.post("/api/simulations/zzz/quantities/check", json={"expression": "f"}).status_code == 404
+    assert (
+        client.post(
+            "/api/simulations/zzz/quantities/check", json={"expression": "f"}
+        ).status_code
+        == 404
+    )
 
 
 def test_expressions_render_in_1d_and_2d(client):
-    sim_id = load_sim(client)
+    sim_id = load_demo(client)
 
     line = client.post(
         f"/api/simulations/{sim_id}/render/line",
@@ -293,7 +321,11 @@ def test_expressions_render_in_1d_and_2d(client):
     pseudocolor = client.post(
         f"/api/simulations/{sim_id}/render/pseudocolor",
         json={
-            "config": {"field": "sqrt(Bx**2 + By**2)", "xCoordinate": "x", "yCoordinate": "y"},
+            "config": {
+                "field": "sqrt(Bx**2 + By**2)",
+                "xCoordinate": "x",
+                "yCoordinate": "y",
+            },
             "time": 0.2,
         },
     )
@@ -301,13 +333,19 @@ def test_expressions_render_in_1d_and_2d(client):
 
     vector = client.post(
         f"/api/simulations/{sim_id}/render/pseudocolor",
-        json={"config": {"field": "B", "xCoordinate": "x", "yCoordinate": "y"}, "time": 0},
+        json={
+            "config": {"field": "B", "xCoordinate": "x", "yCoordinate": "y"},
+            "time": 0,
+        },
     )
     assert vector.status_code == 400 and "is a vector" in vector.get_json()["error"]
 
     bad = client.post(
         f"/api/simulations/{sim_id}/render/pseudocolor",
-        json={"config": {"field": "f +", "xCoordinate": "x", "yCoordinate": "y"}, "time": 0},
+        json={
+            "config": {"field": "f +", "xCoordinate": "x", "yCoordinate": "y"},
+            "time": 0,
+        },
     )
     assert bad.status_code == 400 and "Invalid expression" in bad.get_json()["error"]
 
@@ -344,7 +382,7 @@ def axis(quantity, scale="linear", **extra):
 
 
 def test_particle_metadata(client):
-    body = client.get(f"/api/simulations/{load_sim(client)}/particles").get_json()
+    body = client.get(f"/api/simulations/{load_demo(client)}/particles").get_json()
 
     assert [s["index"] for s in body["species"]] == [1, 2, 3]
     assert {"name": "energy", "defaultScale": "log"} in body["quantities"]
@@ -353,14 +391,14 @@ def test_particle_metadata(client):
 
 
 def test_particle_expression_check(client):
-    url = f"/api/simulations/{load_sim(client)}/particles/check"
+    url = f"/api/simulations/{load_demo(client)}/particles/check"
     assert client.post(url, json={"expression": "gamma * w"}).status_code == 200
     bad = client.post(url, json={"expression": "Bx"})
     assert bad.status_code == 400 and "Unknown name 'Bx'" in bad.get_json()["error"]
 
 
 def test_particle_histogram_endpoint(client):
-    url = f"/api/simulations/{load_sim(client)}/render/particles/histogram"
+    url = f"/api/simulations/{load_demo(client)}/render/particles/histogram"
     config = {
         "x": axis("energy", "log", bins=40),
         "series": [{"species": [1]}, {"species": [3]}],
@@ -373,14 +411,20 @@ def test_particle_histogram_endpoint(client):
 
     custom = {**config, "x": axis("ux * w", "power", power=0.3)}
     assert client.post(url, json={"config": custom, "time": 0}).status_code == 200
-    bad = client.post(url, json={"config": {**config, "x": axis("energy", "cubic")}, "time": 0})
+    bad = client.post(
+        url, json={"config": {**config, "x": axis("energy", "cubic")}, "time": 0}
+    )
     assert bad.status_code == 400
     assert client.post(url, json={"config": config}).status_code == 400
 
 
 def test_particle_phase_endpoint(client):
-    url = f"/api/simulations/{load_sim(client)}/render/particles/phase"
-    config = {"x": axis("x", bins=64), "y": axis("ux", "power", power=0.5, bins=32), "species": [1]}
+    url = f"/api/simulations/{load_demo(client)}/render/particles/phase"
+    config = {
+        "x": axis("x", bins=64),
+        "y": axis("ux", "power", power=0.5, bins=32),
+        "species": [1],
+    }
 
     body = client.post(url, json={"config": config, "time": 0}).get_json()
     assert body["imageSize"] == {"width": 64, "height": 32}
@@ -424,3 +468,56 @@ def test_unreadable_simulation_path_is_a_clear_error(client, tmp_path):
     assert response.status_code == 400
     assert "No such directory" in response.get_json()["error"]
     assert client.get("/api/state").get_json()["simulations"] == []
+
+
+def test_sidebar_state_round_trips(client):
+    assert put_state(client, sidebarCollapsed=True).status_code == 200
+    assert client.get("/api/state").get_json()["state"]["sidebarCollapsed"] is True
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "body"),
+    [
+        ("post", "/api/simulations", [1]),
+        ("put", "/api/state", "text"),
+        ("post", "/api/session/load", [None]),
+    ],
+)
+def test_non_object_bodies_are_rejected(client, method, url, body):
+    response = getattr(client, method)(url, json=body)
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Expected a JSON object"
+
+
+@pytest.mark.parametrize("time", [True, "0", None])
+def test_times_must_be_numbers(client, time):
+    sim_id = load_demo(client)
+    for url, config in [
+        ("render/line", {"quantities": ["f"], "axis": "x"}),
+        ("render/pseudocolor", {"field": "f"}),
+        (
+            "render/particles/histogram",
+            {"x": {"quantity": "x", "scale": "linear"}, "series": [{}]},
+        ),
+    ]:
+        response = client.post(
+            f"/api/simulations/{sim_id}/{url}", json={"config": config, "time": time}
+        )
+        assert response.status_code == 400, url
+        assert response.get_json()["error"] == "Time value is required"
+
+
+def test_missing_config_is_a_validation_error(client):
+    sim_id = load_demo(client)
+    response = client.post(
+        f"/api/simulations/{sim_id}/render/pseudocolor",
+        json={"config": None, "time": 0},
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid pseudocolor request"
+
+
+def test_missing_session_path_is_reported_as_such(client):
+    response = client.post("/api/session/load", json={})
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "A session file path is required"

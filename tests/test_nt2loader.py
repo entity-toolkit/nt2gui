@@ -1,17 +1,10 @@
-import base64
 import os
-from io import BytesIO
 from pathlib import Path
 
-import matplotlib.image as mpimg
 import numpy as np
 import pytest
-import xarray as xr
 
-from nt2gui.fakeloader import FakeSimulation
-from nt2gui.nt2loader import combined_timeline, parse_species_info
-from nt2gui.pseudocolor import render_pseudocolor
-from nt2gui.sources import open_simulation
+from nt2gui.sources.nt2 import parse_species_info
 
 INFO = """
     Particles
@@ -43,59 +36,6 @@ class TestSpeciesInfo:
     def test_unparseable_numbers_are_skipped(self):
         text = "- Species #3:\n  - Label: p\n  - Mass: heavy\n"
         assert parse_species_info(text) == {3: {"label": "p"}}
-
-
-class TestTimeline:
-    def test_spans_all_outputs_with_the_finest_step(self):
-        fields = np.array([0.0, 1.0, 2.0])
-        particles = np.array([0.5, 1.0, 3.0])
-        assert combined_timeline(fields, particles) == {
-            "current": 0.0,
-            "min": 0.0,
-            "max": 3.0,
-            "step": 0.5,
-        }
-
-    def test_single_output(self):
-        assert combined_timeline(np.array([2.0]))["step"] == 1.0
-
-    def test_no_outputs(self):
-        assert combined_timeline()["max"] == 1.0
-
-
-class TestOpenSimulation:
-    def test_demo_prefix_gives_synthetic_data(self):
-        simulation = open_simulation("demo:anything", "abc")
-        assert isinstance(simulation, FakeSimulation)
-        assert simulation.id == "abc"
-
-    def test_missing_directory_is_an_error(self, tmp_path):
-        with pytest.raises(FileNotFoundError, match="No such directory"):
-            open_simulation(str(tmp_path / "nope"))
-
-    def test_directory_without_output_is_an_error(self, tmp_path):
-        with pytest.raises(Exception):
-            open_simulation(str(tmp_path))
-
-
-def test_pseudocolor_puts_y_vertically_and_x_horizontally():
-    # Non-square grid, value increasing along x only.
-    x = np.linspace(0, 1, 40)
-    y = np.linspace(0, 1, 10)
-    xx, _ = np.meshgrid(x, y, indexing="ij")
-    ds = xr.Dataset({"f": (("x", "y"), xx)}, coords={"x": x, "y": y})
-
-    result = render_pseudocolor(
-        ds, {"field": "f", "xCoordinate": "x", "yCoordinate": "y", "colorMap": "gray"}, 0
-    )
-
-    image = mpimg.imread(BytesIO(base64.b64decode(result["image"])))[..., 0]
-    middle_row = image[image.shape[0] // 2]
-    middle_column = image[:, image.shape[1] // 2]
-    # Brightness grows left to right and is constant top to bottom.
-    assert middle_row[-5] > middle_row[5] + 0.5
-    assert np.ptp(middle_column[5:-5]) < 0.05
-    assert result["extent"] == {"xMin": 0.0, "xMax": 1.0, "yMin": 0.0, "yMax": 1.0}
 
 
 # --- real Entity output ---------------------------------------------------------

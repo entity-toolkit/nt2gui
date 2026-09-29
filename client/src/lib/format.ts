@@ -1,0 +1,52 @@
+import { IGridSummary, ITimesSummary } from "../api/types";
+
+/**
+ * Compact numbers: `digits` significant digits, no trailing zeros, and
+ * exponential notation for very large or small magnitudes ("0.354", "1.2e-4").
+ */
+export const formatNumber = (value: number, digits = 3) => {
+  if (value === 0) return "0";
+  if (!Number.isFinite(value)) return String(value);
+  const abs = Math.abs(value);
+  if (abs >= 1e4 || abs < 1e-3) {
+    return value.toExponential(digits - 1).replace(/\.?0+e/, "e");
+  }
+  return String(Number(value.toPrecision(digits)));
+};
+
+/** A readout value (4 significant digits), or "–" when missing. */
+export const formatValue = (value: number | null | undefined) =>
+  value === null || value === undefined ? "–" : formatNumber(value, 4);
+
+export const formatCount = (value: number) => value.toLocaleString("en-US");
+
+export const formatRange = (min: number, max: number) =>
+  min === max
+    ? formatNumber(min)
+    : `${formatNumber(min)} – ${formatNumber(max)}`;
+
+/** "28 outputs, t = 0.354 – 9.9" / "1 output, t = 2". */
+export const formatTimes = (times: ITimesSummary | null) => {
+  if (!times) return "no outputs";
+  const outputs = `${times.count} output${times.count === 1 ? "" : "s"}`;
+  return `${outputs}, t = ${formatRange(times.min, times.max)}`;
+};
+
+/** Grid resolution in dimension order, e.g. "32 × 64". */
+export const formatResolution = (axes: IGridSummary["axes"]) =>
+  axes.map((axis) => axis.size).join(" × ");
+
+/** One entry per axis, e.g. "x ∈ 0.5 – 31.5 (32)". */
+export const formatAxes = (axes: IGridSummary["axes"]) =>
+  axes.map((axis) =>
+    axis.min === undefined || axis.max === undefined
+      ? `${axis.name} (${axis.size})`
+      : `${axis.name} ∈ ${formatRange(axis.min, axis.max)} (${axis.size})`,
+  );
+
+export const formatMass = (mass: number | null) =>
+  mass === null
+    ? "mass unknown"
+    : mass === 0
+      ? "massless"
+      : `m = ${formatNumber(mass)}`;

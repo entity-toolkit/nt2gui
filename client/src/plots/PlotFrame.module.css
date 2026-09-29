@@ -1,0 +1,118 @@
+.plot {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+.plotBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.plotToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbarGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbarButton {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.toolbarButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toolbarButton:not(:disabled):hover {
+  background: var(--color-hover);
+  border-color: var(--color-axis-line);
+}
+
+.toolbarToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-axis-text);
+  font-size: 13px;
+}
+
+.toolbarStatus {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.plotFigure {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px dashed #243049;
+  background:
+    radial-gradient(
+      circle at 20% 20%,
+      rgba(59, 130, 246, 0.05),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 80% 30%,
+      rgba(16, 185, 129, 0.08),
+      transparent 40%
+    ),
+    var(--color-bg);
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  position: relative;
+}
+
+.plotFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.plotMeta {
+  display: flex;
+  gap: 8px;
+}
+
+.plotBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-hover);
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-axis-text);
+}

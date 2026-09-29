@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { serverErrorMessage } from "../services/sessionService";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { serverErrorMessage } from "../api/http";
 
 /**
  * Runs `request` whenever `key` changes (null disables it) and keeps only the
- * newest result: controls such as bin counts or sliders fire requests in
- * quick succession, and older responses may arrive last.
+ * newest result: sliders and zooms fire requests in quick succession, and
+ * older responses may arrive last. The last good result stays visible while a
+ * newer one loads.
  */
 export const useServerRender = <T>(
   key: string | null,
@@ -14,8 +15,7 @@ export const useServerRender = <T>(
   const [error, setError] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const latest = useRef(0);
-  const requestRef = useRef(request);
-  requestRef.current = request;
+  const run = useEffectEvent(request);
 
   useEffect(() => {
     const id = ++latest.current;
@@ -26,8 +26,7 @@ export const useServerRender = <T>(
       return;
     }
     setIsRendering(true);
-    requestRef
-      .current()
+    run()
       .then((result) => {
         if (id !== latest.current) return;
         setData(result);

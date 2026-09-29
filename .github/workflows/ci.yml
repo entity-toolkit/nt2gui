@@ -49,7 +49,7 @@ jobs:
           python -m venv venv
           venv/bin/pip install "$GITHUB_WORKSPACE"/dist/*.whl
           venv/bin/nt2gui --version
-          venv/bin/python -c "import nt2gui.app as a; assert (a.STATIC_DIR / 'index.html').is_file()"
+          venv/bin/python -c "from nt2gui.config import STATIC_DIR; assert (STATIC_DIR / 'index.html').is_file()"
       - uses: actions/upload-artifact@v4
         with:
           name: dist

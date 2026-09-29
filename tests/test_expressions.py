@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from nt2gui.expressions import ExpressionError, evaluate
+from nt2gui.data.expressions import ExpressionError, evaluate
 
 
 @pytest.fixture
@@ -39,11 +39,23 @@ class TestArithmetic:
     @pytest.mark.parametrize(
         ("expression", "expected"),
         [
-            ("-g", -2), ("+g", 2), ("g - 1", 1), ("g * 3", 6), ("g / 4", 0.5),
-            ("7 // g", 3), ("7 % g", 1), ("g ** 3", 8), ("2 * pi * g / g", 2 * np.pi),
-            ("log(e * g / g)", 1), ("np.exp(g - g)", 1), ("numpy.hypot(Ex, Ey)", 5),
-            ("atan2(g, g) * 4", np.pi), ("maximum(g, Ex)", 3), ("clip(Ey, 0, 3.5)", 3.5),
-            ("round(g / 3, 2)", 0.67), ("abs(-g)", 2),
+            ("-g", -2),
+            ("+g", 2),
+            ("g - 1", 1),
+            ("g * 3", 6),
+            ("g / 4", 0.5),
+            ("7 // g", 3),
+            ("7 % g", 1),
+            ("g ** 3", 8),
+            ("2 * pi * g / g", 2 * np.pi),
+            ("log(e * g / g)", 1),
+            ("np.exp(g - g)", 1),
+            ("numpy.hypot(Ex, Ey)", 5),
+            ("atan2(g, g) * 4", np.pi),
+            ("maximum(g, Ex)", 3),
+            ("clip(Ey, 0, 3.5)", 3.5),
+            ("round(g / 3, 2)", 0.67),
+            ("abs(-g)", 2),
         ],
     )
     def test_operators_and_functions(self, ds, expression, expected):

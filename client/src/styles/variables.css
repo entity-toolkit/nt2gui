@@ -7,6 +7,13 @@
   --color-border-strong: #1d2533;
   --color-text: #f5f7fb;
   --color-muted: #9ca3af;
+  --color-text-soft: #e5e7eb;
+  --color-axis-text: #cbd5e1;
+  --color-axis-line: #475569;
+  --color-hover: #111827;
+  --color-danger: #fca5a5;
+  --color-warning: #fcd34d;
+  --color-success: #86efac;
   --color-accent: #2563eb;
   --color-accent-soft: #2563eb33;
   --shadow-elevated: 0 16px 48px #00000040;

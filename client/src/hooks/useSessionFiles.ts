@@ -1,13 +1,17 @@
 import { useCallback, useState } from "react";
-import { ISessionCommandResult } from "../global";
 import {
   exportSession,
   importSession,
   loadSessionFromServer,
   saveSessionOnServer,
-} from "../services/sessionService";
-import { parseSessionFile, saveSessionLocally, sessionFileName } from "../sessionFile";
-import { RunServerCommand } from "./useSimulations";
+} from "../api/session";
+import { ISessionCommandResult } from "../api/types";
+import {
+  parseSessionFile,
+  saveSessionLocally,
+  sessionFileName,
+} from "../lib/sessionFile";
+import { useUiActions } from "../state/UiContext";
 
 /**
  * Save/load of whole sessions, either as files on the server machine (next to
@@ -15,15 +19,13 @@ import { RunServerCommand } from "./useSimulations";
  * Loading replaces the current session; the result is adopted through the
  * regular state sync so every tab converges on it.
  */
-export const useSessionFiles = (
-  runServerCommand: RunServerCommand,
-  flushState: () => Promise<void>,
-) => {
+export const useSessionFiles = () => {
+  const { runServerCommand, flushState } = useUiActions();
   const [isBusy, setIsBusy] = useState(false);
   // Remembered so "Load" can offer the file that was just saved.
   const [lastServerPath, setLastServerPath] = useState<string | null>(null);
 
-  const track = useCallback(async <T,>(task: () => Promise<T>) => {
+  const track = useCallback(async <T>(task: () => Promise<T>) => {
     setIsBusy(true);
     try {
       return await task();

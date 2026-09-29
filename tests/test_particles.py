@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from nt2gui.particles import (
+from nt2gui.data.particles import (
     bin_edges,
     builtin_quantities,
     default_scale,
@@ -11,10 +11,15 @@ from nt2gui.particles import (
     histogram_2d,
     particle_dataset,
     quantity_values,
-    render_counts,
     species_mask,
     to_scaled,
 )
+from nt2gui.plots.particle_phase import render_particle_phase
+from nt2gui.session.schema import ParticleAxis, ParticlePhaseConfig
+
+
+def axis(quantity, scale="linear", **extra):
+    return ParticleAxis(quantity=quantity, scale=scale, **extra)
 
 
 def make_frame():
@@ -65,7 +70,9 @@ class TestScales:
     @pytest.mark.parametrize("kind", ["linear", "log", "power"])
     def test_round_trip(self, kind):
         values = np.array([0.01, 0.5, 2.0, 1000.0])
-        np.testing.assert_allclose(from_scaled(to_scaled(values, kind, 0.3), kind, 0.3), values)
+        np.testing.assert_allclose(
+            from_scaled(to_scaled(values, kind, 0.3), kind, 0.3), values
+        )
 
     def test_power_scale_keeps_the_sign(self):
         np.testing.assert_allclose(
@@ -114,7 +121,7 @@ class TestBinEdges:
 
 class TestHistogram1D:
     def test_weighted_counts_per_series_share_bins(self, ds):
-        result = histogram_1d(ds, "x", "linear", 0.5, 4, [[1], [2, 3], []])
+        result = histogram_1d(ds, axis("x", bins=4), [[1], [2, 3], []])
 
         np.testing.assert_allclose(result["edges"], [0, 1, 2, 3, 4])
         counts = [line["counts"] for line in result["series"]]
@@ -124,7 +131,7 @@ class TestHistogram1D:
         assert [line["species"] for line in result["series"]] == [[1], [2, 3], []]
 
     def test_log_scale_reports_excluded_weight(self, ds):
-        result = histogram_1d(ds, "energy", "log", 0.5, 2, [[2]])
+        result = histogram_1d(ds, axis("energy", "log", bins=2), [[2]])
 
         # Species 2 has energies 0 (weight 3, excluded) and 1 (weight 4).
         line = result["series"][0]
@@ -132,32 +139,31 @@ class TestHistogram1D:
         assert line["excludedWeight"] == 3
 
     def test_edges_are_in_data_units(self, ds):
-        result = histogram_1d(ds, "energy", "log", 0.5, 2, [[]], lower=1, upper=100)
+        result = histogram_1d(ds, axis("energy", "log", bins=2, min=1, max=100), [[]])
         np.testing.assert_allclose(result["edges"], [1, 10, 100])
 
     def test_needs_a_series(self, ds):
         with pytest.raises(ValueError, match="at least one line"):
-            histogram_1d(ds, "x", "linear", 0.5, 4, [])
+            histogram_1d(ds, axis("x", bins=4), [])
 
 
 class TestHistogram2D:
     def test_counts_are_weighted_and_indexed_y_then_x(self, ds):
-        axes = [
-            {"quantity": "x", "scale": "linear", "power": 0.5, "bins": 2, "min": 0, "max": 4},
-            {"quantity": "ux", "scale": "linear", "power": 0.5, "bins": 2, "min": -4, "max": 4},
-        ]
-        result = histogram_2d(ds, axes, [1])
+        result = histogram_2d(
+            ds, axis("x", bins=2, min=0, max=4), axis("ux", bins=2, min=-4, max=4), [1]
+        )
 
         # Species 1: (x=0, ux=3, w=1) and (x=1, ux=-3, w=2).
         np.testing.assert_allclose(result["counts"], [[2, 0], [1, 0]])
         np.testing.assert_allclose(result["edges"][0], [0, 2, 4])
 
     def test_power_scaled_axis(self, ds):
-        axes = [
-            {"quantity": "x", "scale": "linear", "power": 0.5, "bins": 1},
-            {"quantity": "ux", "scale": "power", "power": 0.5, "bins": 2, "min": -4, "max": 4},
-        ]
-        result = histogram_2d(ds, axes, [])
+        result = histogram_2d(
+            ds,
+            axis("x", bins=1),
+            axis("ux", "power", power=0.5, bins=2, min=-4, max=4),
+            [],
+        )
         np.testing.assert_allclose(result["edges"][1], [-4, 0, 4])
         assert result["counts"].sum() == pytest.approx(15)
 
@@ -166,22 +172,25 @@ class TestHistogram2D:
         assert species_mask(ds, [3]).tolist() == [False] * 4 + [True]
 
 
-class TestRenderCounts:
-    def test_log_color_scale_limits_follow_positive_counts(self):
-        result = render_counts(np.array([[0.0, 2.0], [20.0, 0.0]]), "viridis", "log", None, None)
-        assert result["colorbar"] == {
-            "vmin": 2.0,
-            "vmax": 20.0,
-            "scale": "log",
-            "colors": result["colorbar"]["colors"],
-        }
-        assert result["imageSize"] == {"width": 2, "height": 2}
-        assert len(result["colorbar"]["colors"]) == 128
+class TestPhasePlot:
+    def config(self, **extra):
+        return ParticlePhaseConfig(
+            x=axis("x", bins=2, min=0, max=4),
+            y=axis("ux", bins=2, min=-4, max=4),
+            **extra,
+        )
 
-    def test_user_limits_and_errors(self):
-        counts = np.ones((2, 2))
-        assert render_counts(counts, "magma", "linear", 0, 5)["colorbar"]["vmax"] == 5
-        with pytest.raises(ValueError, match="positive minimum"):
-            render_counts(counts, "viridis", "log", 0, None)
-        with pytest.raises(ValueError, match="Unknown colormap"):
-            render_counts(counts, "nope", "log", None, None)
+    def test_extent_is_the_outer_bin_edges(self, ds):
+        result = render_particle_phase(ds, self.config(species=[1]))
+        assert result["extent"] == {"xMin": 0, "xMax": 4, "yMin": -4, "yMax": 4}
+        assert result["imageSize"] == {"width": 2, "height": 2}
+
+    def test_log_colors_follow_the_non_empty_bins(self, ds):
+        colorbar = render_particle_phase(ds, self.config(species=[1]))["colorbar"]
+        assert (colorbar["vmin"], colorbar["vmax"], colorbar["scale"]) == (1, 2, "log")
+
+    def test_linear_colors_start_at_zero(self, ds):
+        colorbar = render_particle_phase(ds, self.config(colorScale="linear"))[
+            "colorbar"
+        ]
+        assert colorbar["vmin"] == 0

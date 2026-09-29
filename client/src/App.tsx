@@ -1,111 +1,36 @@
-import { useCallback, useState } from "react";
-
 import {
-  Layout,
-  Model,
-  TabNode,
-  TabSetNode,
   BorderNode,
   ITabSetRenderValues,
+  Layout,
+  TabNode,
+  TabSetNode,
 } from "flexlayout-react";
 import "flexlayout-react/style/dark.css";
 
-import { ITooltipDatum, IUiState } from "./global";
-import AddTabButton from "./components/AddTabButton";
-import Panel from "./components/Panel";
-import Menubar from "./components/Menubar";
-import FooterBar from "./components/FooterBar";
-import SimulationSidebar from "./components/SimulationSidebar";
-import { useUiState } from "./hooks/useUiState";
-import { useSimulations } from "./hooks/useSimulations";
-import { useSessionFiles } from "./hooks/useSessionFiles";
+import AddTabButton from "./components/layout/AddTabButton";
+import Menubar from "./components/layout/Menubar";
+import SimulationSidebar from "./components/layout/SimulationSidebar";
+import TimelineBar from "./components/layout/TimelineBar";
+import Panel from "./plots/Panel";
+import { UiProvider, useUi, useUiActions } from "./state/UiContext";
 
-const App = () => {
-  const {
-    model,
-    uiState,
-    simulations,
-    syncStatus,
-    loadError,
-    runServerCommand,
-    flushState,
-    onDataTypeChange,
-    onPlotTypeChange,
-    onPseudocolorConfigChange,
-    onPlotSimulationChange,
-    onTimelineChange,
-    onGlobalViewportChange,
-    onLocalViewportChange,
-    onSyncViewportToggle,
-    onLineConfigChange,
-    onLineRangeChange,
-    onPlotterPatch,
-    onSidebarCollapsedChange,
-    handleModelChange,
-  } = useUiState();
-  const { isLoading, addSimulation, unloadSimulation } =
-    useSimulations(runServerCommand);
-  const sessionFiles = useSessionFiles(runServerCommand, flushState);
+const Workspace = () => {
+  const { model, simulations } = useUi();
+  const { handleModelChange } = useUiActions();
 
-  const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(
-    null,
-  );
-  const handleGlobalTooltipChange = useCallback(
-    (tooltip: ITooltipDatum | null) => setGlobalTooltip(tooltip),
-    [],
-  );
-
-  if (!model || !uiState) {
-    return (
-      <div className="app-loading" role="status">
-        {loadError
-          ? `Cannot reach the server (${loadError}). Retrying…`
-          : "Loading session…"}
-      </div>
+  const factory = (node: TabNode) =>
+    node.getComponent() === "panel" ? (
+      <Panel nodeId={node.getId()} />
+    ) : (
+      <div>{`unknown component: ${node.getComponent()}`}</div>
     );
-  }
-
-  const { plotters, timeline, globalViewport, globalLineViewports } = uiState;
-
-  const factory = (node: TabNode) => {
-    const component = node.getComponent();
-    switch (component) {
-      case "panel":
-        return (
-          <Panel
-            node={node}
-            plotters={plotters}
-            timeline={timeline}
-            simulations={simulations}
-            globalViewport={globalViewport}
-            onGlobalViewportChange={onGlobalViewportChange}
-            onLocalViewportChange={onLocalViewportChange}
-            onSyncViewportToggle={onSyncViewportToggle}
-            globalTooltip={globalTooltip}
-            onGlobalTooltipChange={handleGlobalTooltipChange}
-            onDataTypeChange={onDataTypeChange}
-            onPlotTypeChange={onPlotTypeChange}
-            onPseudocolorConfigChange={onPseudocolorConfigChange}
-            onPlotSimulationChange={onPlotSimulationChange}
-            globalLineViewports={globalLineViewports}
-            onLineConfigChange={onLineConfigChange}
-            onLineRangeChange={onLineRangeChange}
-            onPlotterPatch={onPlotterPatch}
-          />
-        );
-      case "json":
-        return <ModelJson uiState={uiState} />;
-      default:
-        return <div>{`unknown component: ${component}`}</div>;
-    }
-  };
 
   const onRenderTabSet = (
     node: TabSetNode | BorderNode,
-    renderValues: ITabSetRenderValues,
+    values: ITabSetRenderValues,
   ) => {
     if (node instanceof TabSetNode) {
-      renderValues.stickyButtons.push(
+      values.stickyButtons.push(
         <AddTabButton
           key={`add-tab-${node.getId()}`}
           model={model}
@@ -117,38 +42,36 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <Menubar sessionFiles={sessionFiles} syncStatus={syncStatus} />
+      <Menubar />
       <div className="app-main">
-        <SimulationSidebar
-          simulations={simulations}
-          isLoading={isLoading}
-          onAddSimulation={addSimulation}
-          onUnloadSimulation={unloadSimulation}
-          collapsed={uiState.sidebarCollapsed ?? false}
-          onCollapsedChange={onSidebarCollapsedChange}
-        />
+        <SimulationSidebar />
         <div className="layout-container">
-          <div id="content"></div>
           <Layout
             model={model}
             factory={factory}
-            onModelChange={(updatedModel: Model) =>
-              handleModelChange(updatedModel)
-            }
+            onModelChange={handleModelChange}
             onRenderTabSet={onRenderTabSet}
-            realtimeResize={true}
+            realtimeResize
           />
         </div>
       </div>
-      {simulations.length > 0 && (
-        <FooterBar timeline={timeline} onTimelineChange={onTimelineChange} />
-      )}
+      {simulations.length > 0 && <TimelineBar />}
     </div>
   );
 };
 
-const ModelJson = ({ uiState }: { uiState: IUiState }) => {
-  return <pre>{JSON.stringify(uiState, null, "\t")}</pre>;
-};
+const App = () => (
+  <UiProvider
+    fallback={(loadError) => (
+      <div className="app-loading" role="status">
+        {loadError
+          ? `Cannot reach the server (${loadError}). Retrying…`
+          : "Loading session…"}
+      </div>
+    )}
+  >
+    <Workspace />
+  </UiProvider>
+);
 
 export default App;

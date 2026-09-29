@@ -17,5 +17,4 @@ export default defineConfig({
     outDir: "../nt2gui/static",
     emptyOutDir: true,
   },
-  include: ["src/**/*", "global.d.ts"],
 });

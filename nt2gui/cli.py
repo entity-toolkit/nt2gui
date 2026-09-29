@@ -11,7 +11,7 @@ import socket
 import sys
 from pathlib import Path
 
-from . import __version__
+from . import __version__, config
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -58,8 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--state-file",
         type=Path,
         default=None,
-        help="Where the UI session is persisted (default: $NT2GUI_STATE_FILE "
-        "or .nt2gui/session.json).",
+        help=f"Where the UI session is persisted (default: ${config.STATE_FILE_ENV} "
+        f"or {config.DEFAULT_STATE_FILE}).",
     )
     serve.add_argument(
         "--threads",
@@ -76,10 +76,14 @@ def serve(host: str, port: int, state_file: Path | None, threads: int) -> None:
 
     from .app import create_app
 
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
+    )
     # One process on purpose: open simulations, caches and the session live in
     # memory and must be shared by all requests.
-    server = create_server(create_app(state_file), host=host, port=port, threads=threads)
+    server = create_server(
+        create_app(state_file), host=host, port=port, threads=threads
+    )
     effective_port = getattr(server, "effective_port", port)
     print(
         tunnel_hint(effective_port, host, socket.gethostname(), getpass.getuser()),

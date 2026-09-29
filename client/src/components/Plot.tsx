@@ -3,7 +3,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  useCallback,
   type MouseEvent,
+  type ChangeEvent,
 } from "react";
 
 import {
@@ -14,6 +16,8 @@ import {
   defaultPseudocolorConfig,
   ITimeline,
   ISimulation,
+  IZoomWindow,
+  ITooltipDatum,
 } from "../global";
 
 import PseudocolorPreview from "./PseudocolorPreview";
@@ -29,6 +33,8 @@ interface IPlotProps {
   plotters: IPlotters;
   timeline: ITimeline;
   simulations: ISimulation[];
+  globalViewport: IZoomWindow | null;
+  globalTooltip: ITooltipDatum | null;
   onDataTypeChange: (node_id: string, newDataType: DataType) => void;
   onPlotTypeChange: (node_id: string, newPlotType: PlotType) => void;
   onPseudocolorConfigChange: (
@@ -36,6 +42,10 @@ interface IPlotProps {
     config: IPseudocolorConfig,
   ) => void;
   onPlotSimulationChange: (node_id: string, simulationId?: string) => void;
+  onGlobalViewportChange: (viewport: IZoomWindow | null) => void;
+  onLocalViewportChange: (nodeId: string, viewport: IZoomWindow | null) => void;
+  onSyncViewportToggle: (nodeId: string, useGlobal: boolean) => void;
+  onGlobalTooltipChange: (tooltip: ITooltipDatum | null) => void;
 }
 
 const Plot = (props: IPlotProps) => {
@@ -51,6 +61,10 @@ const Plot = (props: IPlotProps) => {
     () => node_plotter?.pseudocolorConfig ?? defaultPseudocolorConfig,
     [node_plotter?.pseudocolorConfig],
   );
+
+  const useGlobalZoom = node_plotter?.useGlobalViewport ?? true;
+  const localViewport = node_plotter?.localViewport ?? null;
+  const activeViewport = useGlobalZoom ? props.globalViewport : localViewport;
 
   const firstSimulationId = props.simulations[0]?.id;
   const selectedSimulationId = useMemo(() => {
@@ -80,6 +94,7 @@ const Plot = (props: IPlotProps) => {
     x: number;
     y: number;
   } | null>(null);
+  const [isZoomMode, setIsZoomMode] = useState(false);
 
   useEffect(() => {
     if (!isPseudocolor) {
@@ -110,6 +125,7 @@ const Plot = (props: IPlotProps) => {
       selectedSimulationId,
       pseudocolorConfig,
       props.timeline.current,
+      activeViewport ?? undefined,
     )
       .then((result) => {
         setRenderData(result);
@@ -126,6 +142,7 @@ const Plot = (props: IPlotProps) => {
     selectedSimulationId,
     props.timeline.current,
     pseudocolorConfig,
+    activeViewport,
   ]);
 
   useEffect(() => {
@@ -178,6 +195,28 @@ const Plot = (props: IPlotProps) => {
     };
   }, [menuPosition]);
 
+  const applyViewport = useCallback(
+    (viewport: IZoomWindow | null) => {
+      if (useGlobalZoom) {
+        props.onGlobalViewportChange(viewport);
+      } else {
+        props.onLocalViewportChange(node_id, viewport);
+      }
+
+      setIsZoomMode(false);
+    },
+    [node_id, props, useGlobalZoom],
+  );
+
+  const resetZoom = useCallback(() => applyViewport(null), [applyViewport]);
+
+  const handleSyncToggle = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      props.onSyncViewportToggle(node_id, event.target.checked);
+    },
+    [node_id, props],
+  );
+
   const openContextMenu = (event: MouseEvent) => {
     event.preventDefault();
     if (!isPseudocolor) {
@@ -187,9 +226,50 @@ const Plot = (props: IPlotProps) => {
     setMenuPosition({ x: event.clientX, y: event.clientY });
   };
 
+  const canZoom = isPseudocolor && !!renderData;
+  const canResetZoom = !!activeViewport;
+  const zoomStatusLabel = useGlobalZoom ? "Global zoom" : "Local zoom";
+
   return (
     <div className={styles.plot}>
       <div className={styles.plotBody}>
+        <div className={styles.plotToolbar}>
+          <div className={styles.toolbarGroup}>
+            <button
+              type="button"
+              className={styles.toolbarButton}
+              disabled={!canZoom}
+              aria-pressed={isZoomMode}
+              onClick={() => setIsZoomMode((prev) => !prev)}
+            >
+              {isZoomMode ? "Cancel zoom" : "Zoom"}
+            </button>
+            <button
+              type="button"
+              className={styles.toolbarButton}
+              disabled={!canResetZoom && !canZoom}
+              onClick={resetZoom}
+            >
+              Reset zoom
+            </button>
+          </div>
+
+          <div className={styles.toolbarGroup}>
+            <label className={styles.toolbarToggle}>
+              <input
+                type="checkbox"
+                checked={useGlobalZoom}
+                onChange={handleSyncToggle}
+              />
+              Sync zoom
+            </label>
+            <span className={styles.toolbarStatus}>
+              {zoomStatusLabel}
+              {activeViewport ? " • zoomed" : ""}
+            </span>
+          </div>
+        </div>
+
         <div className={styles.plotFigure} onContextMenu={openContextMenu}>
           {!isPseudocolor ? (
             <div className={styles.figurePlaceholder}>
@@ -204,6 +284,12 @@ const Plot = (props: IPlotProps) => {
             <PseudocolorPreview
               render={renderData}
               isRefreshing={isRendering}
+              zoomEnabled={isZoomMode}
+              viewport={activeViewport ?? null}
+              onViewportChange={applyViewport}
+              plotId={node_id}
+              globalTooltip={props.globalTooltip}
+              onGlobalTooltipChange={props.onGlobalTooltipChange}
             />
           ) : (
             <div className={styles.figurePlaceholder}>

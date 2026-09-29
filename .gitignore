@@ -216,3 +216,11 @@ __marimo__/
 .streamlit/secrets.toml
 node_modules/
 dist/
+
+# devenv
+.devenv*
+devenv.local.nix
+.pre-commit-config.yaml
+
+# nt2gui session state
+.nt2gui/

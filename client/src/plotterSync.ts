@@ -37,7 +37,12 @@ export const reconcilePlotters = (
   panelIds.forEach((id) => {
     if (!nextPlotters[id]) {
       hasChanges = true;
-      nextPlotters[id] = { plotType: PlotType.None, dataType: DataType.None };
+      nextPlotters[id] = {
+        plotType: PlotType.None,
+        dataType: DataType.None,
+        useGlobalViewport: true,
+        localViewport: null,
+      };
     }
   });
 

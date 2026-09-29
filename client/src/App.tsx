@@ -1,3 +1,5 @@
+import { useCallback, useState } from "react";
+
 import {
   Layout,
   Model,
@@ -8,7 +10,7 @@ import {
 } from "flexlayout-react";
 import "flexlayout-react/style/dark.css";
 
-import { IUiState } from "./global";
+import { ITooltipDatum, IUiState } from "./global";
 import AddTabButton from "./components/AddTabButton";
 import Panel from "./components/Panel";
 import Menubar from "./components/Menubar";
@@ -19,17 +21,41 @@ import { useSimulations } from "./hooks/useSimulations";
 const App = () => {
   const {
     model,
-    plotters,
-    timeline,
+    uiState,
+    simulations,
+    syncStatus,
+    loadError,
+    runServerCommand,
     onDataTypeChange,
     onPlotTypeChange,
     onPseudocolorConfigChange,
     onPlotSimulationChange,
     onTimelineChange,
+    onGlobalViewportChange,
+    onLocalViewportChange,
+    onSyncViewportToggle,
     handleModelChange,
   } = useUiState();
-  const { simulations, isLoading, addSimulation, unloadSimulation } =
-    useSimulations({ onTimelineUpdate: onTimelineChange });
+  const { isLoading, addSimulation, unloadSimulation } =
+    useSimulations(runServerCommand);
+
+  const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(null);
+  const handleGlobalTooltipChange = useCallback(
+    (tooltip: ITooltipDatum | null) => setGlobalTooltip(tooltip),
+    [],
+  );
+
+  if (!model || !uiState) {
+    return (
+      <div className="app-loading" role="status">
+        {loadError
+          ? `Cannot reach the server (${loadError}). Retrying…`
+          : "Loading session…"}
+      </div>
+    );
+  }
+
+  const { plotters, timeline, globalViewport } = uiState;
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -41,6 +67,12 @@ const App = () => {
             plotters={plotters}
             timeline={timeline}
             simulations={simulations}
+            globalViewport={globalViewport}
+            onGlobalViewportChange={onGlobalViewportChange}
+            onLocalViewportChange={onLocalViewportChange}
+            onSyncViewportToggle={onSyncViewportToggle}
+            globalTooltip={globalTooltip}
+            onGlobalTooltipChange={handleGlobalTooltipChange}
             onDataTypeChange={onDataTypeChange}
             onPlotTypeChange={onPlotTypeChange}
             onPseudocolorConfigChange={onPseudocolorConfigChange}
@@ -49,7 +81,7 @@ const App = () => {
         );
       case "json":
         return (
-          <ModelJson uiState={{ layout: model.toJson(), plotters, timeline }} />
+          <ModelJson uiState={uiState} />
         );
       default:
         return <div>{`unknown component: ${component}`}</div>;
@@ -91,7 +123,12 @@ const App = () => {
           realtimeResize={true}
         />
       </div>
-      <FooterBar timeline={timeline} onTimelineChange={onTimelineChange} />
+      <FooterBar
+        timeline={timeline}
+        onTimelineChange={onTimelineChange}
+        syncStatus={syncStatus}
+        showTimeline={simulations.length > 0}
+      />
     </div>
   );
 };

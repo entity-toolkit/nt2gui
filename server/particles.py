@@ -38,8 +38,12 @@ from matplotlib.colors import LogNorm, Normalize, to_hex
 from expressions import evaluate
 
 PARTICLE_DIM = "particle"
-POSITION_COLUMNS = ("x", "y", "z")
-VELOCITY_COLUMNS = ("ux", "uy", "uz")
+# Cartesian and spherical runs name their columns differently.
+POSITION_COLUMNS = ("x", "y", "z", "r", "th", "ph")
+VELOCITY_SETS = (("ux", "uy", "uz"), ("ur", "uth", "uph"))
+VELOCITY_COLUMNS = tuple(c for columns in VELOCITY_SETS for c in columns)
+# Particle ids are bookkeeping, not quantities.
+SKIPPED_COLUMNS = ("id",)
 WEIGHT_COLUMN = "w"
 SPECIES_COLUMN = "sp"
 DERIVED = ("gamma", "energy")
@@ -53,16 +57,18 @@ def particle_dataset(frame: pd.DataFrame) -> xr.Dataset:
     data = {
         column: (PARTICLE_DIM, frame[column].to_numpy(dtype=np.float64))
         for column in frame.columns
-        if column != SPECIES_COLUMN
+        if column != SPECIES_COLUMN and column not in SKIPPED_COLUMNS
     }
     data[SPECIES_COLUMN] = (PARTICLE_DIM, frame[SPECIES_COLUMN].to_numpy())
     if WEIGHT_COLUMN not in data:
         data[WEIGHT_COLUMN] = (PARTICLE_DIM, np.ones(len(frame)))
     ds = xr.Dataset(data)
-    if all(c in ds for c in VELOCITY_COLUMNS):
-        u_squared = sum(ds[c] ** 2 for c in VELOCITY_COLUMNS)
-        ds["gamma"] = np.sqrt(1 + u_squared)
-        ds["energy"] = np.sqrt(u_squared)
+    for velocity in VELOCITY_SETS:
+        if all(c in ds for c in velocity):
+            u_squared = sum(ds[c] ** 2 for c in velocity)
+            ds["gamma"] = np.sqrt(1 + u_squared)
+            ds["energy"] = np.sqrt(u_squared)
+            break
     return ds
 
 

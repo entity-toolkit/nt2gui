@@ -15,6 +15,7 @@ import AddTabButton from "./components/AddTabButton";
 import Panel from "./components/Panel";
 import Menubar from "./components/Menubar";
 import FooterBar from "./components/FooterBar";
+import SimulationSidebar from "./components/SimulationSidebar";
 import { useUiState } from "./hooks/useUiState";
 import { useSimulations } from "./hooks/useSimulations";
 import { useSessionFiles } from "./hooks/useSessionFiles";
@@ -39,13 +40,16 @@ const App = () => {
     onLineConfigChange,
     onLineRangeChange,
     onPlotterPatch,
+    onSidebarCollapsedChange,
     handleModelChange,
   } = useUiState();
   const { isLoading, addSimulation, unloadSimulation } =
     useSimulations(runServerCommand);
   const sessionFiles = useSessionFiles(runServerCommand, flushState);
 
-  const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(null);
+  const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(
+    null,
+  );
   const handleGlobalTooltipChange = useCallback(
     (tooltip: ITooltipDatum | null) => setGlobalTooltip(tooltip),
     [],
@@ -90,9 +94,7 @@ const App = () => {
           />
         );
       case "json":
-        return (
-          <ModelJson uiState={uiState} />
-        );
+        return <ModelJson uiState={uiState} />;
       default:
         return <div>{`unknown component: ${component}`}</div>;
     }
@@ -115,25 +117,28 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <Menubar
-        sessionFiles={sessionFiles}
-        syncStatus={syncStatus}
-        simulations={simulations}
-        onAddSimulation={addSimulation}
-        onUnloadSimulation={unloadSimulation}
-        isLoading={isLoading}
-      />
-      <div className="layout-container">
-        <div id="content"></div>
-        <Layout
-          model={model}
-          factory={factory}
-          onModelChange={(updatedModel: Model) =>
-            handleModelChange(updatedModel)
-          }
-          onRenderTabSet={onRenderTabSet}
-          realtimeResize={true}
+      <Menubar sessionFiles={sessionFiles} syncStatus={syncStatus} />
+      <div className="app-main">
+        <SimulationSidebar
+          simulations={simulations}
+          isLoading={isLoading}
+          onAddSimulation={addSimulation}
+          onUnloadSimulation={unloadSimulation}
+          collapsed={uiState.sidebarCollapsed ?? false}
+          onCollapsedChange={onSidebarCollapsedChange}
         />
+        <div className="layout-container">
+          <div id="content"></div>
+          <Layout
+            model={model}
+            factory={factory}
+            onModelChange={(updatedModel: Model) =>
+              handleModelChange(updatedModel)
+            }
+            onRenderTabSet={onRenderTabSet}
+            realtimeResize={true}
+          />
+        </div>
       </div>
       {simulations.length > 0 && (
         <FooterBar timeline={timeline} onTimelineChange={onTimelineChange} />

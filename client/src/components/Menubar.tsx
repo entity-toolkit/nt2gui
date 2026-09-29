@@ -1,5 +1,4 @@
-import { ISimulation } from "../global";
-import React, { useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useSessionFiles } from "../hooks/useSessionFiles";
 import SessionDialog, { SessionDialogMode } from "./SessionDialog";
@@ -11,23 +10,10 @@ const menuItems = ["Save state", "Load state", "Settings", "Help"];
 interface MenubarProps {
   sessionFiles: ReturnType<typeof useSessionFiles>;
   syncStatus: SyncStatus;
-  simulations: ISimulation[];
-  onAddSimulation: (path: string) => void | Promise<void>;
-  onUnloadSimulation: (id: string) => void;
-  isLoading: boolean;
 }
 
-const Menubar = ({
-  sessionFiles,
-  syncStatus,
-  simulations,
-  onAddSimulation,
-  onUnloadSimulation,
-  isLoading,
-}: MenubarProps) => {
+const Menubar = ({ sessionFiles, syncStatus }: MenubarProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [pathInput, setPathInput] = useState("");
-  const [error, setError] = useState("");
   const [sessionDialog, setSessionDialog] = useState<SessionDialogMode | null>(
     null,
   );
@@ -42,31 +28,7 @@ const Menubar = ({
     }
   };
 
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-    setPathInput("");
-    setError("");
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const trimmedPath = pathInput.trim();
-    if (!trimmedPath) {
-      setError("Simulation path is required");
-      return;
-    }
-
-    setError("");
-    try {
-      await onAddSimulation(trimmedPath);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to load simulation");
-      }
-    }
-  };
+  const closeDialog = () => setIsDialogOpen(false);
 
   return (
     <nav className={styles.menubar} aria-label="Application menu">
@@ -96,7 +58,11 @@ const Menubar = ({
 
       {isDialogOpen &&
         createPortal(
-          <div className={styles.overlay} role="presentation" onClick={closeDialog}>
+          <div
+            className={styles.overlay}
+            role="presentation"
+            onClick={closeDialog}
+          >
             <div
               className={styles.modal}
               role="dialog"
@@ -117,49 +83,8 @@ const Menubar = ({
                   ×
                 </button>
               </div>
-              <section aria-live="polite">
-                <h3 id="settings-subtitle">Simulations</h3>
-                <ul className={styles.simulationsList}>
-                  {simulations.map((simulation) => (
-                    <li key={simulation.id} className={styles.simulationItem}>
-                      <span className={styles.simulationPath}>
-                        {simulation.path}
-                      </span>
-                      <button
-                        type="button"
-                        className={styles.unloadButton}
-                        onClick={() => onUnloadSimulation(simulation.id)}
-                      >
-                        unload
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <form className={styles.addSimulation} onSubmit={handleSubmit}>
-                  <input
-                    id="simulation-path"
-                    type="text"
-                    className={styles.pathInput}
-                    value={pathInput}
-                    onChange={(event) => setPathInput(event.target.value)}
-                    placeholder="/data/simulations/run-001"
-                    autoFocus
-                    disabled={isLoading}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "loading..." : "load"}
-                  </button>
-                </form>
-                <div className={styles.status}>
-                  {isLoading && <span>loading...</span>}
-                  {error && <p className={styles.error}>{error}</p>}
-                </div>
-              </section>
+              {/* Simulations moved to the sidebar; settings to come. */}
+              <p className={styles.status}>No settings yet.</p>
             </div>
           </div>,
           document.body,

@@ -107,7 +107,8 @@ export interface IParticlePhaseConfig {
 export interface IParticleSpecies {
   index: number;
   label: string;
-  mass: number;
+  /** Null when the simulation doesn't record it (no Entity .info file). */
+  mass: number | null;
 }
 
 /** A simulation's particle species and built-in quantities (see server/particles.py). */
@@ -165,6 +166,8 @@ export interface IUiState {
   globalViewport: IZoomWindow | null;
   /** Synced 1D zoom per coordinate: only line plots along the same axis share it. */
   globalLineViewports: Record<string, IRange>;
+  /** Whether the simulations sidebar is folded away. */
+  sidebarCollapsed?: boolean;
 }
 
 export interface ISimulation {
@@ -193,6 +196,32 @@ export interface IFieldMetadata {
   vectors: { name: string; components: string[] }[];
   /** Coordinate values of every spatial dimension used by some field. */
   coords: Record<string, number[]>;
+}
+
+export interface ITimesSummary {
+  count: number;
+  min: number;
+  max: number;
+}
+
+/** A gridded dataset (fields, spectra) at a glance. */
+export interface IGridSummary {
+  axes: { name: string; size: number; min?: number; max?: number }[];
+  quantities: string[];
+  times: ITimesSummary | null;
+}
+
+/** What a simulation contains, for the sidebar (see server/summary.py). */
+export interface ISimulationSummary {
+  fields: IGridSummary | null;
+  particles: {
+    species: (IParticleSpecies & { count: number })[];
+    /** Time of the output the counts are from. */
+    countsAt: number;
+    quantities: string[];
+    times: ITimesSummary | null;
+  } | null;
+  spectra: IGridSummary | null;
 }
 
 /** What the server returns for every state read or change. */

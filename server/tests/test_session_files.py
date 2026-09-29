@@ -20,7 +20,7 @@ VIEWPORT = {"xMin": 1, "xMax": 2, "yMin": 3, "yMax": 4}
 
 
 def test_save_then_load_on_server_restores_state_and_simulations(client, tmp_path):
-    sim = client.post("/simulations", json={"path": "/data/run1"}).get_json()
+    sim = client.post("/simulations", json={"path": "demo:run1"}).get_json()
     sim_id = sim["simulations"][0]["id"]
     plotters = {"p1": {"plotType": "pseudocolor", "dataType": "fields", "simulationId": sim_id}}
     saved_state = put_state(client, plotters=plotters, globalViewport=VIEWPORT)["state"]
@@ -41,7 +41,7 @@ def test_save_then_load_on_server_restores_state_and_simulations(client, tmp_pat
     body = loaded.get_json()
     assert loaded.status_code == 200
     assert body["state"] == saved_state
-    assert body["simulations"] == [{"id": sim_id, "path": "/data/run1"}]
+    assert body["simulations"] == [{"id": sim_id, "path": "demo:run1"}]
     assert body["warnings"] == []
     assert body["revision"] == revision_before + 1
     # The simulation is live again under the same id.
@@ -107,7 +107,7 @@ def test_load_invalid_file_leaves_session_untouched(client, tmp_path, content):
 
 
 def test_export_then_import_round_trips(client):
-    client.post("/simulations", json={"path": "/data/run1"})
+    client.post("/simulations", json={"path": "demo:run1"})
     put_state(client, globalViewport=VIEWPORT)
     exported = client.get("/session/export").get_json()
     assert set(exported) == {"schemaVersion", "state", "simulations"}
@@ -148,21 +148,17 @@ def test_stale_client_gets_conflict_after_a_load(client, tmp_path):
     assert response.status_code == 409
 
 
-def test_simulations_that_fail_to_open_are_dropped_with_a_warning(client, monkeypatch):
-    import index
-
+def test_simulations_that_fail_to_open_are_dropped_with_a_warning(client, tmp_path):
     document = client.get("/session/export").get_json()
-    document["simulations"] = [{"id": "gone", "path": "/moved/away"}]
+    missing = str(tmp_path / "moved" / "away")
+    document["simulations"] = [{"id": "gone", "path": missing}]
     document["state"]["plotters"] = {
         "p1": {"plotType": "line", "dataType": "fields", "simulationId": "gone"}
     }
 
-    def failing_simulation(path, simulation_id=None):
-        raise OSError("no such directory")
-
-    monkeypatch.setattr(index, "Simulation", failing_simulation)
     body = client.post("/session/import", json={"session": document}).get_json()
 
     assert body["simulations"] == []
     assert body["state"]["plotters"]["p1"] == {"plotType": "line", "dataType": "fields"}
-    assert len(body["warnings"]) == 1 and "/moved/away" in body["warnings"][0]
+    assert len(body["warnings"]) == 1
+    assert missing in body["warnings"][0] and "No such directory" in body["warnings"][0]

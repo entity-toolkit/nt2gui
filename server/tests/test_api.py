@@ -79,7 +79,7 @@ def test_put_state_rejects_unknown_plotter_fields(client):
 
 def test_state_and_simulations_survive_restart(state_file):
     client = create_app(state_file).test_client()
-    added = client.post("/simulations", json={"path": "/data/run1"}).get_json()
+    added = client.post("/simulations", json={"path": "demo:run1"}).get_json()
     sim_id = added["simulations"][0]["id"]
     plotters = {"p1": {"plotType": "pseudocolor", "dataType": "fields", "simulationId": sim_id}}
     put_state(client, added["revision"], plotters=plotters)
@@ -96,10 +96,10 @@ def test_state_and_simulations_survive_restart(state_file):
 
 
 def test_adding_simulation_sets_timeline_and_is_idempotent(client):
-    first = client.post("/simulations", json={"path": " /data/run1 "}).get_json()
-    second = client.post("/simulations", json={"path": "/data/run1"}).get_json()
+    first = client.post("/simulations", json={"path": " demo:run1 "}).get_json()
+    second = client.post("/simulations", json={"path": "demo:run1"}).get_json()
 
-    assert first["simulations"] == [{"id": first["simulations"][0]["id"], "path": "/data/run1"}]
+    assert first["simulations"] == [{"id": first["simulations"][0]["id"], "path": "demo:run1"}]
     assert first["state"]["timeline"]["max"] == 1.0
     assert second["revision"] == first["revision"]
 
@@ -109,7 +109,7 @@ def test_add_simulation_requires_path(client):
 
 
 def test_unloading_simulation_clears_references_and_resets_timeline(client):
-    added = client.post("/simulations", json={"path": "/data/run1"}).get_json()
+    added = client.post("/simulations", json={"path": "demo:run1"}).get_json()
     sim_id = added["simulations"][0]["id"]
     plotters = {"p1": {"plotType": "line", "dataType": "fields", "simulationId": sim_id}}
     put_state(client, added["revision"], plotters=plotters)
@@ -129,7 +129,7 @@ def test_unknown_simulation_is_404(client):
 
 
 def test_field_metadata_endpoint(client):
-    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+    sim_id = client.post("/simulations", json={"path": "demo:run1"}).get_json()[
         "simulations"
     ][0]["id"]
 
@@ -141,7 +141,7 @@ def test_field_metadata_endpoint(client):
 
 
 def test_line_render_endpoint(client):
-    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+    sim_id = client.post("/simulations", json={"path": "demo:run1"}).get_json()[
         "simulations"
     ][0]["id"]
     url = f"/simulations/{sim_id}/render/line"
@@ -197,7 +197,7 @@ def test_line_y_limits_round_trip_in_state(client):
 
 
 def test_pseudocolor_rejects_axes_the_field_lacks(client):
-    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+    sim_id = client.post("/simulations", json={"path": "demo:run1"}).get_json()[
         "simulations"
     ][0]["id"]
     url = f"/simulations/{sim_id}/render/pseudocolor"
@@ -212,7 +212,7 @@ def test_pseudocolor_rejects_axes_the_field_lacks(client):
 
 
 def test_pseudocolor_of_3d_field_is_sliced_at_requested_coordinate(client):
-    sim_id = client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+    sim_id = client.post("/simulations", json={"path": "demo:run1"}).get_json()[
         "simulations"
     ][0]["id"]
     url = f"/simulations/{sim_id}/render/pseudocolor"
@@ -255,7 +255,7 @@ def test_pseudocolor_slices_round_trip_in_state(client):
 
 
 def load_sim(client):
-    return client.post("/simulations", json={"path": "/data/run1"}).get_json()[
+    return client.post("/simulations", json={"path": "demo:run1"}).get_json()[
         "simulations"
     ][0]["id"]
 
@@ -416,3 +416,11 @@ def test_particle_plot_configs_round_trip_in_state(client):
     }
     assert put_state(client, 0, plotters=plotters).status_code == 200
     assert client.get("/state").get_json()["state"]["plotters"] == plotters
+
+
+def test_unreadable_simulation_path_is_a_clear_error(client, tmp_path):
+    response = client.post("/simulations", json={"path": str(tmp_path / "nope")})
+
+    assert response.status_code == 400
+    assert "No such directory" in response.get_json()["error"]
+    assert client.get("/state").get_json()["simulations"] == []

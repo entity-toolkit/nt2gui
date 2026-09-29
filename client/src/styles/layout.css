@@ -8,8 +8,17 @@
   color: var(--color-text);
 }
 
+/* Sidebar and panels side by side, between the menubar and the footer. */
+.app-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
 .layout-container {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;

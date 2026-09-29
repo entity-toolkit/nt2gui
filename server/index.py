@@ -8,7 +8,9 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pydantic import ValidationError
 
-from fakeloader import Simulation
+from pseudocolor import render_pseudocolor as shade_pseudocolor
+from sources import SimulationSource, open_simulation
+from summary import summarize
 from fields import field_metadata, quantity_dims, render_line
 from particles import (
     builtin_quantities,
@@ -71,11 +73,11 @@ def create_app(state_file: Path | str | None = None) -> Flask:
 
     # Loaded simulation data lives only in memory; the session records which
     # paths were open so they are re-opened (with the same ids) on restart.
-    simulations: dict[str, Simulation] = {}
+    simulations: dict[str, SimulationSource] = {}
     failed: list[str] = []
     for record in store.session.simulations:
         try:
-            simulations[record.id] = Simulation(record.path, record.id)
+            simulations[record.id] = open_simulation(record.path, record.id)
         except Exception as error:  # a real loader may fail on moved/deleted data
             app.logger.error("Could not re-open %s: %s", record.path, error)
             failed.append(record.id)
@@ -113,7 +115,11 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         if any(sim.path == sim_path for sim in simulations.values()):
             return jsonify(store.snapshot())
 
-        simulation = Simulation(sim_path)
+        try:
+            simulation = open_simulation(sim_path)
+        except Exception as error:  # nt2py raises many kinds on unreadable data
+            app.logger.error("Could not open %s: %s", sim_path, error)
+            return _error(f"Could not open {sim_path}: {_message(error)}", 400)
 
         def mutate(session: Session) -> None:
             session.simulations.append(
@@ -137,7 +143,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
 
     def apply_document(document: SessionDocument) -> dict[str, Any]:
         """Replace the whole session with a saved one, re-opening its simulations."""
-        opened: dict[str, Simulation] = {}
+        opened: dict[str, SimulationSource] = {}
         warnings: list[str] = []
         for record in document.simulations:
             existing = simulations.get(record.id)
@@ -145,7 +151,7 @@ def create_app(state_file: Path | str | None = None) -> Flask:
                 opened[record.id] = existing
                 continue
             try:
-                opened[record.id] = Simulation(record.path, record.id)
+                opened[record.id] = open_simulation(record.path, record.id)
             except Exception as error:
                 warnings.append(f"Could not open simulation {record.path}: {error}")
         failed = {record.id for record in document.simulations} - opened.keys()
@@ -277,16 +283,27 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             return None, _error("Simulation not found", 404)
         if not isinstance(time, (int, float)):
             return None, _error("Time value is required", 400)
+        if not simulation.species:
+            return None, _error("This simulation has no particle output", 400)
         frame = simulation.particles(float(time))
-        timestamp = float(simulation.t[abs(simulation.t - time).argmin()])
-        return (particle_dataset(frame), timestamp), None
+        return (particle_dataset(frame), simulation.particle_time(float(time))), None
+
+    @app.get("/simulations/<simulation_id>/summary")
+    def get_summary(simulation_id: str):
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return _error("Simulation not found", 404)
+        return jsonify(summarize(simulation))
 
     @app.get("/simulations/<simulation_id>/particles")
     def get_particle_metadata(simulation_id: str):
         simulation = simulations.get(simulation_id)
         if simulation is None:
             return _error("Simulation not found", 404)
-        quantities = builtin_quantities(particle_dataset(simulation.particles(0)))
+        if not simulation.species:
+            return jsonify({"species": [], "quantities": []})
+        first = simulation.particles(simulation.timeline["min"])
+        quantities = builtin_quantities(particle_dataset(first))
         return jsonify(
             {
                 "species": simulation.species,
@@ -305,7 +322,10 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         expression = (request.get_json(silent=True) or {}).get("expression")
         if not isinstance(expression, str) or not expression.strip():
             return _error("An expression is required", 400)
-        sample = particle_dataset(simulation.particles(0).head(16))
+        if not simulation.species:
+            return _error("This simulation has no particle output", 400)
+        first = simulation.particles(simulation.timeline["min"])
+        sample = particle_dataset(first.head(16))
         try:
             quantity_values(expression.strip(), sample)
         except (KeyError, ValueError) as error:
@@ -388,8 +408,11 @@ def create_app(state_file: Path | str | None = None) -> Flask:
 
         try:
             return jsonify(
-                simulation.render_pseudocolor(
-                    payload.get("config", {}), float(time_value), payload.get("viewport")
+                shade_pseudocolor(
+                    simulation.fields,
+                    payload.get("config", {}),
+                    float(time_value),
+                    payload.get("viewport"),
                 )
             )
         except (KeyError, ValueError) as error:

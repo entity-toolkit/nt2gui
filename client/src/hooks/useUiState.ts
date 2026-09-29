@@ -295,6 +295,17 @@ export const useUiState = () => {
     [updateUiState],
   );
 
+  const onSidebarCollapsedChange = useCallback(
+    (sidebarCollapsed: boolean) => {
+      updateUiState((prev) =>
+        (prev.sidebarCollapsed ?? false) === sidebarCollapsed
+          ? prev
+          : { ...prev, sidebarCollapsed },
+      );
+    },
+    [updateUiState],
+  );
+
   /** Merge settings into one plot (used by the particle plots). */
   const onPlotterPatch = useCallback(
     (nodeId: string, patch: Partial<IPlotter>) => {
@@ -417,6 +428,7 @@ export const useUiState = () => {
       onLineConfigChange,
       onLineRangeChange,
       onPlotterPatch,
+      onSidebarCollapsedChange,
       handleModelChange,
     }),
     [
@@ -438,6 +450,7 @@ export const useUiState = () => {
       onLineConfigChange,
       onLineRangeChange,
       onPlotterPatch,
+      onSidebarCollapsedChange,
       handleModelChange,
     ],
   );

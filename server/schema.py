@@ -163,6 +163,8 @@ class UiState(_Schema):
     global_viewport: ZoomWindow | None
     # Synced 1D zoom, per coordinate: only line plots along the same axis share it.
     global_line_viewports: dict[str, Range]
+    # Whether the simulations sidebar is folded away.
+    sidebar_collapsed: bool = False
 
     @field_validator("layout")
     @classmethod

@@ -59,7 +59,13 @@ const SpeciesPicker = ({
         <label
           key={species.index}
           className={styles.chip}
-          title={species.mass === 0 ? "massless" : `mass ${species.mass}`}
+          title={
+            species.mass === null
+              ? "mass unknown"
+              : species.mass === 0
+                ? "massless"
+                : `mass ${species.mass}`
+          }
         >
           <input
             type="checkbox"

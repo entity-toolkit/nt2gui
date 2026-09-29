@@ -38,6 +38,7 @@ const App = () => {
     onSyncViewportToggle,
     onLineConfigChange,
     onLineRangeChange,
+    onPlotterPatch,
     handleModelChange,
   } = useUiState();
   const { isLoading, addSimulation, unloadSimulation } =
@@ -85,6 +86,7 @@ const App = () => {
             globalLineViewports={globalLineViewports}
             onLineConfigChange={onLineConfigChange}
             onLineRangeChange={onLineRangeChange}
+            onPlotterPatch={onPlotterPatch}
           />
         );
       case "json":

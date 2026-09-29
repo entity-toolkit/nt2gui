@@ -6,7 +6,7 @@ drift surfaces as a 400 instead of silently dropping state.
 """
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
@@ -99,6 +99,49 @@ class LineConfig(_Schema):
     expressions: list[str] = []
 
 
+class ParticleAxis(_Schema):
+    """One binned axis of a particle histogram."""
+
+    # A built-in quantity (x, ux, gamma, energy, ...) or an expression.
+    quantity: str
+    # Bins are uniform in A (linear), log10(A) (log) or sign(A)|A|^p (power).
+    scale: Literal["linear", "log", "power"]
+    power: float = Field(0.5, gt=0)
+    bins: int = Field(100, ge=1, le=2000)
+    # Binned range in data units; unset sides follow the data.
+    min: float | None = None
+    max: float | None = None
+
+
+class ParticleSeries(_Schema):
+    # Species indices summed into this line; empty means all species.
+    species: list[int] = []
+
+
+class ParticleHistogramConfig(_Schema):
+    """1D weighted histogram (e.g. an energy spectrum), one line per series."""
+
+    x: ParticleAxis
+    series: list[ParticleSeries]
+    y_scale: Literal["linear", "log"] = "log"
+    y_min: float | None = None
+    y_max: float | None = None
+    expressions: list[str] = []
+
+
+class ParticlePhaseConfig(_Schema):
+    """2D weighted histogram (phase-space plot) of the selected species."""
+
+    x: ParticleAxis
+    y: ParticleAxis
+    species: list[int] = []
+    color_scale: Literal["linear", "log"] = "log"
+    vmin: float | None = None
+    vmax: float | None = None
+    color_map: str = "viridis"
+    expressions: list[str] = []
+
+
 class Plotter(_Schema):
     plot_type: PlotType
     data_type: DataType
@@ -108,6 +151,8 @@ class Plotter(_Schema):
     use_global_viewport: bool | None = None
     line_config: LineConfig | None = None
     line_viewport: Range | None = None
+    particle_histogram_config: ParticleHistogramConfig | None = None
+    particle_phase_config: ParticlePhaseConfig | None = None
 
 
 class UiState(_Schema):

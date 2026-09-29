@@ -19,10 +19,9 @@ const PickDatatype = (props: IPickDatatypeProps) => {
         },
         {
           label: "particles",
-          disabled: true,
+          onSelect: () => props.onDataTypeChange(node_id, DataType.Particles),
         },
       ]}
-      helperText="Particle plots will be available soon."
     />
   );
 };

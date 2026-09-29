@@ -1,5 +1,5 @@
 import { TabNode } from "flexlayout-react";
-import { IPlotters, PlotType } from "../global";
+import { DataType, IPlotters, PlotType } from "../global";
 import SelectionMenu from "./SelectionMenu";
 
 interface IPickPlotterProps {
@@ -10,6 +10,24 @@ interface IPickPlotterProps {
 
 const PickPlotter = (props: IPickPlotterProps) => {
   const node_id = props.node.getId();
+  if (props.plotters[node_id]?.dataType === DataType.Particles) {
+    return (
+      <SelectionMenu
+        options={[
+          {
+            label: "1D histogram",
+            onSelect: () => props.onPlotTypeChange(node_id, PlotType.Line),
+          },
+          {
+            label: "2D histogram (phase space)",
+            onSelect: () =>
+              props.onPlotTypeChange(node_id, PlotType.Pseudocolor),
+          },
+        ]}
+        helperText="Weighted by particle weights; pick species and axes by right-clicking the plot."
+      />
+    );
+  }
   return (
     <SelectionMenu
       options={[

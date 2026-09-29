@@ -60,6 +60,79 @@ export interface ILineConfig {
   expressions?: string[];
 }
 
+/** How a particle quantity is binned: in A, log10(A), or sign(A)·|A|^p. */
+export type ParticleScale = "linear" | "log" | "power";
+
+export interface IParticleAxis {
+  /** Built-in quantity (x, ux, gamma, energy, …) or an expression. */
+  quantity: string;
+  scale: ParticleScale;
+  /** Exponent p of the power scale (default 0.5). */
+  power?: number;
+  /** Number of bins (default 100). */
+  bins?: number;
+  /** Binned range in data units; unset sides follow the data. */
+  min?: number;
+  max?: number;
+}
+
+export interface IParticleSeries {
+  /** Species indices summed into one line; empty means all species. */
+  species: number[];
+}
+
+/** 1D weighted histogram, e.g. the energy spectrum of each species. */
+export interface IParticleHistogramConfig {
+  x: IParticleAxis;
+  series: IParticleSeries[];
+  yScale?: "linear" | "log";
+  yMin?: number;
+  yMax?: number;
+  expressions?: string[];
+}
+
+/** 2D weighted histogram (phase space) of the selected species. */
+export interface IParticlePhaseConfig {
+  x: IParticleAxis;
+  y: IParticleAxis;
+  /** Empty means all species. */
+  species?: number[];
+  colorScale?: "linear" | "log";
+  vmin?: number;
+  vmax?: number;
+  colorMap?: string;
+  expressions?: string[];
+}
+
+export interface IParticleSpecies {
+  index: number;
+  label: string;
+  mass: number;
+}
+
+/** A simulation's particle species and built-in quantities (see server/particles.py). */
+export interface IParticleMetadata {
+  species: IParticleSpecies[];
+  quantities: { name: string; defaultScale: ParticleScale }[];
+}
+
+export const DEFAULT_PARTICLE_BINS = 100;
+export const DEFAULT_PARTICLE_POWER = 0.5;
+
+export const defaultParticleHistogramConfig: IParticleHistogramConfig = {
+  x: { quantity: "gamma", scale: "log" },
+  series: [{ species: [] }],
+  yScale: "log",
+};
+
+export const defaultParticlePhaseConfig: IParticlePhaseConfig = {
+  x: { quantity: "x", scale: "linear", bins: 200 },
+  y: { quantity: "ux", scale: "linear", bins: 200 },
+  species: [],
+  colorScale: "log",
+  colorMap: "viridis",
+};
+
 export interface ITooltipDatum {
   x: number;
   y: number;
@@ -77,6 +150,8 @@ export interface IPlotter {
   useGlobalViewport?: boolean;
   lineConfig?: ILineConfig;
   lineViewport?: IRange | null;
+  particleHistogramConfig?: IParticleHistogramConfig;
+  particlePhaseConfig?: IParticlePhaseConfig;
 }
 
 export interface IPlotters {

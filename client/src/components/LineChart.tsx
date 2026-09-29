@@ -1,11 +1,4 @@
-import {
-  axisBottom,
-  axisLeft,
-  line,
-  scaleLinear,
-  schemeTableau10,
-  select,
-} from "d3";
+import { axisBottom, axisLeft, line, schemeTableau10, select } from "d3";
 import {
   useEffect,
   useId,
@@ -14,9 +7,16 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { IRange } from "../global";
+import {
+  binIndex,
+  logValueDomain,
+  makeScale,
+  scaleExtent,
+  stepPath,
+} from "../chartScales";
+import { IRange, ParticleScale } from "../global";
 import { useElementSize } from "../hooks/useElementSize";
-import { extentOf, nearestIndex, valueDomain } from "../lineConfig";
+import { nearestIndex, valueDomain } from "../lineConfig";
 import { ILineRender } from "../services/fieldService";
 import plotStyles from "./Plot.module.css";
 import styles from "./LineChart.module.css";
@@ -30,6 +30,12 @@ interface LineChartProps {
   /** Fixed value-axis limits; unset sides are automatic. */
   yMin?: number;
   yMax?: number;
+  /** Coordinate-axis scale (default linear); power uses sign(A)·|A|^p. */
+  xScaleKind?: ParticleScale;
+  xPower?: number;
+  yLog?: boolean;
+  /** Histograms: `coordinates` are bin edges and lines are drawn as steps. */
+  step?: boolean;
 }
 
 const margin = { top: 14, right: 18, bottom: 42, left: 64 };
@@ -61,6 +67,10 @@ const LineChart = ({
   isRefreshing,
   yMin,
   yMax,
+  xScaleKind = "linear",
+  xPower,
+  yLog = false,
+  step = false,
 }: LineChartProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -80,28 +90,35 @@ const LineChart = ({
   const xScale = useMemo(() => {
     const domain = range
       ? [range.min, range.max]
-      : (extentOf(data.coordinates) ?? [0, 1]);
-    return scaleLinear()
+      : (scaleExtent(data.coordinates, xScaleKind) ??
+        (xScaleKind === "log" ? [1, 10] : [0, 1]));
+    return makeScale(xScaleKind, xPower)
       .domain(domain)
       .range([margin.left, margin.left + innerWidth]);
-  }, [data.coordinates, innerWidth, range]);
+  }, [data.coordinates, innerWidth, range, xPower, xScaleKind]);
 
   const yScale = useMemo(() => {
-    const extent = extentOf(data.series.flatMap((series) => series.values));
-    const { domain, fixed } = valueDomain(extent, yMin, yMax);
-    const scale = scaleLinear()
+    const values = data.series.flatMap((series) => series.values);
+    const { domain, fixed } = yLog
+      ? logValueDomain(scaleExtent(values, "log"), yMin, yMax)
+      : valueDomain(scaleExtent(values), yMin, yMax);
+    const scale = makeScale(yLog ? "log" : "linear")
       .domain(domain)
       .range([margin.top + innerHeight, margin.top]);
     // Rounding the domain outwards would move limits the user typed in.
     return fixed ? scale : scale.nice();
-  }, [data.series, innerHeight, yMax, yMin]);
+  }, [data.series, innerHeight, yLog, yMax, yMin]);
+
+  // Zero or negative values have no place on a log axis: leave gaps.
+  const isDrawable = (value: number | null): value is number =>
+    value !== null && (!yLog || value > 0);
 
   // The axis groups only exist once the container has a size.
   useEffect(() => {
     const group = xAxisRef.current;
     if (!group) return;
     select(group).call(
-      axisBottom(xScale).ticks(Math.max(2, Math.floor(innerWidth / 80))),
+      axisBottom(xScale).ticks(Math.max(2, Math.floor(innerWidth / 80)), "~g"),
     );
     styleAxis(group);
   }, [innerWidth, xScale]);
@@ -111,7 +128,7 @@ const LineChart = ({
     const gridGroup = gridRef.current;
     if (!axisGroup || !gridGroup) return;
     const ticks = Math.max(2, Math.floor(innerHeight / 50));
-    select(axisGroup).call(axisLeft(yScale).ticks(ticks));
+    select(axisGroup).call(axisLeft(yScale).ticks(ticks, "~g"));
     styleAxis(axisGroup);
     select(gridGroup)
       .call(
@@ -127,16 +144,21 @@ const LineChart = ({
 
   const paths = useMemo(() => {
     const coordinates = data.coordinates;
+    if (step) {
+      return data.series.map((series) =>
+        stepPath(coordinates, series.values, xScale, yScale, isDrawable),
+      );
+    }
     const indices = coordinates.map((_, index) => index);
     return data.series.map((series) =>
       line<number>()
-        .defined(
-          (i) => series.values[i] !== null && coordinates[i] !== null,
-        )
+        .defined((i) => isDrawable(series.values[i]) && coordinates[i] !== null)
         .x((i) => xScale(coordinates[i] as number))
         .y((i) => yScale(series.values[i] as number))(indices),
     );
-  }, [data.coordinates, data.series, xScale, yScale]);
+    // isDrawable only depends on yLog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.coordinates, data.series, step, xScale, yLog, yScale]);
 
   const pointerX = (event: ReactMouseEvent<SVGRectElement>) => {
     const bounds = svgRef.current?.getBoundingClientRect();
@@ -152,9 +174,14 @@ const LineChart = ({
     if (x === null) return;
     if (drag) setDrag({ ...drag, current: x });
     const coordinates = data.coordinates.map((c) => c ?? Number.NaN);
-    setHoverIndex(
-      coordinates.length ? nearestIndex(coordinates, xScale.invert(x)) : null,
-    );
+    if (!coordinates.length) {
+      setHoverIndex(null);
+    } else if (step) {
+      // Coordinates are bin edges: pick the bin under the pointer.
+      setHoverIndex(binIndex(coordinates, xScale.invert(x)));
+    } else {
+      setHoverIndex(nearestIndex(coordinates, xScale.invert(x)));
+    }
   };
 
   const handleMouseDown = (event: ReactMouseEvent<SVGRectElement>) => {
@@ -176,8 +203,16 @@ const LineChart = ({
     setHoverIndex(null);
   };
 
-  const hoverCoordinate =
-    hoverIndex !== null ? data.coordinates[hoverIndex] : null;
+  const hoverCoordinate = (() => {
+    if (hoverIndex === null) return null;
+    const start = data.coordinates[hoverIndex];
+    const end = data.coordinates[hoverIndex + 1];
+    if (!step || start === null || end === null || end === undefined) {
+      return start;
+    }
+    // The bin's visual centre, which on a log axis is the geometric mean.
+    return xScale.invert((xScale(start) + xScale(end)) / 2);
+  })();
   const ready = innerWidth > 0 && innerHeight > 0;
 
   return (
@@ -238,7 +273,7 @@ const LineChart = ({
               />
               {data.series.map((series, index) => {
                 const value = series.values[hoverIndex as number];
-                return value === null ? null : (
+                return !isDrawable(value) ? null : (
                   <circle
                     key={series.name}
                     cx={xScale(hoverCoordinate)}

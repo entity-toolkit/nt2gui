@@ -22,8 +22,21 @@ import {
   ILineConfig,
   IRange,
   defaultLineConfig,
+  defaultParticleHistogramConfig,
+  defaultParticlePhaseConfig,
+  IPlotter,
 } from "../global";
 import { useFieldMetadata } from "../hooks/useFieldMetadata";
+import { useParticleMetadata } from "../hooks/useParticleMetadata";
+import { hasRange, withoutRange } from "../particleConfig";
+import {
+  ParticleHistogramControls,
+  ParticlePhaseControls,
+} from "./ParticleControls";
+import {
+  ParticleHistogramFigure,
+  ParticlePhaseFigure,
+} from "./ParticleFigures";
 import { useExpressionDims } from "../hooks/useExpressionDims";
 import { withExpressionFields } from "../expressions";
 import {
@@ -71,6 +84,7 @@ interface IPlotProps {
     axis: string,
     range: IRange | null,
   ) => void;
+  onPlotterPatch: (nodeId: string, patch: Partial<IPlotter>) => void;
 }
 
 const Plot = (props: IPlotProps) => {
@@ -84,7 +98,17 @@ const Plot = (props: IPlotProps) => {
 
   const isLine =
     node_datatype === DataType.Fields && node_plottype === PlotType.Line;
-  const needsSimulation = isPseudocolor || isLine;
+  const isFieldPlot = isPseudocolor || isLine;
+  const isParticles = node_datatype === DataType.Particles;
+  const isParticleHistogram = isParticles && node_plottype === PlotType.Line;
+  const isParticlePhase = isParticles && node_plottype === PlotType.Pseudocolor;
+  const isParticlePlot = isParticleHistogram || isParticlePhase;
+  const needsSimulation = isFieldPlot || isParticlePlot;
+
+  const histogramConfig =
+    node_plotter?.particleHistogramConfig ?? defaultParticleHistogramConfig;
+  const phaseConfig =
+    node_plotter?.particlePhaseConfig ?? defaultParticlePhaseConfig;
 
   const pseudocolorConfig = useMemo(
     () => node_plotter?.pseudocolorConfig ?? defaultPseudocolorConfig,
@@ -244,13 +268,15 @@ const Plot = (props: IPlotProps) => {
 
   const lineConfig = node_plotter?.lineConfig ?? defaultLineConfig;
   const { metadata: baseMetadata, error: fieldMetadataError } =
-    useFieldMetadata(needsSimulation ? selectedSimulationId : null);
+    useFieldMetadata(isFieldPlot ? selectedSimulationId : null);
+  const { metadata: particleMetadata, error: particleMetadataError } =
+    useParticleMetadata(isParticlePlot ? selectedSimulationId : null);
   // Custom expressions behave like extra fields once their dims are known.
   const plotExpressions = isLine
     ? lineConfig.expressions
     : pseudocolorConfig.expressions;
   const expressionState = useExpressionDims(
-    needsSimulation ? selectedSimulationId : null,
+    isFieldPlot ? selectedSimulationId : null,
     plotExpressions,
   );
   const fieldMetadata = useMemo(
@@ -287,10 +313,39 @@ const Plot = (props: IPlotProps) => {
     [lineAxis, node_id, props],
   );
 
-  const resetZoom = useCallback(
-    () => (isLine ? applyLineRange(null) : applyViewport(null)),
-    [applyLineRange, applyViewport, isLine],
-  );
+  const resetZoom = useCallback(() => {
+    if (isParticleHistogram) {
+      props.onPlotterPatch(node_id, {
+        particleHistogramConfig: {
+          ...histogramConfig,
+          x: withoutRange(histogramConfig.x),
+        },
+      });
+    } else if (isParticlePhase) {
+      props.onPlotterPatch(node_id, {
+        particlePhaseConfig: {
+          ...phaseConfig,
+          x: withoutRange(phaseConfig.x),
+          y: withoutRange(phaseConfig.y),
+        },
+      });
+    } else if (isLine) {
+      applyLineRange(null);
+    } else {
+      applyViewport(null);
+    }
+    setIsZoomMode(false);
+  }, [
+    applyLineRange,
+    applyViewport,
+    histogramConfig,
+    isLine,
+    isParticleHistogram,
+    isParticlePhase,
+    node_id,
+    phaseConfig,
+    props,
+  ]);
 
   const handleSyncToggle = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -310,8 +365,15 @@ const Plot = (props: IPlotProps) => {
 
   const canZoom =
     (isPseudocolor && !!renderData) ||
-    (isLine && !!lineAxis && lineConfig.quantities.length > 0);
-  const isZoomed = isLine ? !!lineRange : !!activeViewport;
+    (isLine && !!lineAxis && lineConfig.quantities.length > 0) ||
+    isParticlePlot;
+  const isZoomed = isParticleHistogram
+    ? hasRange(histogramConfig.x)
+    : isParticlePhase
+      ? hasRange(phaseConfig.x) || hasRange(phaseConfig.y)
+      : isLine
+        ? !!lineRange
+        : !!activeViewport;
   const canResetZoom = isZoomed;
   // 1D plots only sync with other 1D plots along the same coordinate.
   const zoomStatusLabel =
@@ -342,24 +404,75 @@ const Plot = (props: IPlotProps) => {
             </button>
           </div>
 
-          <div className={styles.toolbarGroup}>
-            <label className={styles.toolbarToggle}>
-              <input
-                type="checkbox"
-                checked={useGlobalZoom}
-                onChange={handleSyncToggle}
-              />
-              Sync zoom
-            </label>
-            <span className={styles.toolbarStatus}>
-              {zoomStatusLabel}
-              {isZoomed ? " • zoomed" : ""}
-            </span>
-          </div>
+          {isParticlePlot ? (
+            <div className={styles.toolbarGroup}>
+              <span className={styles.toolbarStatus}>
+                {/* Particle zoom narrows the binned range, so it's per plot. */}
+                {isZoomed ? "Custom range" : "Full range"}
+              </span>
+            </div>
+          ) : (
+            <div className={styles.toolbarGroup}>
+              <label className={styles.toolbarToggle}>
+                <input
+                  type="checkbox"
+                  checked={useGlobalZoom}
+                  onChange={handleSyncToggle}
+                />
+                Sync zoom
+              </label>
+              <span className={styles.toolbarStatus}>
+                {zoomStatusLabel}
+                {isZoomed ? " • zoomed" : ""}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className={styles.plotFigure} onContextMenu={openContextMenu}>
-          {isLine ? (
+          {isParticlePlot ? (
+            !selectedSimulationId ? (
+              <div className={styles.figurePlaceholder}>
+                <span className={styles.figureTag}>No simulation</span>
+                <div>Load a simulation to plot its particles.</div>
+              </div>
+            ) : particleMetadataError ? (
+              <div className={styles.figureError} role="alert">
+                {particleMetadataError}
+              </div>
+            ) : !particleMetadata ? (
+              <div className={styles.figurePlaceholder}>
+                <span className={styles.figureTag}>Loading particles…</span>
+              </div>
+            ) : isParticleHistogram ? (
+              <ParticleHistogramFigure
+                simulationId={selectedSimulationId}
+                metadata={particleMetadata}
+                config={histogramConfig}
+                time={props.timeline.current}
+                zoomEnabled={isZoomMode}
+                onConfigChange={(config) => {
+                  props.onPlotterPatch(node_id, {
+                    particleHistogramConfig: config,
+                  });
+                  setIsZoomMode(false);
+                }}
+              />
+            ) : (
+              <ParticlePhaseFigure
+                simulationId={selectedSimulationId}
+                config={phaseConfig}
+                time={props.timeline.current}
+                zoomEnabled={isZoomMode}
+                onConfigChange={(config) => {
+                  props.onPlotterPatch(node_id, {
+                    particlePhaseConfig: config,
+                  });
+                  setIsZoomMode(false);
+                }}
+              />
+            )
+          ) : isLine ? (
             !selectedSimulationId ? (
               <div className={styles.figurePlaceholder}>
                 <span className={styles.figureTag}>No simulation</span>
@@ -461,7 +574,29 @@ const Plot = (props: IPlotProps) => {
             props.onPlotSimulationChange(node_id, simulationId)
           }
         >
-          {isLine ? (
+          {isParticleHistogram ? (
+            <ParticleHistogramControls
+              simulationId={selectedSimulationId}
+              metadata={particleMetadata}
+              metadataError={particleMetadataError}
+              config={histogramConfig}
+              onChange={(config) =>
+                props.onPlotterPatch(node_id, {
+                  particleHistogramConfig: config,
+                })
+              }
+            />
+          ) : isParticlePhase ? (
+            <ParticlePhaseControls
+              simulationId={selectedSimulationId}
+              metadata={particleMetadata}
+              metadataError={particleMetadataError}
+              config={phaseConfig}
+              onChange={(config) =>
+                props.onPlotterPatch(node_id, { particlePhaseConfig: config })
+              }
+            />
+          ) : isLine ? (
             <LineControls
               simulationId={selectedSimulationId}
               metadata={fieldMetadata}

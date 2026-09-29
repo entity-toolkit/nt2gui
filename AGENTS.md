@@ -13,6 +13,7 @@
 
 # Data format on the backend
 - The data will consist of two different types: fields (multi-D arrays with 1D/2D or 3D coordinates at different timesteps represented with an xarray dataset), and particles (pandas dataframe containing particle species index, coordinates, ids, velocities, and corresponding timesteps etc.).
+- Particle plots (`server/particles.py`) are weighted histograms of one time step: 1D (`particleHistogramConfig`, several lines of different species sharing one binned x axis) and 2D phase space (`particlePhaseConfig`, shaded on the server). Quantities are the columns (`x`, `y`, `z`, `ux`, `uy`, `uz`, `w`), `gamma = sqrt(1 + u²)`, `energy = |u|` (massless species), or expressions. Axes bin uniformly in linear, log10, or `sign(A)|A|^p` space; the client uses the matching d3 scale (`scaleLog`, sign-preserving `scalePow`) so ticks show data values. An empty species list means all species.
 - Fields have names and the user should be able to combine them (and, potentially, the coordinates) to create new variables.
   - Custom quantities are expression strings (e.g. `sqrt(Ex**2 + Ey**2)`) evaluated by `server/expressions.py`, an AST whitelist over fields, coordinates and numpy functions — never `eval`. Anywhere a field name is accepted (1D `quantities`, 2D `field`), an expression is too; each plot keeps its list in `expressions`, and `POST /simulations/<id>/quantities/check` validates one and returns its dims.
 

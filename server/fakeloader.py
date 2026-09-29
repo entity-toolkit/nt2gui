@@ -11,7 +11,23 @@ from io import BytesIO
 
 from uuid import uuid4
 
+import pandas as pd
+
 from fields import quantity_arrays
+
+
+# nt2py reports species by index only; masses and labels come with the data.
+SPECIES = [
+    {"index": 1, "label": "e-", "mass": 1.0},
+    {"index": 2, "label": "e+", "mass": 1.0},
+    {"index": 3, "label": "photons", "mass": 0.0},
+]
+PARTICLES_PER_SPECIES = 20_000
+
+
+def _random_directions(rng: np.random.Generator, n: int) -> np.ndarray:
+    vectors = rng.normal(size=(3, n))
+    return vectors / np.linalg.norm(vectors, axis=0)
 
 
 class Simulation:
@@ -63,6 +79,62 @@ class Simulation:
     @property
     def fields(self) -> xr.Dataset:
         return self._fields
+
+    @property
+    def species(self) -> list[dict]:
+        return SPECIES
+
+    def particles(self, time: float) -> pd.DataFrame:
+        """Particles at the output step nearest to `time`, laid out like
+        nt2py's `ParticleDataset.load()`: one row per particle."""
+        step = int(np.abs(self.t - time).argmin())
+        cache = self.__dict__.setdefault("_particle_cache", {})
+        if step not in cache:
+            if len(cache) >= 8:
+                cache.pop(next(iter(cache)))
+            cache[step] = self._make_particles(step)
+        return cache[step]
+
+    def _make_particles(self, step: int) -> pd.DataFrame:
+        rng = np.random.default_rng(step)
+        t = float(self.t[step])
+        n = PARTICLES_PER_SPECIES
+        frames = []
+        for species in SPECIES:
+            x = rng.uniform(self.x.min(), self.x.max(), n)
+            y = rng.uniform(self.y.min(), self.y.max(), n)
+            if species["index"] == 1:
+                # Thermal electrons carried by a wave: structure in x-ux.
+                u = rng.normal(0, 0.4, size=(3, n))
+                u[0] += 1.5 * np.sin(x - 2 * np.pi * t)
+            elif species["index"] == 2:
+                # Hotter positrons with a growing power-law tail.
+                u = rng.normal(0, 1.0, size=(3, n))
+                tail = rng.random(n) < 0.1 + 0.2 * t
+                magnitude = (1 - rng.random(tail.sum())) ** (-1 / 1.5)
+                u[:, tail] = magnitude * _random_directions(rng, int(tail.sum()))
+            else:
+                # Photons: log-uniform energies, beamed along +x over time.
+                energy = 10 ** rng.uniform(-2, 2 + t, n)
+                direction = _random_directions(rng, n)
+                direction[0] = np.abs(direction[0]) * (0.5 + t) + direction[0]
+                direction /= np.linalg.norm(direction, axis=0)
+                u = energy * direction
+            frames.append(
+                pd.DataFrame(
+                    {
+                        "id": np.arange(n, dtype=np.int64),
+                        "sp": np.full(n, species["index"], dtype=np.int32),
+                        "x": x.astype(np.float32),
+                        "y": y.astype(np.float32),
+                        "ux": u[0].astype(np.float32),
+                        "uy": u[1].astype(np.float32),
+                        "uz": u[2].astype(np.float32),
+                        "w": rng.uniform(0.5, 1.5, n).astype(np.float32),
+                    }
+                )
+            )
+        return pd.concat(frames, ignore_index=True)
 
     def to_json(self) -> dict:
         return {"id": self.id, "path": self.path}

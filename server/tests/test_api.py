@@ -337,3 +337,82 @@ def test_custom_expressions_round_trip_in_state(client):
     }
     assert put_state(client, 0, plotters=plotters).status_code == 200
     assert client.get("/state").get_json()["state"]["plotters"] == plotters
+
+
+def axis(quantity, scale="linear", **extra):
+    return {"quantity": quantity, "scale": scale, **extra}
+
+
+def test_particle_metadata(client):
+    body = client.get(f"/simulations/{load_sim(client)}/particles").get_json()
+
+    assert [s["index"] for s in body["species"]] == [1, 2, 3]
+    assert {"name": "energy", "defaultScale": "log"} in body["quantities"]
+    assert {"name": "ux", "defaultScale": "linear"} in body["quantities"]
+    assert client.get("/simulations/nope/particles").status_code == 404
+
+
+def test_particle_expression_check(client):
+    url = f"/simulations/{load_sim(client)}/particles/check"
+    assert client.post(url, json={"expression": "gamma * w"}).status_code == 200
+    bad = client.post(url, json={"expression": "Bx"})
+    assert bad.status_code == 400 and "Unknown name 'Bx'" in bad.get_json()["error"]
+
+
+def test_particle_histogram_endpoint(client):
+    url = f"/simulations/{load_sim(client)}/render/particles/histogram"
+    config = {
+        "x": axis("energy", "log", bins=40),
+        "series": [{"species": [1]}, {"species": [3]}],
+    }
+
+    body = client.post(url, json={"config": config, "time": 0.3}).get_json()
+    assert len(body["edges"]) == 41
+    assert [len(s["counts"]) for s in body["series"]] == [40, 40]
+    assert body["timestamp"] == pytest.approx(0.3, abs=0.02)
+
+    custom = {**config, "x": axis("ux * w", "power", power=0.3)}
+    assert client.post(url, json={"config": custom, "time": 0}).status_code == 200
+    bad = client.post(url, json={"config": {**config, "x": axis("energy", "cubic")}, "time": 0})
+    assert bad.status_code == 400
+    assert client.post(url, json={"config": config}).status_code == 400
+
+
+def test_particle_phase_endpoint(client):
+    url = f"/simulations/{load_sim(client)}/render/particles/phase"
+    config = {"x": axis("x", bins=64), "y": axis("ux", "power", power=0.5, bins=32), "species": [1]}
+
+    body = client.post(url, json={"config": config, "time": 0}).get_json()
+    assert body["imageSize"] == {"width": 64, "height": 32}
+    assert body["extent"]["yMin"] < 0 < body["extent"]["yMax"]
+    assert body["colorbar"]["scale"] == "log"
+
+    bad = client.post(url, json={"config": {**config, "colorMap": "nope"}, "time": 0})
+    assert bad.status_code == 400 and "colormap" in bad.get_json()["error"]
+
+
+def test_particle_plot_configs_round_trip_in_state(client):
+    plotters = {
+        "p1": {
+            "plotType": "line",
+            "dataType": "particles",
+            "particleHistogramConfig": {
+                "x": axis("gamma", "log", bins=80, min=1),
+                "series": [{"species": [1]}, {"species": []}],
+                "yScale": "linear",
+                "expressions": ["gamma - 1"],
+            },
+        },
+        "p2": {
+            "plotType": "pseudocolor",
+            "dataType": "particles",
+            "particlePhaseConfig": {
+                "x": axis("x"),
+                "y": axis("ux", "power", power=0.25),
+                "species": [2, 3],
+                "colorScale": "linear",
+            },
+        },
+    }
+    assert put_state(client, 0, plotters=plotters).status_code == 200
+    assert client.get("/state").get_json()["state"]["plotters"] == plotters

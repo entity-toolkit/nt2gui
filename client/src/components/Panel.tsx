@@ -15,6 +15,7 @@ import {
   ITooltipDatum,
   ILineConfig,
   IRange,
+  IPlotter,
 } from "../global";
 
 interface IPanelProps {
@@ -42,6 +43,7 @@ interface IPanelProps {
     axis: string,
     range: IRange | null,
   ) => void;
+  onPlotterPatch: (nodeId: string, patch: Partial<IPlotter>) => void;
 }
 
 const Panel = (props: IPanelProps) => {
@@ -80,6 +82,7 @@ const Panel = (props: IPanelProps) => {
           globalLineViewports={props.globalLineViewports}
           onLineConfigChange={props.onLineConfigChange}
           onLineRangeChange={props.onLineRangeChange}
+          onPlotterPatch={props.onPlotterPatch}
         />
       )}
     </div>

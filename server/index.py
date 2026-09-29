@@ -10,9 +10,20 @@ from pydantic import ValidationError
 
 from fakeloader import Simulation
 from fields import field_metadata, quantity_dims, render_line
+from particles import (
+    builtin_quantities,
+    default_scale,
+    histogram_1d,
+    histogram_2d,
+    particle_dataset,
+    quantity_values,
+    render_counts,
+)
 from schema import (
     DEFAULT_TIMELINE,
     LineConfig,
+    ParticleHistogramConfig,
+    ParticlePhaseConfig,
     Plotter,
     Range,
     Session,
@@ -34,6 +45,17 @@ DEFAULT_STATE_FILE = Path(".nt2gui") / "session.json"
 
 def _error(message: str, status: int, **extra: Any):
     return jsonify({"error": message, **extra}), status
+
+
+def _message(error: Exception) -> str:
+    # KeyError's str() wraps the message in quotes.
+    return str(error.args[0]) if error.args else str(error)
+
+
+def _validation_error(error: ValidationError, what: str):
+    return _error(
+        f"Invalid {what}", 400, details=json.loads(error.json(include_url=False))
+    )
 
 
 def create_app(state_file: Path | str | None = None) -> Flask:
@@ -247,6 +269,111 @@ def create_app(state_file: Path | str | None = None) -> Flask:
             # KeyError's str() wraps the message in quotes.
             message = error.args[0] if error.args else str(error)
             return _error(str(message), 400)
+
+    def particles_at(simulation_id: str, time: Any):
+        """(simulation, dataset, timestamp) or an error response."""
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return None, _error("Simulation not found", 404)
+        if not isinstance(time, (int, float)):
+            return None, _error("Time value is required", 400)
+        frame = simulation.particles(float(time))
+        timestamp = float(simulation.t[abs(simulation.t - time).argmin()])
+        return (particle_dataset(frame), timestamp), None
+
+    @app.get("/simulations/<simulation_id>/particles")
+    def get_particle_metadata(simulation_id: str):
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return _error("Simulation not found", 404)
+        quantities = builtin_quantities(particle_dataset(simulation.particles(0)))
+        return jsonify(
+            {
+                "species": simulation.species,
+                "quantities": [
+                    {"name": name, "defaultScale": default_scale(name)}
+                    for name in quantities
+                ],
+            }
+        )
+
+    @app.post("/simulations/<simulation_id>/particles/check")
+    def check_particle_quantity(simulation_id: str):
+        simulation = simulations.get(simulation_id)
+        if simulation is None:
+            return _error("Simulation not found", 404)
+        expression = (request.get_json(silent=True) or {}).get("expression")
+        if not isinstance(expression, str) or not expression.strip():
+            return _error("An expression is required", 400)
+        sample = particle_dataset(simulation.particles(0).head(16))
+        try:
+            quantity_values(expression.strip(), sample)
+        except (KeyError, ValueError) as error:
+            return _error(_message(error), 400)
+        return jsonify({"expression": expression.strip()})
+
+    @app.post("/simulations/<simulation_id>/render/particles/histogram")
+    def render_particle_histogram(simulation_id: str):
+        payload = request.get_json(silent=True) or {}
+        loaded, failure = particles_at(simulation_id, payload.get("time"))
+        if failure:
+            return failure
+        ds, timestamp = loaded
+        try:
+            config = ParticleHistogramConfig.model_validate(payload.get("config"))
+            x = config.x
+            result = histogram_1d(
+                ds,
+                x.quantity,
+                x.scale,
+                x.power,
+                x.bins,
+                [series.species for series in config.series],
+                x.min,
+                x.max,
+            )
+        except ValidationError as error:
+            return _validation_error(error, "histogram request")
+        except (KeyError, ValueError) as error:
+            return _error(_message(error), 400)
+        return jsonify({**result, "timestamp": timestamp})
+
+    @app.post("/simulations/<simulation_id>/render/particles/phase")
+    def render_particle_phase(simulation_id: str):
+        payload = request.get_json(silent=True) or {}
+        loaded, failure = particles_at(simulation_id, payload.get("time"))
+        if failure:
+            return failure
+        ds, timestamp = loaded
+        try:
+            config = ParticlePhaseConfig.model_validate(payload.get("config"))
+            axes = [config.x.model_dump(), config.y.model_dump()]
+            histogram = histogram_2d(ds, axes, config.species)
+            image = render_counts(
+                histogram["counts"],
+                config.color_map,
+                config.color_scale,
+                config.vmin,
+                config.vmax,
+            )
+        except ValidationError as error:
+            return _validation_error(error, "phase-space request")
+        except (KeyError, ValueError) as error:
+            return _error(_message(error), 400)
+        x_edges, y_edges = histogram["edges"]
+        return jsonify(
+            {
+                **image,
+                "extent": {
+                    "xMin": float(x_edges[0]),
+                    "xMax": float(x_edges[-1]),
+                    "yMin": float(y_edges[0]),
+                    "yMax": float(y_edges[-1]),
+                },
+                "excludedWeight": histogram["excludedWeight"],
+                "timestamp": timestamp,
+            }
+        )
 
     @app.post("/simulations/<simulation_id>/render/pseudocolor")
     def render_pseudocolor(simulation_id: str):

@@ -12,6 +12,17 @@ interface PlotContextMenuProps {
   children: ReactNode;
 }
 
+/**
+ * Opens downwards from the click in the upper half of the window and upwards
+ * in the lower half, capped to the space available so long menus scroll.
+ */
+const menuPlacement = ({ x, y }: { x: number; y: number }) => {
+  const height = window.innerHeight;
+  return y > height / 2
+    ? { left: x, top: "auto", bottom: height - y, maxHeight: y - 12 }
+    : { left: x, top: y, maxHeight: height - y - 12 };
+};
+
 const PlotContextMenu = ({
   position,
   simulations,
@@ -22,7 +33,7 @@ const PlotContextMenu = ({
   <div className={contextStyles.overlay}>
     <div
       className={contextStyles.menu}
-      style={{ top: position.y, left: position.x }}
+      style={menuPlacement(position)}
       onClick={(event) => event.stopPropagation()}
     >
       <div

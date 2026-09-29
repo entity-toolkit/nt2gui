@@ -11,7 +11,10 @@ import {
   ILineConfig,
   IRange,
   PlotType,
+  IPlotter,
   defaultLineConfig,
+  defaultParticleHistogramConfig,
+  defaultParticlePhaseConfig,
   defaultPseudocolorConfig,
 } from "../global";
 import { withAxisRange } from "../lineConfig";
@@ -153,6 +156,25 @@ export const useUiState = () => {
           return prev;
         }
 
+        if (existing?.dataType === DataType.Particles) {
+          return {
+            ...prev,
+            [nodeId]: {
+              ...existing,
+              plotType: newPlotType,
+              particleHistogramConfig:
+                newPlotType === PlotType.Line
+                  ? (existing.particleHistogramConfig ??
+                    defaultParticleHistogramConfig)
+                  : existing.particleHistogramConfig,
+              particlePhaseConfig:
+                newPlotType === PlotType.Pseudocolor
+                  ? (existing.particlePhaseConfig ?? defaultParticlePhaseConfig)
+                  : existing.particlePhaseConfig,
+            },
+          };
+        }
+
         return {
           ...prev,
           [nodeId]: {
@@ -273,6 +295,18 @@ export const useUiState = () => {
     [updateUiState],
   );
 
+  /** Merge settings into one plot (used by the particle plots). */
+  const onPlotterPatch = useCallback(
+    (nodeId: string, patch: Partial<IPlotter>) => {
+      applyPlotterChange((prev) => {
+        const existing = prev[nodeId];
+        if (!existing) return prev;
+        return { ...prev, [nodeId]: { ...existing, ...patch } };
+      });
+    },
+    [applyPlotterChange],
+  );
+
   const onLineConfigChange = useCallback(
     (nodeId: string, config: ILineConfig) => {
       applyPlotterChange((prev) => {
@@ -382,6 +416,7 @@ export const useUiState = () => {
       onSyncViewportToggle,
       onLineConfigChange,
       onLineRangeChange,
+      onPlotterPatch,
       handleModelChange,
     }),
     [
@@ -402,6 +437,7 @@ export const useUiState = () => {
       onSyncViewportToggle,
       onLineConfigChange,
       onLineRangeChange,
+      onPlotterPatch,
       handleModelChange,
     ],
   );

@@ -6,6 +6,7 @@
 - The UI state should be synchronized with the server which must keep track of it and potentially recover at initialization.
   - The server owns the session (`server/session_store.py`): it always has a valid state (defaults from `server/schema.py`), persists it to `$NT2GUI_STATE_FILE` (default `.nt2gui/session.json`) with atomic writes, and re-opens saved simulations on restart.
   - `GET /state` returns `{revision, state, simulations}`; `PUT /state` takes `{revision, state}` and returns 409 with the current snapshot when the revision is stale. Simulation commands return the same snapshot.
+  - Saved sessions (`server/session_files.py`) are the session without its revision: `{schemaVersion, state, simulations}`. `POST /session/save|load {path}` writes/reads files on the server machine (409 on overwrite unless `overwrite: true`); `GET /session/export` and `POST /session/import {session}` back the client-side download/upload. Loading replaces the whole session, re-opens its simulations (reporting failures in `warnings`), and bumps the revision.
   - The client never initializes the state: it renders only after `GET /state`, and all writes go through `client/src/sync/StateSync.ts` (debounced, serialized, retried; server wins on conflict).
   - When changing the state shape, update `client/src/global.ts` and `server/schema.py` together (bump `SCHEMA_VERSION` and add a migration for breaking changes).
 - Plots are shaded on the server side, but the axes as well as the colorbars (if applicable) are reconstructed on the client-side using d3 elements.

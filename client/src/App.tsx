@@ -17,6 +17,7 @@ import Menubar from "./components/Menubar";
 import FooterBar from "./components/FooterBar";
 import { useUiState } from "./hooks/useUiState";
 import { useSimulations } from "./hooks/useSimulations";
+import { useSessionFiles } from "./hooks/useSessionFiles";
 
 const App = () => {
   const {
@@ -26,6 +27,7 @@ const App = () => {
     syncStatus,
     loadError,
     runServerCommand,
+    flushState,
     onDataTypeChange,
     onPlotTypeChange,
     onPseudocolorConfigChange,
@@ -38,6 +40,7 @@ const App = () => {
   } = useUiState();
   const { isLoading, addSimulation, unloadSimulation } =
     useSimulations(runServerCommand);
+  const sessionFiles = useSessionFiles(runServerCommand, flushState);
 
   const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(null);
   const handleGlobalTooltipChange = useCallback(
@@ -106,6 +109,7 @@ const App = () => {
   return (
     <div className="app-shell">
       <Menubar
+        sessionFiles={sessionFiles}
         simulations={simulations}
         onAddSimulation={addSimulation}
         onUnloadSimulation={unloadSimulation}

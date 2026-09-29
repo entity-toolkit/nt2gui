@@ -232,6 +232,24 @@ describe("StateSync", () => {
     sync.dispose();
   });
 
+  it("reports unsaved changes until the server accepts them", async () => {
+    const push = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockImplementation(async (revision: number, state: IUiState) =>
+        snapshot(revision + 1, state),
+      );
+    const { sync } = setup(push);
+
+    sync.schedule(makeState(1));
+    expect(sync.hasPendingChanges).toBe(true);
+    await sync.flush();
+    expect(sync.hasPendingChanges).toBe(true); // offline: still unsaved
+
+    await vi.advanceTimersByTimeAsync(1000); // retry succeeds
+    expect(sync.hasPendingChanges).toBe(false);
+  });
+
   it("refresh adopts server state only when its revision moved", async () => {
     const { sync, onRemoteSnapshot } = setup(acceptingPush(), snapshot(3));
 

@@ -10,37 +10,21 @@ state) re-syncs instead of overwriting newer state.
 import json
 import logging
 import os
-import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from schema import SCHEMA_VERSION, Session, UiState, default_session
+from schema import Session, SessionDocument, UiState, default_session
+from session_files import migrate, write_json_atomic
 
 logger = logging.getLogger(__name__)
-
-# schema_version -> function upgrading raw JSON from that version to the next.
-MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
 
 
 class RevisionConflict(Exception):
     def __init__(self, snapshot: dict[str, Any]) -> None:
         super().__init__("revision conflict")
         self.snapshot = snapshot
-
-
-def migrate(raw: dict[str, Any]) -> dict[str, Any]:
-    version = raw.get("schemaVersion", SCHEMA_VERSION)
-    if version > SCHEMA_VERSION:
-        raise ValueError(
-            f"session schema version {version} is newer than supported {SCHEMA_VERSION}"
-        )
-    while version < SCHEMA_VERSION:
-        raw = MIGRATIONS[version](raw)
-        version += 1
-        raw["schemaVersion"] = version
-    return raw
 
 
 class SessionStore:
@@ -57,6 +41,17 @@ class SessionStore:
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             return self._snapshot()
+
+    def document(self) -> SessionDocument:
+        """The current session as a saveable document (no revision)."""
+        with self._lock:
+            return SessionDocument.model_validate(
+                {
+                    "schemaVersion": self._session.schema_version,
+                    "state": self._session.state.to_wire(),
+                    "simulations": [s.to_wire() for s in self._session.simulations],
+                }
+            )
 
     def replace_state(self, state: UiState, base_revision: int) -> dict[str, Any]:
         """Replace the UI state if the client was up to date with the server."""
@@ -110,20 +105,5 @@ class SessionStore:
             return default_session()
 
     def _save(self, session: Session) -> None:
-        if self._path is None:
-            return
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        # Write to a temp file in the same directory, then atomically swap it in,
-        # so a crash mid-write never leaves a truncated session file.
-        fd, tmp_name = tempfile.mkstemp(
-            dir=self._path.parent, prefix=self._path.name, suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w") as tmp:
-                json.dump(session.to_wire(), tmp, indent=2)
-                tmp.flush()
-                os.fsync(tmp.fileno())
-            os.replace(tmp_name, self._path)
-        except BaseException:
-            Path(tmp_name).unlink(missing_ok=True)
-            raise
+        if self._path is not None:
+            write_json_atomic(self._path, session.to_wire())

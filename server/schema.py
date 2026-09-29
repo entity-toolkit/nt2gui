@@ -105,6 +105,14 @@ class Session(_Schema):
     simulations: list[SimulationRecord] = []
 
 
+class SessionDocument(_Schema):
+    """A saved session file: a `Session` without its revision."""
+
+    schema_version: int = SCHEMA_VERSION
+    state: UiState
+    simulations: list[SimulationRecord] = []
+
+
 DEFAULT_TIMELINE: dict[str, Any] = {"current": 0, "min": 0, "max": 100, "step": 1}
 
 DEFAULT_LAYOUT: dict[str, Any] = {

@@ -1,10 +1,13 @@
 import { ISimulation } from "../global";
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
+import { useSessionFiles } from "../hooks/useSessionFiles";
+import SessionDialog, { SessionDialogMode } from "./SessionDialog";
 import styles from "./Menubar.module.css";
 const menuItems = ["Save state", "Load state", "Settings", "Help"];
 
 interface MenubarProps {
+  sessionFiles: ReturnType<typeof useSessionFiles>;
   simulations: ISimulation[];
   onAddSimulation: (path: string) => void | Promise<void>;
   onUnloadSimulation: (id: string) => void;
@@ -12,6 +15,7 @@ interface MenubarProps {
 }
 
 const Menubar = ({
+  sessionFiles,
   simulations,
   onAddSimulation,
   onUnloadSimulation,
@@ -20,10 +24,17 @@ const Menubar = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [pathInput, setPathInput] = useState("");
   const [error, setError] = useState("");
+  const [sessionDialog, setSessionDialog] = useState<SessionDialogMode | null>(
+    null,
+  );
 
   const handleMenuClick = (item: string) => {
     if (item === "Settings") {
       setIsDialogOpen(true);
+    } else if (item === "Save state") {
+      setSessionDialog("save");
+    } else if (item === "Load state") {
+      setSessionDialog("load");
     }
   };
 
@@ -67,6 +78,14 @@ const Menubar = ({
           </button>
         ))}
       </div>
+
+      {sessionDialog && (
+        <SessionDialog
+          mode={sessionDialog}
+          sessionFiles={sessionFiles}
+          onClose={() => setSessionDialog(null)}
+        />
+      )}
 
       {isDialogOpen &&
         createPortal(

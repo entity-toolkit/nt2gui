@@ -123,13 +123,23 @@ export const useUiState = () => {
 
   /** Run a server command (e.g. load a simulation) and adopt its result. */
   const runServerCommand = useCallback(
-    async (command: () => Promise<IServerSnapshot>) => {
+    async <T extends IServerSnapshot>(command: () => Promise<T>) => {
       const sync = syncRef.current;
       if (!sync) throw new Error("Not connected to the server yet");
       return sync.run(command);
     },
     [],
   );
+
+  /** Resolves once every local change has reached the server. */
+  const flushState = useCallback(async () => {
+    const sync = syncRef.current;
+    if (!sync) throw new Error("Not connected to the server yet");
+    await sync.flush();
+    if (sync.hasPendingChanges) {
+      throw new Error("Cannot reach the server; latest changes are not saved yet");
+    }
+  }, []);
 
   const onPlotTypeChange = useCallback(
     (nodeId: string, newPlotType: PlotType) => {
@@ -307,6 +317,7 @@ export const useUiState = () => {
       syncStatus,
       loadError,
       runServerCommand,
+      flushState,
       onDataTypeChange,
       onPlotTypeChange,
       onPseudocolorConfigChange,
@@ -324,6 +335,7 @@ export const useUiState = () => {
       syncStatus,
       loadError,
       runServerCommand,
+      flushState,
       onDataTypeChange,
       onPlotTypeChange,
       onPseudocolorConfigChange,

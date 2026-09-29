@@ -13,9 +13,16 @@ from schema import (
     DEFAULT_TIMELINE,
     Plotter,
     Session,
+    SessionDocument,
     SimulationRecord,
     Timeline,
     UiState,
+)
+from session_files import (
+    parse_document,
+    read_document,
+    resolve_session_path,
+    write_document,
 )
 from session_store import RevisionConflict, SessionStore
 
@@ -102,6 +109,84 @@ def create_app(state_file: Path | str | None = None) -> Flask:
         )
         del simulations[simulation_id]
         return jsonify(snapshot)
+
+    def apply_document(document: SessionDocument) -> dict[str, Any]:
+        """Replace the whole session with a saved one, re-opening its simulations."""
+        opened: dict[str, Simulation] = {}
+        warnings: list[str] = []
+        for record in document.simulations:
+            existing = simulations.get(record.id)
+            if existing is not None and existing.path == record.path:
+                opened[record.id] = existing
+                continue
+            try:
+                opened[record.id] = Simulation(record.path, record.id)
+            except Exception as error:
+                warnings.append(f"Could not open simulation {record.path}: {error}")
+        failed = {record.id for record in document.simulations} - opened.keys()
+
+        def mutate(session: Session) -> None:
+            session.state = document.state.model_copy(deep=True)
+            session.simulations = [
+                record.model_copy() for record in document.simulations
+            ]
+            if failed:
+                _forget_simulations(session, failed)
+
+        snapshot = store.update(mutate)
+        simulations.clear()
+        simulations.update(opened)
+        return {**snapshot, "warnings": warnings}
+
+    def session_path_from(payload: dict[str, Any]) -> Path:
+        raw_path = payload.get("path")
+        if not isinstance(raw_path, str):
+            raise ValueError("path is required")
+        return resolve_session_path(raw_path)
+
+    @app.get("/session/export")
+    def export_session():
+        return jsonify(store.document().to_wire())
+
+    @app.post("/session/import")
+    def import_session():
+        payload = request.get_json(silent=True) or {}
+        try:
+            document = parse_document(payload.get("session"))
+        except ValueError as error:
+            return _error(f"Invalid session file: {error}", 400)
+        return jsonify(apply_document(document))
+
+    @app.post("/session/save")
+    def save_session():
+        payload = request.get_json(silent=True) or {}
+        try:
+            path = session_path_from(payload)
+        except ValueError as error:
+            return _error(str(error), 400)
+        try:
+            write_document(path, store.document(), bool(payload.get("overwrite")))
+        except FileExistsError:
+            return _error("File already exists", 409, path=str(path))
+        except OSError as error:
+            return _error(f"Could not write {path}: {error.strerror or error}", 400)
+        app.logger.info("Session saved to %s", path)
+        return jsonify({**store.snapshot(), "path": str(path)})
+
+    @app.post("/session/load")
+    def load_session():
+        payload = request.get_json(silent=True) or {}
+        try:
+            path = session_path_from(payload)
+            document = read_document(path)
+        except FileNotFoundError:
+            return _error("File not found", 404, path=str(path))
+        except ValueError as error:
+            return _error(f"Invalid session file: {error}", 400)
+        except OSError as error:
+            return _error(f"Could not read file: {error.strerror or error}", 400)
+        app.logger.info("Session loaded from %s", path)
+        return jsonify({**apply_document(document), "path": str(path)})
 
     @app.post("/simulations/<simulation_id>/render/pseudocolor")
     def render_pseudocolor(simulation_id: str):

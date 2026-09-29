@@ -5,9 +5,9 @@ import {
   unloadSimulation,
 } from "../services/simulationService";
 
-type RunServerCommand = (
-  command: () => Promise<IServerSnapshot>,
-) => Promise<IServerSnapshot>;
+export type RunServerCommand = <T extends IServerSnapshot>(
+  command: () => Promise<T>,
+) => Promise<T>;
 
 /**
  * Simulation commands. The loaded simulations are part of the server

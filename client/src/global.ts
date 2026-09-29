@@ -84,3 +84,18 @@ export interface IServerSnapshot {
   state: IUiState;
   simulations: ISimulation[];
 }
+
+/** A saved session file (server-side or downloaded); see server/schema.py. */
+export interface ISessionDocument {
+  schemaVersion: number;
+  state: IUiState;
+  simulations: ISimulation[];
+}
+
+/** Result of a session save/load/import on the server. */
+export interface ISessionCommandResult extends IServerSnapshot {
+  /** Absolute path on the server machine, for server-side saves/loads. */
+  path?: string;
+  /** Simulations referenced by a loaded session that could not be re-opened. */
+  warnings?: string[];
+}

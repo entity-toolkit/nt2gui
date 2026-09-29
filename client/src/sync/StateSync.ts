@@ -49,6 +49,11 @@ export class StateSync {
     return this.revision;
   }
 
+  /** Local changes the server has not accepted yet. */
+  get hasPendingChanges() {
+    return this.pending !== null;
+  }
+
   /** Queue the latest local state to be sent once edits settle. */
   schedule(state: IUiState) {
     if (this.disposed) return;
@@ -75,7 +80,7 @@ export class StateSync {
    * Run a server command (e.g. loading a simulation) after pending local
    * changes are saved, then adopt the snapshot it returns.
    */
-  async run(command: () => Promise<IServerSnapshot>): Promise<IServerSnapshot> {
+  async run<T extends IServerSnapshot>(command: () => Promise<T>): Promise<T> {
     await this.flush();
     return this.enqueue(async () => {
       if (this.pending) {

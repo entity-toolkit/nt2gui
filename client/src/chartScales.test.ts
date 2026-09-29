@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   binIndex,
+  colorbarValue,
   logValueDomain,
   makeScale,
   scaleExtent,
@@ -90,5 +91,17 @@ describe("stepPath", () => {
 
   it("is empty when nothing can be drawn", () => {
     expect(stepPath([0, 1], [0], identity, identity, positive)).toBe("");
+  });
+});
+
+describe("colorbarValue", () => {
+  it("interpolates linearly on a linear colorbar", () => {
+    expect(colorbarValue(0.25, -2, 2)).toBeCloseTo(-1);
+  });
+
+  it("interpolates in log10 on a log colorbar", () => {
+    expect(colorbarValue(0.5, 1, 100, "log")).toBeCloseTo(10);
+    expect(colorbarValue(0, 0.01, 1, "log")).toBeCloseTo(0.01);
+    expect(colorbarValue(1, 0.01, 1, "log")).toBeCloseTo(1);
   });
 });

@@ -147,9 +147,27 @@ const PseudocolorControls: React.FC<PseudocolorControlsProps> = ({
       <div className={styles.formSection}>
         <div className={styles.formRow}>
           <div className={styles.formControl}>
-            <label htmlFor="colorbar">colormap</label>
+            <label htmlFor="color-scale">color</label>
+            <select
+              id="color-scale"
+              aria-label="color scale"
+              value={config.colorScale ?? "linear"}
+              onChange={(e) =>
+                onChange({
+                  ...config,
+                  colorScale: e.target.value as "linear" | "log",
+                  // Limits valid for one scale (e.g. negative) may not be for the other.
+                  vmin: undefined,
+                  vmax: undefined,
+                })
+              }
+            >
+              <option value="linear">linear</option>
+              <option value="log">log</option>
+            </select>
             <select
               id="colorbar"
+              aria-label="colormap"
               value={config.colorMap}
               onChange={(e) =>
                 onChange({ ...config, colorMap: e.target.value })

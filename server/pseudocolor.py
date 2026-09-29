@@ -9,9 +9,59 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-from matplotlib.colors import to_hex
+from matplotlib.colors import LogNorm, Normalize, to_hex
 
 from fields import quantity_arrays
+
+
+def color_norm(
+    values: np.ndarray,
+    scale: str,
+    vmin: float | None,
+    vmax: float | None,
+) -> Normalize:
+    """Color normalization; unset limits follow the finite (for log: positive)
+    data."""
+    data = np.asarray(values, dtype=float)
+    if scale == "linear":
+        return Normalize(vmin=vmin, vmax=vmax)
+    if scale != "log":
+        raise ValueError(f"Unknown color scale '{scale}'")
+    positive = data[np.isfinite(data) & (data > 0)]
+    if vmin is not None and vmin <= 0:
+        raise ValueError("A log color scale needs a positive minimum")
+    if vmin is None and vmax is None and positive.size == 0:
+        raise ValueError("No positive values to show on a log color scale")
+    if vmin is not None:
+        lo = float(vmin)
+    elif positive.size:
+        lo = float(positive.min())
+    else:
+        lo = float(vmax) / 10  # vmax is set here (checked above)
+    if vmax is not None:
+        hi = float(vmax)
+    elif positive.size:
+        hi = float(positive.max())
+    else:
+        hi = lo * 10
+    if hi <= lo:
+        hi = lo * 10
+    return LogNorm(vmin=lo, vmax=hi)
+
+
+def log_ticks(vmin: float, vmax: float) -> list[float]:
+    """Decades within [vmin, vmax]; with fewer than two, 1-2-5 steps instead."""
+    low, high = np.floor(np.log10(vmin)), np.ceil(np.log10(vmax))
+    for mantissas in ((1.0,), (1.0, 2.0, 5.0), tuple(range(1, 10))):
+        ticks = [
+            float(m * 10.0**exponent)
+            for exponent in np.arange(low, high + 1)
+            for m in mantissas
+        ]
+        inside = [t for t in ticks if vmin * (1 - 1e-9) <= t <= vmax * (1 + 1e-9)]
+        if len(inside) >= 2:
+            return inside
+    return [float(vmin), float(vmax)]
 
 
 def render_pseudocolor(
@@ -104,12 +154,19 @@ def render_pseudocolor(
         float(y_vals.min()),
         float(y_vals.max()),
     )
+    color_scale = config.get("colorScale") or "linear"
+    norm = color_norm(values, color_scale, config.get("vmin"), config.get("vmax"))
+    if color_scale == "log":
+        # Values <= 0 have no place on a log scale: leave them transparent.
+        values = np.where(np.asarray(values) > 0, values, np.nan)
+    cmap = plt.get_cmap(config.get("colorMap") or "viridis").with_extremes(
+        bad=(0, 0, 0, 0)
+    )
     im = ax.imshow(
         values,
         origin="lower",
-        cmap=config.get("colorMap") or "viridis",
-        vmin=config.get("vmin"),
-        vmax=config.get("vmax"),
+        cmap=cmap,
+        norm=norm,
         extent=extent,
         aspect="auto",
     )
@@ -145,9 +202,14 @@ def render_pseudocolor(
     vmin, vmax = im.get_clim()
 
     colorbar_ticks = [float(tick) for tick in colorbar.get_ticks()]
-    colorbar_ticklabels = [
-        label.get_text() for label in colorbar.ax.get_yticklabels()
-    ]
+    if color_scale == "log":
+        # Matplotlib's log labels are mathtext ("$\\mathdefault{10^{2}}$").
+        colorbar_ticks = log_ticks(vmin, vmax)
+        colorbar_ticklabels = [f"{tick:g}" for tick in colorbar_ticks]
+    else:
+        colorbar_ticklabels = [
+            label.get_text() for label in colorbar.ax.get_yticklabels()
+        ]
     colorbar_ticks, colorbar_ticklabels = _filter_ticks(
         colorbar_ticks, colorbar_ticklabels, vmin, vmax
     )
@@ -162,7 +224,10 @@ def render_pseudocolor(
     image_width, image_height = fig.canvas.get_width_height()
 
     buffer = BytesIO()
-    fig.savefig(buffer, format="png", bbox_inches=None, pad_inches=0)
+    # Transparent, so masked cells show the panel behind them.
+    fig.savefig(
+        buffer, format="png", bbox_inches=None, pad_inches=0, transparent=True
+    )
     plt.close(fig)
     buffer.seek(0)
     encoded = base64.b64encode(buffer.read()).decode("ascii")
@@ -185,6 +250,7 @@ def render_pseudocolor(
             "labels": colorbar_ticklabels,
             "vmin": float(vmin),
             "vmax": float(vmax),
+            "scale": color_scale,
             "colors": colors,
         },
         "colorMap": im.get_cmap().name,

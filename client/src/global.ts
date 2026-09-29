@@ -27,6 +27,8 @@ export interface IPseudocolorConfig {
   vmin?: number;
   vmax?: number;
   colorMap: string;
+  /** Log colors leave values <= 0 transparent (default linear). */
+  colorScale?: "linear" | "log";
   /** Coordinate value at which each dim beyond x/y is sliced (3D fields). */
   slices?: Record<string, number>;
   /** Custom quantities (e.g. "f + g") offered alongside the fields. */

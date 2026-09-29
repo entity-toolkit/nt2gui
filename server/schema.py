@@ -65,6 +65,8 @@ class PseudocolorConfig(_Schema):
     vmin: float | None = None
     vmax: float | None = None
     color_map: str
+    # Log colors leave values <= 0 transparent.
+    color_scale: Literal["linear", "log"] = "linear"
     # Coordinate value at which each dim beyond x/y is sliced (3D fields).
     slices: dict[str, float] = {}
     # Custom quantities (e.g. "f + g") offered alongside the fields.

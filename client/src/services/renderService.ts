@@ -11,6 +11,8 @@ export type ColorbarTicks = {
   labels: string[];
   vmin: number;
   vmax: number;
+  /** Tick positions are placed on this scale (log uses log10 spacing). */
+  scale: "linear" | "log";
   colors: string[];
 };
 

@@ -16,6 +16,7 @@ import {
 } from "react";
 import type { PseudocolorResponse } from "../services/renderService";
 import { ITooltipDatum, IZoomWindow } from "../global";
+import { colorbarValue, makeScale } from "../chartScales";
 import { fitToBox } from "../fitToBox";
 import { useElementSize } from "../hooks/useElementSize";
 import styles from "./PseudocolorPreview.module.css";
@@ -192,7 +193,7 @@ const PseudocolorPreview = ({
   }, [render.yTicks.labels, render.yTicks.positions, yScale]);
 
   useEffect(() => {
-    const colorScale = scaleLinear()
+    const colorScale = makeScale(render.colorbar.scale)
       .domain([render.colorbar.vmin, render.colorbar.vmax])
       .range([innerHeight, 0]);
 
@@ -208,6 +209,7 @@ const PseudocolorPreview = ({
   }, [
     innerHeight,
     render.colorbar.labels,
+    render.colorbar.scale,
     render.colorbar.ticks,
     render.colorbar.vmax,
     render.colorbar.vmin,
@@ -279,9 +281,11 @@ const PseudocolorPreview = ({
 
     const colorSteps = Math.max(render.colorbar.colors.length - 1, 1);
     const position = bestIndex / colorSteps;
-    return (
-      render.colorbar.vmin +
-      position * (render.colorbar.vmax - render.colorbar.vmin)
+    return colorbarValue(
+      position,
+      render.colorbar.vmin,
+      render.colorbar.vmax,
+      render.colorbar.scale,
     );
   };
 
@@ -305,7 +309,8 @@ const PseudocolorPreview = ({
     const pixelY = Math.round((1 - ratioY) * (imageHeight - 1));
     const pixel = context.getImageData(pixelX, pixelY, 1, 1).data;
     const color = rgbToHex(pixel[0], pixel[1], pixel[2]);
-    const value = approximateValueFromColor(color);
+    // Transparent cells (e.g. values <= 0 on a log scale) have no value.
+    const value = pixel[3] === 0 ? undefined : approximateValueFromColor(color);
 
     return { color, value };
   };

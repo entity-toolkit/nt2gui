@@ -99,3 +99,17 @@ export const stepPath = (
   }
   return path;
 };
+
+/**
+ * Value at a relative position (0 = bottom, 1 = top) of a colorbar spanning
+ * [vmin, vmax]; on a log colorbar positions are uniform in log10.
+ */
+export const colorbarValue = (
+  position: number,
+  vmin: number,
+  vmax: number,
+  scale: "linear" | "log" = "linear",
+): number =>
+  scale === "log" && vmin > 0 && vmax > 0
+    ? 10 ** (Math.log10(vmin) + position * (Math.log10(vmax) - Math.log10(vmin)))
+    : vmin + position * (vmax - vmin);

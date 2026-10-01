@@ -109,4 +109,13 @@ describe("App", () => {
     });
     vi.useRealTimers();
   });
+
+  it("offers to point the UI at another server when this one can't be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
+    render(<App />);
+
+    expect(await screen.findByText(/Cannot reach the server/)).toBeTruthy();
+    expect(screen.getByPlaceholderText("http://localhost:8765")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "connect" })).toBeTruthy();
+  });
 });

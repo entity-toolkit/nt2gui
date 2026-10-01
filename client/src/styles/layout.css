@@ -39,3 +39,8 @@
   color: var(--color-muted);
   background: var(--color-bg);
 }
+
+.app-loading-box {
+  width: min(520px, calc(100vw - 32px));
+  text-align: center;
+}

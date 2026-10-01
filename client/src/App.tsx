@@ -11,6 +11,8 @@ import AddTabButton from "./components/layout/AddTabButton";
 import Menubar from "./components/layout/Menubar";
 import SimulationSidebar from "./components/layout/SimulationSidebar";
 import TimelineBar from "./components/layout/TimelineBar";
+import ServerUrlForm from "./components/common/ServerUrlForm";
+import { getServerUrl } from "./config";
 import Panel from "./plots/Panel";
 import { UiProvider, useUi, useUiActions } from "./state/UiContext";
 
@@ -60,13 +62,21 @@ const Workspace = () => {
   );
 };
 
+const serverLabel = () => (getServerUrl() ? ` at ${getServerUrl()}` : "");
+
 const App = () => (
   <UiProvider
     fallback={(loadError) => (
-      <div className="app-loading" role="status">
-        {loadError
-          ? `Cannot reach the server (${loadError}). Retrying…`
-          : "Loading session…"}
+      <div className="app-loading">
+        <div className="app-loading-box">
+          <p role="status">
+            {loadError
+              ? `Cannot reach the server${serverLabel()} (${loadError}). Retrying…`
+              : "Loading session…"}
+          </p>
+          {/* The server may simply be elsewhere (UI run with `nt2gui client`). */}
+          {loadError && <ServerUrlForm />}
+        </div>
       </div>
     )}
   >

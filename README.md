@@ -22,6 +22,20 @@ ssh -N -L 8765:localhost:8765 you@node042      # add -J you@login-node if needed
 
 then open <http://localhost:8765/>.
 
+### Running the server and the UI separately
+
+You can also serve only the API on the cluster and run the UI from the package on your own machine:
+
+```bash
+# on the cluster
+nt2gui server          # API only; --allow-origin ORIGIN (repeatable) for UIs on other ports/hosts
+# on your machine, with the tunnel above open
+pip install nt2gui
+nt2gui client          # UI only on http://localhost:8766; --server URL (default http://localhost:8765)
+```
+
+`nt2gui client` prints a link that points the UI at the server; you can change the server any time under **Settings → Server URL** (remembered by your browser). For safety, the API only accepts browser calls from the origins it allows — by default the `nt2gui client` default (`http://localhost:8766`).
+
 By default the server listens on `127.0.0.1` only. The UI session is saved to `.nt2gui/session.json` in the working directory (override with `--state-file` or `$NT2GUI_STATE_FILE`) and restored on restart.
 
 ## Development
@@ -30,6 +44,6 @@ By default the server listens on `127.0.0.1` only. The UI session is saved to `.
 pip install -r requirements.txt    # or: pip install -e ".[dev]"
 npm i
 npm run dev       # Flask on :5000 and vite with /api proxied to it
-npm run test      # vitest + pytest
+npm run test      # typecheck + vitest + pytest
 npm run package   # build the client into nt2gui/static, then the wheel/sdist into dist/
 ```

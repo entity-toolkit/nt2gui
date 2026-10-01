@@ -1,4 +1,4 @@
-import { SERVER_URL } from "../config";
+import { apiBase } from "../config";
 
 export class HttpError extends Error {
   constructor(
@@ -9,7 +9,8 @@ export class HttpError extends Error {
   }
 }
 
-export const apiUrl = (path: string) => `${SERVER_URL}/${path}`;
+// Resolved per request: the server URL can change in Settings.
+export const apiUrl = (path: string) => `${apiBase()}/${path}`;
 
 export const simulationUrl = (simulationId: string, path = "") =>
   apiUrl(

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useSessionFiles } from "../../hooks/useSessionFiles";
 import { useUi } from "../../state/UiContext";
-import Modal, { modalStyles } from "../common/Modal";
+import Modal from "../common/Modal";
+import ServerUrlForm from "../common/ServerUrlForm";
 import SessionDialog, { SessionDialogMode } from "./SessionDialog";
 import SyncStatusBadge from "./SyncStatusBadge";
 import styles from "./Menubar.module.css";
@@ -49,7 +50,7 @@ const Menubar = () => {
       )}
       {dialog === "settings" && (
         <Modal title="Settings" onClose={close}>
-          <p className={modalStyles.status}>No settings yet.</p>
+          <ServerUrlForm />
         </Modal>
       )}
     </nav>

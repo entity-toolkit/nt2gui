@@ -521,3 +521,12 @@ def test_missing_session_path_is_reported_as_such(client):
     response = client.post("/api/session/load", json={})
     assert response.status_code == 400
     assert response.get_json()["error"] == "A session file path is required"
+
+
+def test_slow_requests_are_logged(client, monkeypatch, caplog):
+    import nt2gui.app as app_module
+
+    monkeypatch.setattr(app_module, "SLOW_REQUEST_SECONDS", -1)
+    with caplog.at_level("INFO"):
+        client.get("/api/state")
+    assert any("slow request: GET /api/state took" in r.message for r in caplog.records)

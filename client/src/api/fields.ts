@@ -22,9 +22,11 @@ export const renderLine = (
   config: ILineConfig,
   time: number,
   range: IRange | null,
+  signal?: AbortSignal,
 ) =>
   requestJson<ILineRender>(simulationUrl(simulationId, "render/line"), {
     body: { config, time, range },
+    signal,
   });
 
 export const renderPseudocolor = (
@@ -32,10 +34,12 @@ export const renderPseudocolor = (
   config: IPseudocolorConfig,
   time: number,
   viewport: IZoomWindow | null,
+  signal?: AbortSignal,
 ) =>
   requestJson<IPseudocolorRender>(
     simulationUrl(simulationId, "render/pseudocolor"),
     {
       body: { config, time, viewport },
+      signal,
     },
   );

@@ -36,6 +36,8 @@ nt2gui client          # UI only on http://localhost:8766; --server URL (default
 
 `nt2gui client` prints a link that points the UI at the server; you can change the server any time under **Settings → Server URL** (remembered by your browser). For safety, the API only accepts browser calls from the origins it allows — by default the `nt2gui client` default (`http://localhost:8766`).
 
+Data read from disk is kept in memory so that changing colors, zooming, slicing or switching between quantities doesn't re-read it: up to 2 GB of field data and 2 GB of particle data per open simulation. Adjust with `NT2GUI_FIELD_CACHE_MB` / `NT2GUI_PARTICLE_CACHE_MB` (in MB) before starting the server. The server log reports any request that takes longer than half a second.
+
 By default the server listens on `127.0.0.1` only. The UI session is saved to `.nt2gui/session.json` in the working directory (override with `--state-file` or `$NT2GUI_STATE_FILE`) and restored on restart.
 
 ## Development

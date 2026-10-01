@@ -24,20 +24,23 @@ export const renderParticleHistogram = (
   simulationId: string,
   config: Pick<IParticleHistogramConfig, "x" | "series">,
   time: number,
+  signal?: AbortSignal,
 ) =>
   requestJson<IParticleHistogram>(
     simulationUrl(simulationId, "render/particles/histogram"),
-    { body: { config, time } },
+    { body: { config, time }, signal },
   );
 
 export const renderParticlePhase = (
   simulationId: string,
   config: IParticlePhaseConfig,
   time: number,
+  signal?: AbortSignal,
 ) =>
   requestJson<IParticlePhase>(
     simulationUrl(simulationId, "render/particles/phase"),
     {
       body: { config, time },
+      signal,
     },
   );

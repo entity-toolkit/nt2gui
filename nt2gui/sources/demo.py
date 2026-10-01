@@ -1,5 +1,6 @@
 """Synthetic simulation for trying the app without data (paths `demo:...`)."""
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
 
@@ -18,6 +19,7 @@ SPECIES = [
 ]
 PARTICLES_PER_SPECIES = 20_000
 PARTICLE_CACHE_SIZE = 8
+PARTICLE_COLUMNS = ("x", "y", "ux", "uy", "uz", "w")
 
 
 def _random_directions(rng: np.random.Generator, n: int) -> np.ndarray:
@@ -67,7 +69,7 @@ class DemoSimulation:
             ).astype(np.float32),
         )
 
-        self._particle_cache: StepCache[pd.DataFrame] = StepCache(PARTICLE_CACHE_SIZE)
+        self._particle_cache: StepCache[pd.DataFrame] = StepCache(max_items=PARTICLE_CACHE_SIZE)
         self._fields = xr.Dataset(
             data_vars=data_vars,
             coords={"t": self._t, "x": self._x, "y": self._y, "z": self._z},
@@ -81,11 +83,23 @@ class DemoSimulation:
     def species(self) -> list[dict[str, Any]]:
         return [dict(species) for species in SPECIES]
 
-    def particles(self, time: float) -> pd.DataFrame:
+    @property
+    def particle_columns(self) -> list[str]:
+        return list(PARTICLE_COLUMNS)
+
+    def particles(
+        self, time: float, columns: Sequence[str] | None = None
+    ) -> pd.DataFrame:
         """Particles at the output step nearest to `time`, laid out like
         nt2py's `ParticleDataset.load()`: one row per particle."""
         step = nearest_index(self._t, time)
-        return self._particle_cache.get(step, lambda: self._make_particles(step))
+        frame = self._particle_cache.get(step, lambda: self._make_particles(step))
+        wanted = PARTICLE_COLUMNS if columns is None else columns
+        return frame[["sp", *[c for c in wanted if c != "sp"]]]
+
+    def species_counts(self, time: float) -> dict[int, int]:
+        counts = self.particles(time, columns=[])["sp"].value_counts()
+        return {s["index"]: int(counts.get(s["index"], 0)) for s in SPECIES}
 
     def _make_particles(self, step: int) -> pd.DataFrame:
         rng = np.random.default_rng(step)

@@ -4,7 +4,13 @@
  * panel's data type and plot kind can be picked, and the chosen plot kind's
  * frame renders and syncs its settings back to the server.
  */
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { IServerSnapshot } from "./api/types";
@@ -21,7 +27,9 @@ const snapshot = (): IServerSnapshot => ({
         children: [
           {
             type: "tabset",
-            children: [{ type: "tab", id: "panel-1", component: "panel", name: "Panel" }],
+            children: [
+              { type: "tab", id: "panel-1", component: "panel", name: "Panel" },
+            ],
           },
         ],
       },
@@ -63,14 +71,22 @@ beforeEach(() => {
       if (url === "api/state" && init?.method === "PUT") {
         const body = JSON.parse(String(init.body));
         puts.push(body.state);
-        return json({ ...snapshot(), revision: body.revision + 1, state: body.state });
+        return json({
+          ...snapshot(),
+          revision: body.revision + 1,
+          state: body.state,
+        });
       }
       if (url === "api/state") return json(snapshot());
       if (url.endsWith("/summary")) {
         return json({ fields: null, particles: null, spectra: null });
       }
       if (url.endsWith("/fields")) {
-        return json({ fields: [{ name: "Bx", dims: ["x"] }], vectors: [], coords: { x: [0, 1] } });
+        return json({
+          fields: [{ name: "Bx", dims: ["x"] }],
+          vectors: [],
+          coords: { x: [0, 1] },
+        });
       }
       return json({ error: `unexpected ${url}` }, 404);
     }),
@@ -111,7 +127,10 @@ describe("App", () => {
   });
 
   it("offers to point the UI at another server when this one can't be reached", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+    );
     render(<App />);
 
     expect(await screen.findByText(/Cannot reach the server/)).toBeTruthy();

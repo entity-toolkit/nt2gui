@@ -1,10 +1,11 @@
 """The Flask app: the JSON API under `/api` and (optionally) the built client at `/`."""
 
 import logging
+import time
 from collections.abc import Iterable
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, g, jsonify, request
 
 from . import config
 from .api import create_api
@@ -40,10 +41,32 @@ def create_app(
         return jsonify({"error": error.message, **error.extra}), error.status
 
     app.register_blueprint(create_api(), url_prefix="/api")
+    log_slow_requests(app)
     allow_cross_origin(app, allowed_origins)
     if with_client:
         serve_client(app, static_dir)
     return app
+
+
+# API requests slower than this are logged, to show where time goes.
+SLOW_REQUEST_SECONDS = 0.5
+
+
+def log_slow_requests(app: Flask) -> None:
+    @app.before_request
+    def start_timer() -> None:
+        g.request_started = time.perf_counter()
+
+    @app.after_request
+    def report(response: Response) -> Response:
+        started = g.get("request_started")
+        if started is not None and request.path.startswith("/api/"):
+            elapsed = time.perf_counter() - started
+            if elapsed > SLOW_REQUEST_SECONDS:
+                app.logger.info(
+                    "slow request: %s %s took %.2fs", request.method, request.path, elapsed
+                )
+        return response
 
 
 def normalize_origin(origin: str) -> str:

@@ -4,6 +4,7 @@ Every source offers the same interface, so the endpoints never care which
 one they talk to.
 """
 
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 import numpy as np
@@ -44,8 +45,21 @@ class SimulationSource(Protocol):
         """Ascending times of the particle outputs (empty without particles)."""
         ...
 
-    def particles(self, time: float) -> pd.DataFrame:
-        """Particles at the output nearest to `time` (columns sp, x, ux, …, w)."""
+    @property
+    def particle_columns(self) -> list[str]:
+        """Per-particle quantities available (x, ux, …, w), without reading data."""
+        ...
+
+    def particles(
+        self, time: float, columns: Sequence[str] | None = None
+    ) -> pd.DataFrame:
+        """Particles at the output nearest to `time`: the species index `sp`
+        plus `columns` (all of `particle_columns` when None). Only the asked-for
+        columns are read."""
+        ...
+
+    def species_counts(self, time: float) -> dict[int, int]:
+        """Number of particles of each species at the output nearest to `time`."""
         ...
 
     def particle_time(self, time: float) -> float:
@@ -75,9 +89,8 @@ def combined_timeline(*time_arrays: Any) -> dict[str, float]:
     }
 
 
-def first_particles(simulation: SimulationSource) -> pd.DataFrame:
-    """Particles of the earliest output (for column names, counts, checks)."""
-    return simulation.particles(float(simulation.particle_times[0]))
+def first_particle_time(simulation: SimulationSource) -> float:
+    return float(simulation.particle_times[0])
 
 
 def open_simulation(path: str, simulation_id: str | None = None) -> SimulationSource:

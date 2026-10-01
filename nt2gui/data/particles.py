@@ -21,7 +21,8 @@ Bin edges are reported back in data units, so the client can label axes with
 real values.
 """
 
-from collections.abc import Sequence
+import ast
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 import numpy as np
@@ -55,19 +56,62 @@ def particle_dataset(frame: pd.DataFrame) -> xr.Dataset:
     if WEIGHT_COLUMN not in data:
         data[WEIGHT_COLUMN] = (PARTICLE_DIM, np.ones(len(frame)))
     ds = xr.Dataset(data)
-    for velocity in VELOCITY_SETS:
-        if all(c in ds for c in velocity):
-            u_squared = sum(ds[c] ** 2 for c in velocity)
-            ds["gamma"] = np.sqrt(1 + u_squared)
-            ds["energy"] = np.sqrt(u_squared)
-            break
+    velocity = derived_velocity(map(str, ds.data_vars))
+    if velocity:
+        u_squared = sum(ds[c] ** 2 for c in velocity)
+        ds["gamma"] = np.sqrt(1 + u_squared)
+        ds["energy"] = np.sqrt(u_squared)
     return ds
 
 
-def builtin_quantities(ds: xr.Dataset) -> list[str]:
-    """Quantities offered by name, in display order."""
-    order = (*POSITION_COLUMNS, *VELOCITY_COLUMNS, *DERIVED, WEIGHT_COLUMN)
-    return [name for name in order if name in ds]
+def builtin_quantities(columns: Iterable[str]) -> list[str]:
+    """Quantities offered by name, in display order, for the given columns."""
+    available = set(columns)
+    derived = DERIVED if derived_velocity(available) else ()
+    order = (*POSITION_COLUMNS, *VELOCITY_COLUMNS, *derived, WEIGHT_COLUMN)
+    return [name for name in order if name in available or name in derived]
+
+
+def derived_velocity(columns: Iterable[str]) -> tuple[str, ...] | None:
+    """The velocity components gamma/energy are computed from, if present."""
+    available = set(columns)
+    return next((v for v in VELOCITY_SETS if set(v) <= available), None)
+
+
+def required_columns(quantities: Iterable[str], columns: Sequence[str]) -> list[str]:
+    """The columns needed to compute `quantities` (columns, gamma/energy, or
+    expressions over them) and weight the result: what a plot must load."""
+    available = set(columns)
+    needed: list[str] = []
+
+    def need(name: str) -> None:
+        if name in available and name not in needed:
+            needed.append(name)
+        elif name in DERIVED:
+            for component in derived_velocity(available) or ():
+                need(component)
+
+    for quantity in quantities:
+        if quantity in available or quantity in DERIVED:
+            need(quantity)
+            continue
+        try:
+            tree = ast.parse(quantity, mode="eval")
+        except SyntaxError:
+            continue  # evaluating it reports the error
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name):
+                need(node.id)
+    need(WEIGHT_COLUMN)
+    return needed
+
+
+def sample_dataset(columns: Sequence[str], size: int = 16) -> xr.Dataset:
+    """A small all-zero particle dataset with the given columns, for checking
+    that an expression is valid without reading any data."""
+    frame = pd.DataFrame({column: np.zeros(size) for column in columns})
+    frame[SPECIES_COLUMN] = np.zeros(size, dtype=np.int32)
+    return particle_dataset(frame)
 
 
 def default_scale(quantity: str) -> ScaleKind:

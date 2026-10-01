@@ -43,7 +43,8 @@ const PseudocolorFigure = ({
     config.field
       ? JSON.stringify([simulationId, request, time, viewport])
       : null,
-    () => renderPseudocolor(simulationId, request, time, viewport),
+    (signal) =>
+      renderPseudocolor(simulationId, request, time, viewport, signal),
   );
 
   const figure = !config.field ? (

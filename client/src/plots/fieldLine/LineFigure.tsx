@@ -40,7 +40,7 @@ const LineFigure = ({
     config.quantities.length && axis
       ? JSON.stringify([simulationId, request, time, range])
       : null,
-    () => renderLine(simulationId, request, time, range),
+    (signal) => renderLine(simulationId, request, time, range, signal),
   );
 
   const figure = !config.quantities.length ? (

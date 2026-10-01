@@ -37,7 +37,7 @@ const HistogramFigure = ({
   const request = histogramRequest(config);
   const { data, error, isRendering } = useServerRender(
     JSON.stringify([simulationId, request, time]),
-    () => renderParticleHistogram(simulationId, request, time),
+    (signal) => renderParticleHistogram(simulationId, request, time, signal),
   );
   if (!data)
     return error ? (

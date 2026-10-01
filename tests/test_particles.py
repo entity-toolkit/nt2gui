@@ -11,6 +11,8 @@ from nt2gui.data.particles import (
     histogram_2d,
     particle_dataset,
     quantity_values,
+    required_columns,
+    sample_dataset,
     species_mask,
     to_scaled,
 )
@@ -46,7 +48,11 @@ class TestDataset:
         np.testing.assert_allclose(ds["gamma"].values, np.sqrt([26, 26, 1, 2, 26]))
 
     def test_builtins_cover_present_columns_only(self, ds):
-        assert builtin_quantities(ds) == ["x", "ux", "uy", "uz", "gamma", "energy", "w"]
+        assert builtin_quantities(["x", "ux", "uy", "uz", "w"]) == [
+            "x", "ux", "uy", "uz", "gamma", "energy", "w",
+        ]
+        # gamma/energy need all three velocity components
+        assert builtin_quantities(["x", "ux", "w"]) == ["x", "ux", "w"]
 
     def test_missing_weights_default_to_one(self):
         ds = particle_dataset(make_frame().drop(columns="w"))
@@ -194,3 +200,33 @@ class TestPhasePlot:
             "colorbar"
         ]
         assert colorbar["vmin"] == 0
+
+
+class TestRequiredColumns:
+    columns = ["x", "y", "ux", "uy", "uz", "w"]
+
+    @pytest.mark.parametrize(
+        ("quantities", "expected"),
+        [
+            (["x"], ["x", "w"]),
+            (["energy"], ["ux", "uy", "uz", "w"]),
+            (["x", "gamma"], ["x", "ux", "uy", "uz", "w"]),
+            (["(gamma - 1) * w"], ["ux", "uy", "uz", "w"]),
+            (["sqrt(ux**2 + uy**2)"], ["ux", "uy", "w"]),
+            (["x +"], ["w"]),  # invalid: evaluating it reports the error
+            (["pi * x"], ["x", "w"]),  # constants and functions aren't columns
+        ],
+    )
+    def test_reads_only_what_the_quantities_use(self, quantities, expected):
+        columns = required_columns(quantities, self.columns)
+        assert sorted(columns) == sorted(expected) and len(columns) == len(set(columns))
+
+    def test_spherical_velocity(self):
+        assert required_columns(["gamma"], ["r", "ur", "uth", "uph"]) == ["ur", "uth", "uph"]
+
+
+def test_sample_dataset_validates_expressions_without_data():
+    sample = sample_dataset(["x", "ux", "uy", "uz", "w"])
+    assert quantity_values("(gamma - 1) * w", sample).shape == (16,)
+    with pytest.raises(ValueError):
+        quantity_values("nope + x", sample)

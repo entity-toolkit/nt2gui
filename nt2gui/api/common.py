@@ -11,7 +11,7 @@ import xarray as xr
 from flask import current_app, request
 from pydantic import BaseModel, ValidationError
 
-from ..data.particles import particle_dataset
+from ..data.particles import particle_dataset, required_columns
 from ..errors import UserError
 from ..sources import SimulationSource
 from ..workspace import Workspace
@@ -62,8 +62,12 @@ def parse(model: type[Model], value: Any, what: str) -> Model:
         ) from error
 
 
-def particles_at(source: SimulationSource, time: float) -> tuple[xr.Dataset, float]:
-    """Particles of the output nearest to `time`, and that output's time."""
+def particles_at(
+    source: SimulationSource, time: float, quantities: list[str]
+) -> tuple[xr.Dataset, float]:
+    """The particles of the output nearest to `time` (only the columns
+    `quantities` need), and that output's time."""
     if not source.species:
         raise UserError("This simulation has no particle output")
-    return particle_dataset(source.particles(time)), source.particle_time(time)
+    columns = required_columns(quantities, source.particle_columns)
+    return particle_dataset(source.particles(time, columns)), source.particle_time(time)

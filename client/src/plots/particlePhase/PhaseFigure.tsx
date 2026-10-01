@@ -29,7 +29,7 @@ const PhaseFigure = ({
   const request = phaseRequest(config);
   const { data, error, isRendering } = useServerRender(
     JSON.stringify([simulationId, request, time]),
-    () => renderParticlePhase(simulationId, request, time),
+    (signal) => renderParticlePhase(simulationId, request, time, signal),
   );
   if (!data)
     return error ? (

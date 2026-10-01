@@ -134,3 +134,78 @@ def test_real_output_summary(real_client):
     assert summary["fields"]["times"]["count"] >= 1
     if summary["particles"]:
         assert all("count" in s for s in summary["particles"]["species"])
+
+
+@pytest.fixture(scope="module")
+def real_simulation():
+    pytest.importorskip("nt2")
+    from nt2gui.sources import open_simulation
+
+    return open_simulation(str(DATA))
+
+
+def count_reads(simulation, category):
+    """Count the nt2py reader's disk reads of `category` from now on."""
+    inner = simulation._data._fields.reader._reader
+    original = inner.ReadArrayAtTimestep
+    calls = []
+
+    def counted(path, cat, quantity, step):
+        if cat == category:
+            calls.append((quantity, step))
+        return original(path, cat, quantity, step)
+
+    inner.ReadArrayAtTimestep = counted
+    return calls
+
+
+@real_data
+def test_field_steps_are_read_from_disk_once(real_simulation):
+    from nt2gui.plots.pseudocolor import render_pseudocolor
+    from nt2gui.session.schema import PseudocolorConfig
+
+    fields = real_simulation.fields
+    name = next(iter(fields.data_vars))
+    dims = [d for d in fields[name].dims if d != "t"]
+    time = float(fields.t[0])
+    reads = count_reads(real_simulation, "fields")
+    for color_map in ("viridis", "magma", "viridis"):
+        config = PseudocolorConfig.model_validate(
+            {"field": name, "xCoordinate": dims[-1], "yCoordinate": dims[-2], "colorMap": color_map}
+        )
+        render_pseudocolor(fields, config, time)
+    assert len(reads) == 1
+
+
+@real_data
+def test_particle_requests_read_only_their_columns(real_simulation):
+    if not real_simulation.species:
+        pytest.skip("this output has no particles")
+    time = float(real_simulation.particle_times[-1])
+    column = real_simulation.particle_columns[0]
+
+    frame = real_simulation.particles(time, [column])
+    assert list(frame.columns) == ["sp", column]
+    counts = real_simulation.species_counts(time)
+    assert sum(counts.values()) == len(frame)
+
+
+@real_data
+def test_metadata_and_summary_read_no_particle_data(real_client, monkeypatch):
+    client, snapshot = real_client
+    import nt2gui.sources.nt2 as nt2_source
+
+    loads = []
+    original = nt2_source.Nt2Simulation.particles
+
+    def tracking(self, time, columns=None):
+        loads.append(None if columns is None else list(columns))
+        return original(self, time, columns)
+
+    monkeypatch.setattr(nt2_source.Nt2Simulation, "particles", tracking)
+    sim_id = snapshot["simulations"][0]["id"]
+    client.get(f"/api/simulations/{sim_id}/particles")
+    client.post(f"/api/simulations/{sim_id}/particles/check", json={"expression": "x * 2"})
+    client.get(f"/api/simulations/{sim_id}/summary")
+    # At most the species index, for the counts.
+    assert all(columns == [] for columns in loads)

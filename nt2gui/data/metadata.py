@@ -6,15 +6,9 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
-from ..sources import SimulationSource, first_particles
+from ..sources import SimulationSource, first_particle_time
 from .arrays import finite_list
-from .particles import (
-    SKIPPED_COLUMNS,
-    SPECIES_COLUMN,
-    builtin_quantities,
-    default_scale,
-    particle_dataset,
-)
+from .particles import builtin_quantities, default_scale
 from .quantities import TIME_DIM, spatial_dims, vector_groups
 
 
@@ -43,7 +37,7 @@ def particle_metadata(simulation: SimulationSource) -> dict[str, Any]:
     """Species and the quantities offered by name (with their default scale)."""
     if not simulation.species:
         return {"species": [], "quantities": []}
-    quantities = builtin_quantities(particle_dataset(first_particles(simulation)))
+    quantities = builtin_quantities(simulation.particle_columns)
     return {
         "species": simulation.species,
         "quantities": [
@@ -86,17 +80,15 @@ def describe_grid(dataset: xr.Dataset) -> dict[str, Any] | None:
 def describe_particles(simulation: SimulationSource) -> dict[str, Any] | None:
     if not simulation.species:
         return None
-    frame = first_particles(simulation)
-    counts = frame[SPECIES_COLUMN].value_counts().to_dict()
+    first = first_particle_time(simulation)
+    counts = simulation.species_counts(first)
     return {
         "species": [
-            {**species, "count": int(counts.get(species["index"], 0))}
+            {**species, "count": counts.get(species["index"], 0)}
             for species in simulation.species
         ],
-        "countsAt": float(simulation.particle_times[0]),
-        "quantities": [
-            c for c in frame.columns if c != SPECIES_COLUMN and c not in SKIPPED_COLUMNS
-        ],
+        "countsAt": simulation.particle_time(first),
+        "quantities": simulation.particle_columns,
         "times": describe_times(simulation.particle_times),
     }
 

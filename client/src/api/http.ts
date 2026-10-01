@@ -23,7 +23,7 @@ export const simulationUrl = (simulationId: string, path = "") =>
  */
 export const requestJson = async <T>(
   url: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; signal?: AbortSignal } = {},
 ): Promise<T> => {
   const response = await fetch(url, {
     method: init.method ?? (init.body === undefined ? "GET" : "POST"),
@@ -32,6 +32,7 @@ export const requestJson = async <T>(
         ? undefined
         : { "Content-Type": "application/json" },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    signal: init.signal,
   });
 
   const text = await response.text();

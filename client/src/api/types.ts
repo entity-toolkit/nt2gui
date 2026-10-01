@@ -84,6 +84,11 @@ export interface ILineRender {
   /** Coordinates actually used for each sliced dimension (nearest grid point). */
   slices: Record<string, number>;
   timestamp: number | null;
+  /**
+   * Grid points in the plotted range. Long cuts are downsampled on the server
+   * (≤ ~3000 points, keeping each bucket's extremes); zoom in for more detail.
+   */
+  totalPoints?: number;
 }
 
 /** A server-shaded image; the client draws axes and the colorbar. */

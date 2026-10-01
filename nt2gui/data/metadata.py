@@ -7,7 +7,11 @@ import numpy as np
 import xarray as xr
 
 from ..sources import SimulationSource, first_particle_time
-from .arrays import finite_list
+from .arrays import even_sample, finite_list
+
+# Coordinate values sent per dim: they only feed the slice sliders (which
+# can't have more steps than pixels); the server snaps to the nearest cell.
+MAX_COORDINATE_VALUES = 2049
 from .particles import builtin_quantities, default_scale
 from .quantities import TIME_DIM, spatial_dims, vector_groups
 
@@ -26,7 +30,9 @@ def field_metadata(dataset: xr.Dataset) -> dict[str, Any]:
             for name, components in vector_groups(f["name"] for f in fields).items()
         ],
         "coords": {
-            dim: finite_list(dataset.coords[dim].values)
+            dim: finite_list(
+                even_sample(dataset.coords[dim].values, MAX_COORDINATE_VALUES)
+            )
             for dim in sorted(used_dims)
             if dim in dataset.coords
         },

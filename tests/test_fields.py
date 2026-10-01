@@ -217,3 +217,45 @@ class TestQuantityDims:
     def test_invalid_expression_raises(self):
         with pytest.raises(ValueError):
             quantity_dims("Bx +", make_dataset())
+
+
+class TestLargeLines:
+    @staticmethod
+    def big_dataset(n=2_000_000):
+        x = np.arange(n, dtype=float)
+        values = np.sin(x / 1000.0)
+        values[1_234_567] = 10.0  # one-cell spike
+        return xr.Dataset({"f": (("x",), values)}, coords={"x": x})
+
+    def test_two_million_cells_are_sent_as_a_few_thousand_points(self):
+        import time
+
+        ds = self.big_dataset()
+        start = time.perf_counter()
+        result = render_line(ds, ["f"], "x", {}, time=0)
+        elapsed = time.perf_counter() - start
+
+        values = result["series"][0]["values"]
+        assert len(result["coordinates"]) == len(values) <= 3000
+        assert result["totalPoints"] == 2_000_000
+        assert 10.0 in values  # the spike survives
+        assert result["coordinates"][0] == 0 and result["coordinates"][-1] == 1_999_999
+        assert elapsed < 2
+
+    def test_zooming_in_gives_more_detail_up_to_full_resolution(self):
+        ds = self.big_dataset()
+        wide = render_line(ds, ["f"], "x", {}, 0, {"min": 0, "max": 1_000_000})
+        narrow = render_line(ds, ["f"], "x", {}, 0, {"min": 1000, "max": 2000})
+
+        assert len(wide["coordinates"]) <= 3000
+        # 1001 cells inside plus one beyond each edge: all of them.
+        assert narrow["coordinates"] == list(np.arange(999, 2002, dtype=float))
+        assert narrow["totalPoints"] == 1003
+
+
+def test_metadata_sends_at_most_a_few_thousand_coordinates():
+    n = 2_000_000
+    ds = xr.Dataset({"f": (("x",), np.zeros(n))}, coords={"x": np.arange(n, dtype=float)})
+    coords = field_metadata(ds)["coords"]["x"]
+    assert len(coords) <= 2049
+    assert coords[0] == 0 and coords[-1] == n - 1

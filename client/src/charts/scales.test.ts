@@ -6,6 +6,8 @@ import {
   scaleExtent,
   stepPath,
   nearestIndex,
+  panScale,
+  valueBounds,
   paddedExtent,
   valueDomain,
 } from "./scales";
@@ -153,5 +155,50 @@ describe("paddedExtent", () => {
     expect(paddedExtent([0, 10])).toEqual([-0.5, 10.5]);
     expect(paddedExtent([0, 0])).toEqual([-1, 1]);
     expect(paddedExtent([5, 5])).toEqual([4.5, 5.5]);
+  });
+});
+
+describe("panScale", () => {
+  const linear = () => makeScale().domain([2, 4]).range([0, 100]);
+
+  it("dragging right shows what is to the left", () => {
+    const { shift, domain } = panScale(linear(), 50);
+    expect(shift).toBe(50);
+    expect(domain[0]).toBeCloseTo(1);
+    expect(domain[1]).toBeCloseTo(3);
+  });
+
+  it("stops at the bounds", () => {
+    expect(panScale(linear(), 500, [0, 10]).domain[0]).toBeCloseTo(0);
+    expect(panScale(linear(), -500, [0, 10]).domain[1]).toBeCloseTo(10);
+    expect(panScale(linear(), 20, [0, 10]).shift).toBe(20); // within: untouched
+  });
+
+  it("doesn't move a view wider than its bounds", () => {
+    expect(panScale(linear(), 30, [2.5, 3]).shift).toBe(0);
+  });
+
+  it("works for inverted (y) scales", () => {
+    // Dragging content down (positive pixels) shows what is above.
+    const y = makeScale().domain([0, 10]).range([100, 0]);
+    const { domain } = panScale(y, 10);
+    expect(domain[0]).toBeCloseTo(1);
+    expect(domain[1]).toBeCloseTo(11);
+    expect(panScale(y, 50, [0, 12]).domain[1]).toBeCloseTo(12);
+  });
+
+  it("pans log scales by a constant factor", () => {
+    const log = makeScale("log").domain([10, 100]).range([0, 100]);
+    const { domain } = panScale(log, -100);
+    expect(domain[0]).toBeCloseTo(100);
+    expect(domain[1]).toBeCloseTo(1000);
+  });
+});
+
+describe("valueBounds", () => {
+  it("is the extent of the values", () => {
+    expect(valueBounds([3, 1, 2])).toEqual([1, 3]);
+    expect(valueBounds([])).toBeUndefined();
+    expect(valueBounds(undefined)).toBeUndefined();
   });
 });

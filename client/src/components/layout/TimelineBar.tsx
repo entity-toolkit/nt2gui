@@ -1,45 +1,59 @@
-import { useState } from "react";
-import { formatNumber } from "../../lib/format";
+import TimeControls from "../common/TimeControls";
+import { DEFAULT_PLAYBACK_FPS, isTimeSynced } from "../../lib/playback";
+import { useRendersPending } from "../../state/renderActivity";
 import { useUi, useUiActions } from "../../state/UiContext";
 import styles from "./TimelineBar.module.css";
 
 /**
- * The global time slider. Dragging only moves the label; the time is applied
- * (and plots re-render) when the slider is released.
+ * The global time slider and playback, shared by every panel with "Sync time"
+ * on. Playback waits only for those panels' renders. Collapsing it leaves the
+ * play button and the current time.
  */
 const TimelineBar = () => {
-  const { timeline } = useUi().uiState;
-  const { setTimeline } = useUiActions();
-  const [draft, setDraft] = useState<number | null>(null);
-  const value = draft ?? timeline.current;
-
-  const commit = () => {
-    if (draft !== null && draft !== timeline.current) {
-      setTimeline({ ...timeline, current: draft });
-    }
-    setDraft(null);
-  };
+  const { uiState } = useUi();
+  const { updateUiState } = useUiActions();
+  const { timeline, plotters } = uiState;
+  const collapsed = uiState.timelineCollapsed ?? false;
+  const waiting = useRendersPending((scope) => isTimeSynced(plotters[scope]));
 
   return (
-    <footer className={styles.footer} aria-label="Global timeline">
-      <input
-        className={styles.slider}
-        type="range"
-        aria-label="Time"
-        min={timeline.min}
-        max={timeline.max}
-        step={timeline.step}
-        value={value}
-        onChange={(event) => setDraft(Number(event.target.value))}
-        onMouseUp={commit}
-        onTouchEnd={commit}
-        onKeyUp={commit}
+    <footer
+      className={styles.footer}
+      data-collapsed={collapsed}
+      aria-label="Global timeline"
+    >
+      <TimeControls
+        timeline={timeline}
+        onTimeChange={(current) =>
+          updateUiState((prev) => ({
+            ...prev,
+            timeline: { ...prev.timeline, current },
+          }))
+        }
+        fps={uiState.playbackFps ?? DEFAULT_PLAYBACK_FPS}
+        onFpsChange={(playbackFps) =>
+          updateUiState((prev) => ({ ...prev, playbackFps }))
+        }
+        waiting={waiting}
+        variant={collapsed ? "minimal" : "full"}
+        trailing={
+          <button
+            type="button"
+            className={styles.collapse}
+            onClick={() =>
+              updateUiState((prev) => ({
+                ...prev,
+                timelineCollapsed: !collapsed,
+              }))
+            }
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand timeline" : "Collapse timeline"}
+            title={collapsed ? "Expand timeline" : "Collapse timeline"}
+          >
+            {collapsed ? "▴" : "▾"}
+          </button>
+        }
       />
-      <div className={styles.labels}>
-        <span>{formatNumber(timeline.min)}</span>
-        <span className={styles.title}>Time: {formatNumber(value)}</span>
-        <span>{formatNumber(timeline.max)}</span>
-      </div>
     </footer>
   );
 };

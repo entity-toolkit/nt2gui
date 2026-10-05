@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from helpers import load_demo, put_state
@@ -418,6 +419,55 @@ def test_particle_histogram_endpoint(client):
     assert client.post(url, json={"config": config}).status_code == 400
 
 
+LEFT_HALF = {"name": "region-01", "ranges": {"x": {"min": -1e9, "max": 0}}}
+
+
+def test_particle_plots_filter_by_regions(client):
+    sim_id = load_demo(client)
+    histogram_url = f"/api/simulations/{sim_id}/render/particles/histogram"
+    # Fixed bins, and a region covering their lower half.
+    config = {
+        "x": axis("x", bins=10, min=0, max=1),
+        "series": [{"species": []}, {"species": [], "regions": ["lower"]}],
+    }
+    lower = {"name": "lower", "ranges": {"x": {"min": 0, "max": 0.5}}}
+    body = client.post(
+        histogram_url, json={"config": config, "time": 0, "regions": [lower]}
+    ).get_json()
+    everything, inside = (np.array(s["counts"]) for s in body["series"])
+    assert everything[5:].sum() > 0
+    assert inside[5:].sum() == 0
+    np.testing.assert_allclose(inside[:5], everything[:5])
+
+    phase_url = f"/api/simulations/{sim_id}/render/particles/phase"
+    phase = {"x": axis("x"), "y": axis("ux"), "regions": ["lower"]}
+    body = client.post(
+        phase_url, json={"config": phase, "time": 0, "regions": [lower]}
+    ).get_json()
+    assert body["extent"]["xMax"] <= 0.5
+
+    # A region the request doesn't define, or a malformed one, is a 400.
+    missing = client.post(phase_url, json={"config": phase, "time": 0})
+    assert missing.status_code == 400
+    assert "Unknown region 'lower'" in missing.get_json()["error"]
+    bad = client.post(
+        phase_url,
+        json={"config": phase, "time": 0, "regions": [{"name": "lower"}]},
+    )
+    assert bad.status_code == 400
+
+
+def test_regions_round_trip_and_need_unique_names(client):
+    lasso = {
+        "name": "region-02",
+        "polygon": {"x": "x", "y": "y", "points": [[0, 0], [1, 0], [0, 1]]},
+    }
+    assert put_state(client, regions=[LEFT_HALF, lasso]).status_code == 200
+    state = client.get("/api/state").get_json()["state"]
+    assert state["regions"][1]["polygon"]["points"] == [[0, 0], [1, 0], [0, 1]]
+    assert put_state(client, regions=[LEFT_HALF, LEFT_HALF]).status_code == 400
+
+
 def test_particle_phase_endpoint(client):
     url = f"/api/simulations/{load_demo(client)}/render/particles/phase"
     config = {
@@ -474,6 +524,43 @@ def test_sidebar_state_round_trips(client):
     assert put_state(client, sidebarCollapsed=True).status_code == 200
     assert client.get("/api/state").get_json()["state"]["sidebarCollapsed"] is True
 
+
+
+def test_playback_settings_round_trip(client):
+    assert (
+        put_state(client, timelineCollapsed=True, playbackFps=30).status_code == 200
+    )
+    state = client.get("/api/state").get_json()["state"]
+    assert state["timelineCollapsed"] is True
+    assert state["playbackFps"] == 30
+
+
+@pytest.mark.parametrize("fps", [0, -1, 61])
+def test_playback_fps_out_of_range_is_rejected(client, fps):
+    assert put_state(client, playbackFps=fps).status_code == 400
+    plotters = {
+        "p": {
+            "plotType": "none",
+            "dataType": "none",
+            "syncTime": False,
+            "localPlaybackFps": fps,
+        }
+    }
+    assert put_state(client, plotters=plotters).status_code == 400
+
+
+def test_panel_local_time_round_trips(client):
+    plotters = {
+        "p": {
+            "plotType": "line",
+            "dataType": "fields",
+            "syncTime": False,
+            "localTime": 3.5,
+            "localPlaybackFps": 10,
+        }
+    }
+    assert put_state(client, plotters=plotters).status_code == 200
+    assert client.get("/api/state").get_json()["state"]["plotters"] == plotters
 
 @pytest.mark.parametrize(
     ("method", "url", "body"),

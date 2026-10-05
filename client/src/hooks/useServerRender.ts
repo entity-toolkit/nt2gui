@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { serverErrorMessage } from "../api/http";
+import { beginRender, useRenderScope } from "../state/renderActivity";
 
 /** Wait this long after the last change before asking the server to render. */
 export const RENDER_DEBOUNCE_MS = 150;
@@ -24,6 +25,7 @@ export const useServerRender = <T>(
   const [isRendering, setIsRendering] = useState(false);
   const hasRendered = useRef(false);
   const run = useEffectEvent(request);
+  const scope = useRenderScope();
 
   useEffect(() => {
     if (key === null) {
@@ -34,6 +36,8 @@ export const useServerRender = <T>(
       return;
     }
     const controller = new AbortController();
+    // Pending from now (including the debounce) until settled: playback waits.
+    const done = beginRender(scope);
     setIsRendering(true);
     const timer = setTimeout(
       () => {
@@ -44,12 +48,14 @@ export const useServerRender = <T>(
             setData(result);
             setError(null);
             setIsRendering(false);
+            done();
           })
           .catch((err: unknown) => {
             if (controller.signal.aborted || isAbort(err)) return;
             setData(null);
             setError(serverErrorMessage(err));
             setIsRendering(false);
+            done();
           });
       },
       hasRendered.current ? RENDER_DEBOUNCE_MS : 0,
@@ -57,8 +63,9 @@ export const useServerRender = <T>(
     return () => {
       clearTimeout(timer);
       controller.abort();
+      done();
     };
-  }, [key]);
+  }, [key, scope]);
 
   return { data, error, isRendering };
 };

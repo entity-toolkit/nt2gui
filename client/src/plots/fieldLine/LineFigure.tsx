@@ -6,6 +6,7 @@ import {
   FigureMessage,
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
+import { ChartRegion } from "../../state/regions";
 import { ILineConfig, IRange } from "../../state/schema";
 import { quantityDims, withSlice } from "../fields/metadata";
 import SlicedFigure from "../fields/SlicedFigure";
@@ -20,6 +21,12 @@ interface LineFigureProps {
   zoomEnabled: boolean;
   onRangeChange: (range: IRange) => void;
   onConfigChange: (config: ILineConfig) => void;
+  /** Range the view can be panned within; panning is off when undefined. */
+  panBounds?: [number, number];
+  onPan: (range: IRange) => void;
+  selectEnabled: boolean;
+  onSelect: (range: IRange) => void;
+  regions: ChartRegion[];
 }
 
 /** A 1D cut through the selected fields, with sliders for the sliced dims. */
@@ -32,6 +39,11 @@ const LineFigure = ({
   zoomEnabled,
   onRangeChange,
   onConfigChange,
+  panBounds,
+  onPan,
+  selectEnabled,
+  onSelect,
+  regions,
 }: LineFigureProps) => {
   const dims = quantityDims(metadata, config.quantities);
   const axis = effectiveAxis(config.axis, dims);
@@ -51,6 +63,11 @@ const LineFigure = ({
     <FigureError>{error}</FigureError>
   ) : data ? (
     <LineChart
+      pan={range && panBounds ? { bounds: panBounds } : undefined}
+      onPan={onPan}
+      selectEnabled={selectEnabled}
+      onSelect={onSelect}
+      regions={regions}
       data={data}
       range={range}
       zoomEnabled={zoomEnabled}

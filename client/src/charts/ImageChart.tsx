@@ -11,12 +11,25 @@ import { IImageRender } from "../api/types";
 import { RefreshingBadge } from "../components/common/FigureMessage";
 import { formatValue } from "../lib/format";
 import { clearCrosshair, setCrosshair, useCrosshair } from "../state/crosshair";
+import {
+  ChartRegion,
+  ChartSelection,
+  polygonArea,
+  simplifyPath,
+} from "../state/regions";
 import { IZoomWindow, ParticleScale } from "../state/schema";
 import { drawAxis } from "./axis";
 import { fitToBox } from "./fitToBox";
-import { makeScale } from "./scales";
+import { makeScale, panScale } from "./scales";
 import { useElementSize } from "./useElementSize";
 import styles from "./ImageChart.module.css";
+
+/** Selection mode: a freehand lasso or a box; with only one axis on, a band. */
+export interface ImageSelect {
+  shape: "lasso" | "box";
+  x: boolean;
+  y: boolean;
+}
 
 export interface ImageAxis {
   title: string;
@@ -38,6 +51,25 @@ interface ImageChartProps {
   isRefreshing: boolean;
   /** Share the hover position with the other plots of this group. */
   crosshair?: { plotId: string; group: string };
+  /**
+   * When set (typically while zoomed), dragging outside zoom mode pans the
+   * view along the enabled axes, staying within `bounds` (data units).
+   */
+  pan?: {
+    x: boolean;
+    y: boolean;
+    bounds?: { x?: [number, number]; y?: [number, number] };
+  };
+  onPan?: (window: IZoomWindow) => void;
+  /**
+   * While set, dragging selects instead of zooming or panning: a freehand
+   * lasso or a box. With only one of `x`/`y` on, the box is a band spanning
+   * the other axis.
+   */
+  select?: ImageSelect;
+  onSelect?: (selection: ChartSelection) => void;
+  /** Saved regions to outline. */
+  regions?: ChartRegion[];
 }
 
 const COLORBAR_WIDTH = 14;
@@ -49,6 +81,8 @@ const margin = {
 };
 // Smaller drags are treated as clicks, not zooms.
 const MIN_ZOOM_PX = 4;
+// Smaller lassos (in px²) are treated as clicks.
+const MIN_LASSO_AREA = 25;
 
 const axisTitle = (axis: ImageAxis) =>
   axis.scale === "power"
@@ -70,6 +104,11 @@ const ImageChart = ({
   onZoom,
   isRefreshing,
   crosshair,
+  pan,
+  onPan,
+  select,
+  onSelect,
+  regions = [],
 }: ImageChartProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const xAxisRef = useRef<SVGGElement | null>(null);
@@ -78,10 +117,18 @@ const ImageChart = ({
   const gradientId = useId();
   const { width, height } = useElementSize(containerRef);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  const clipId = useId();
+  // Pointer position where a pan started, and how far the image has moved.
+  const [panning, setPanning] = useState<{
+    start: [number, number];
+    shift: [number, number];
+  } | null>(null);
   const [drag, setDrag] = useState<{
     start: [number, number];
     current: [number, number];
   } | null>(null);
+  // The lasso being drawn, in pixels.
+  const [lasso, setLasso] = useState<[number, number][] | null>(null);
   const shared = useCrosshair();
 
   const { extent, colorbar } = data;
@@ -166,22 +213,128 @@ const ImageChart = ({
     ];
   };
 
+  /** Pans of both axes for a pointer offset, limited to the bounds. */
+  const panBy = (dx: number, dy: number) => ({
+    x: panScale(xScale, pan?.x ? dx : 0, pan?.bounds?.x),
+    y: panScale(yScale, pan?.y ? dy : 0, pan?.bounds?.y),
+  });
+
   const handleMouseMove = (event: MouseEvent<SVGRectElement>) => {
+    if (panning) {
+      const moved = panBy(
+        event.clientX - panning.start[0],
+        event.clientY - panning.start[1],
+      );
+      setPanning({ ...panning, shift: [moved.x.shift, moved.y.shift] });
+      return;
+    }
     const point = pointer(event);
     if (!point) return;
     if (drag) setDrag({ ...drag, current: point });
+    if (lasso) setLasso([...lasso, point]);
     const position = { x: xScale.invert(point[0]), y: yScale.invert(point[1]) };
     setHover(position);
     if (crosshair) setCrosshair({ ...position, ...crosshair });
   };
 
   const handleMouseDown = (event: MouseEvent<SVGRectElement>) => {
-    if (!zoomEnabled) return;
+    if (!zoomEnabled && select) {
+      const point = pointer(event);
+      if (!point) return;
+      if (select.shape === "lasso") setLasso([point]);
+      else setDrag({ start: point, current: point });
+      return;
+    }
+    if (!zoomEnabled) {
+      if (pan && onPan) {
+        setPanning({ start: [event.clientX, event.clientY], shift: [0, 0] });
+      }
+      return;
+    }
     const point = pointer(event);
     if (point) setDrag({ start: point, current: point });
   };
 
+  /** The dragged box in pixels; a band spans the whole unselected axis. */
+  const dragBox = (box: NonNullable<typeof drag>) => {
+    const band = !zoomEnabled && select;
+    const full = (on: boolean | undefined) => band && !on;
+    const [x0, x1] = full(select?.x)
+      ? [plot.left, plot.left + plot.width]
+      : [box.start[0], box.current[0]];
+    const [y0, y1] = full(select?.y)
+      ? [plot.top, plot.top + plot.height]
+      : [box.start[1], box.current[1]];
+    return {
+      left: Math.min(x0, x1),
+      top: Math.min(y0, y1),
+      width: Math.abs(x1 - x0),
+      height: Math.abs(y1 - y0),
+    };
+  };
+
+  const finishSelection = () => {
+    if (lasso) {
+      const points = simplifyPath(lasso);
+      if (points.length >= 3 && polygonArea(points) >= MIN_LASSO_AREA) {
+        onSelect?.({
+          kind: "lasso",
+          points: points.map(([px, py]) => [
+            xScale.invert(px),
+            yScale.invert(py),
+          ]),
+        });
+      }
+      setLasso(null);
+    }
+    if (drag) {
+      const box = dragBox(drag);
+      // Only the selected axes need a real extent (a band is full-size).
+      const big =
+        (!select?.x || box.width >= MIN_ZOOM_PX) &&
+        (!select?.y || box.height >= MIN_ZOOM_PX);
+      if (big) {
+        const xs = [
+          xScale.invert(box.left),
+          xScale.invert(box.left + box.width),
+        ];
+        const ys = [
+          yScale.invert(box.top),
+          yScale.invert(box.top + box.height),
+        ];
+        onSelect?.({
+          kind: "box",
+          xMin: Math.min(...xs),
+          xMax: Math.max(...xs),
+          yMin: Math.min(...ys),
+          yMax: Math.max(...ys),
+        });
+      }
+      setDrag(null);
+    }
+  };
+
   const handleMouseUp = () => {
+    if (!zoomEnabled && select) {
+      finishSelection();
+      return;
+    }
+    if (panning) {
+      const [dx, dy] = panning.shift;
+      if (onPan && Math.hypot(dx, dy) >= MIN_ZOOM_PX) {
+        const moved = panBy(dx, dy);
+        const [x0, x1] = moved.x.domain;
+        const [y0, y1] = moved.y.domain;
+        onPan({
+          xMin: Math.min(x0, x1),
+          xMax: Math.max(x0, x1),
+          yMin: Math.min(y0, y1),
+          yMax: Math.max(y0, y1),
+        });
+      }
+      setPanning(null);
+      return;
+    }
     if (drag) {
       const [x0, y0] = drag.start;
       const [x1, y1] = drag.current;
@@ -203,8 +356,10 @@ const ImageChart = ({
   };
 
   const handleMouseLeave = () => {
+    handleMouseUp();
     setHover(null);
     setDrag(null);
+    setLasso(null);
     if (crosshair) clearCrosshair(crosshair.plotId);
   };
 
@@ -222,6 +377,55 @@ const ImageChart = ({
       : null;
 
   const ready = plot.width > 0 && plot.height > 0;
+
+  // Saved regions in pixels; values off a log axis land just outside the plot.
+  const toPx = (
+    scale: typeof xScale,
+    value: number,
+    lo: number,
+    hi: number,
+  ) => {
+    const px = scale(value);
+    const [a, b] = [Math.min(lo, hi) - 1, Math.max(lo, hi) + 1];
+    if (!Number.isFinite(px)) return value > 0 ? hi : lo;
+    return Math.min(Math.max(px, a), b);
+  };
+  const xPx = (value: number) =>
+    toPx(xScale, value, plot.left, plot.left + plot.width);
+  const yPx = (value: number) =>
+    toPx(yScale, value, plot.top + plot.height, plot.top);
+  const regionShapes = regions.map((region) => {
+    if (region.polygon) {
+      const points = region.polygon.map(([x, y]) => [xPx(x), yPx(y)]);
+      return {
+        name: region.name,
+        color: region.color,
+        path: `M${points.map((p) => p.join(",")).join("L")}Z`,
+        label: [
+          Math.min(...points.map((p) => p[0])),
+          Math.min(...points.map((p) => p[1])),
+        ] as const,
+      };
+    }
+    const [x0, x1] = region.x
+      ? region.x.map(xPx)
+      : [plot.left, plot.left + plot.width];
+    const [y0, y1] = region.y
+      ? region.y.map(yPx)
+      : [plot.top, plot.top + plot.height];
+    const rect = {
+      x: Math.min(x0, x1),
+      y: Math.min(y0, y1),
+      width: Math.abs(x1 - x0),
+      height: Math.abs(y1 - y0),
+    };
+    return {
+      name: region.name,
+      color: region.color,
+      rect,
+      label: [rect.x, rect.y] as const,
+    };
+  });
   const lastColor = Math.max(colorbar.colors.length - 1, 1);
 
   return (
@@ -234,6 +438,14 @@ const ImageChart = ({
           aria-label={`${yAxis.title} against ${xAxis.title}`}
         >
           <defs>
+            <clipPath id={clipId}>
+              <rect
+                x={plot.left}
+                y={plot.top}
+                width={plot.width}
+                height={plot.height}
+              />
+            </clipPath>
             <linearGradient id={gradientId} x1="0" x2="0" y1="1" y2="0">
               {colorbar.colors.map((color, index) => (
                 <stop
@@ -252,15 +464,46 @@ const ImageChart = ({
             width={plot.width}
             height={plot.height}
           />
-          <image
-            className={styles.image}
-            href={`data:image/png;base64,${data.image}`}
-            x={plot.left}
-            y={plot.top}
-            width={plot.width}
-            height={plot.height}
-            preserveAspectRatio="none"
-          />
+          <g clipPath={`url(#${clipId})`}>
+            <image
+              className={styles.image}
+              href={`data:image/png;base64,${data.image}`}
+              x={plot.left}
+              y={plot.top}
+              width={plot.width}
+              height={plot.height}
+              preserveAspectRatio="none"
+              transform={
+                panning
+                  ? `translate(${panning.shift[0]}, ${panning.shift[1]})`
+                  : undefined
+              }
+            />
+            <g
+              transform={
+                panning
+                  ? `translate(${panning.shift[0]}, ${panning.shift[1]})`
+                  : undefined
+              }
+            >
+              {regionShapes.map((shape) => (
+                <g
+                  key={shape.name}
+                  className="chart-region"
+                  style={{ color: shape.color }}
+                >
+                  {shape.path ? (
+                    <path d={shape.path} />
+                  ) : (
+                    <rect {...shape.rect} />
+                  )}
+                  <text x={shape.label[0] + 4} y={shape.label[1] + 12}>
+                    {shape.name}
+                  </text>
+                </g>
+              ))}
+            </g>
+          </g>
 
           <g
             ref={xAxisRef}
@@ -318,17 +561,34 @@ const ImageChart = ({
 
           {drag && (
             <rect
-              className={styles.zoomRect}
-              x={Math.min(drag.start[0], drag.current[0])}
-              y={Math.min(drag.start[1], drag.current[1])}
-              width={Math.abs(drag.current[0] - drag.start[0])}
-              height={Math.abs(drag.current[1] - drag.start[1])}
+              className={
+                !zoomEnabled && select ? "chart-selection" : styles.zoomRect
+              }
+              x={dragBox(drag).left}
+              y={dragBox(drag).top}
+              width={dragBox(drag).width}
+              height={dragBox(drag).height}
+            />
+          )}
+          {lasso && (
+            <path
+              className="chart-selection"
+              d={`M${lasso.map((p) => p.join(",")).join("L")}Z`}
             />
           )}
 
           <rect
             className={styles.interaction}
-            style={{ cursor: zoomEnabled ? "cell" : "crosshair" }}
+            style={{
+              cursor:
+                zoomEnabled || select
+                  ? "cell"
+                  : pan && onPan
+                    ? panning
+                      ? "grabbing"
+                      : "grab"
+                    : "crosshair",
+            }}
             x={plot.left}
             y={plot.top}
             width={plot.width}

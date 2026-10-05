@@ -2,6 +2,7 @@ import {
   FigureError,
   FigureMessage,
 } from "../../components/common/FigureMessage";
+import { isSpatial, regionsOnAxes, regionsShown } from "../../state/regions";
 import { IParticleHistogramConfig } from "../../state/schema";
 import { useUiActions } from "../../state/UiContext";
 import {
@@ -11,6 +12,7 @@ import {
 } from "../particles/config";
 import { useParticleMetadata } from "../particles/useParticleMetadata";
 import PlotFrame from "../PlotFrame";
+import { useRegions } from "../useRegions";
 import { PlotKindProps } from "../types";
 import HistogramControls from "./HistogramControls";
 import HistogramFigure from "./HistogramFigure";
@@ -25,6 +27,9 @@ const ParticleHistogramPlot = ({
   const config =
     plotter.particleHistogramConfig ?? defaultParticleHistogramConfig;
   const { metadata, error } = useParticleMetadata(simulationId);
+  const regions = useRegions();
+  const quantity = config.x.quantity;
+  const showRegions = regionsShown(plotter, false);
   const setConfig = (particleHistogramConfig: IParticleHistogramConfig) =>
     updatePlotter(nodeId, { particleHistogramConfig });
 
@@ -39,6 +44,8 @@ const ParticleHistogramPlot = ({
         isZoomed: hasRange(config.x),
         reset: () => setConfig({ ...config, x: withoutRange(config.x) }),
       }}
+      select={isSpatial(quantity) ? {} : undefined}
+      showRegions={isSpatial(quantity) ? showRegions : undefined}
       controls={
         simulationId && (
           <HistogramControls
@@ -67,6 +74,15 @@ const ParticleHistogramPlot = ({
               setConfig({ ...config, x: { ...config.x, ...range } });
               zoom.done();
             }}
+            savedRegions={regions.regions}
+            selectEnabled={zoom.select !== null}
+            onSelect={(range) => {
+              regions.save({ kind: "range", ...range }, { x: quantity });
+              zoom.done();
+            }}
+            overlays={
+              showRegions ? regionsOnAxes(regions.regions, quantity) : []
+            }
           />
         )
       }

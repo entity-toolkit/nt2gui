@@ -200,28 +200,26 @@ def species_mask(ds: xr.Dataset, species: Sequence[int]) -> np.ndarray:
 
 
 def histogram_1d(
-    ds: xr.Dataset, axis: ParticleAxis, series: Sequence[Sequence[int]]
+    ds: xr.Dataset, axis: ParticleAxis, selections: Sequence[np.ndarray]
 ) -> dict[str, Any]:
-    """Weighted counts along `axis` for each species selection in `series`,
-    all on the same bins (the range covers every series). Edges are in data
-    units."""
-    if not series:
+    """Weighted counts along `axis` for each particle selection (boolean
+    masks, e.g. species and regions), all on the same bins (the range covers
+    every selection). Edges are in data units."""
+    if not selections:
         raise UserError("Add at least one line to plot")
     weights = ds[WEIGHT_COLUMN].values
-    masks = [species_mask(ds, species) for species in series]
     scaled = to_scaled(quantity_values(axis.quantity, ds), axis.scale, axis.power)
-    in_any = np.logical_or.reduce(masks)
+    in_any = np.logical_or.reduce(selections)
     edges = bin_edges(
         scaled[in_any], axis.bins, axis.scale, axis.power, axis.min, axis.max
     )
 
     lines = []
-    for species, mask in zip(series, masks):
+    for mask in selections:
         valid = mask & np.isfinite(scaled)
         counts, _ = np.histogram(scaled[valid], bins=edges, weights=weights[valid])
         lines.append(
             {
-                "species": list(species),
                 "counts": counts.tolist(),
                 "excludedWeight": float(weights[mask & ~valid].sum()),
             }
@@ -233,11 +231,10 @@ def histogram_1d(
 
 
 def histogram_2d(
-    ds: xr.Dataset, x: ParticleAxis, y: ParticleAxis, species: Sequence[int]
+    ds: xr.Dataset, x: ParticleAxis, y: ParticleAxis, mask: np.ndarray
 ) -> dict[str, Any]:
-    """Weighted 2D histogram of the selected species; counts are indexed
-    [y, x] and edges are in data units."""
-    mask = species_mask(ds, species)
+    """Weighted 2D histogram of the selected particles (a boolean mask);
+    counts are indexed [y, x] and edges are in data units."""
     weights = ds[WEIGHT_COLUMN].values
     x_scaled = to_scaled(quantity_values(x.quantity, ds), x.scale, x.power)
     y_scaled = to_scaled(quantity_values(y.quantity, ds), y.scale, y.power)

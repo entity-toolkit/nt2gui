@@ -2,10 +2,12 @@ import {
   FigureError,
   FigureMessage,
 } from "../../components/common/FigureMessage";
+import { isSpatial, regionsOnAxes, regionsShown } from "../../state/regions";
 import { IPseudocolorConfig, IZoomWindow } from "../../state/schema";
 import { useUi, useUiActions } from "../../state/UiContext";
 import { useFieldMetadata } from "../fields/useFieldMetadata";
-import PlotFrame from "../PlotFrame";
+import PlotFrame, { imageSelect } from "../PlotFrame";
+import { useRegions } from "../useRegions";
 import { PlotKindProps } from "../types";
 import {
   activeViewport,
@@ -23,7 +25,10 @@ const FieldPseudocolorPlot = ({
 }: PlotKindProps) => {
   const { uiState } = useUi();
   const { updatePlotter, updateUiState } = useUiActions();
+  const regions = useRegions();
+  const showRegions = regionsShown(plotter, true);
   const config = plotter.pseudocolorConfig ?? defaultPseudocolorConfig;
+  const axes = { x: config.xCoordinate, y: config.yCoordinate };
   const { metadata, error, expressionErrors } = useFieldMetadata(
     simulationId,
     config.expressions,
@@ -46,6 +51,8 @@ const FieldPseudocolorPlot = ({
         reset: () => setViewport(null),
         sync: { label: "" },
       }}
+      select={imageSelect(axes)}
+      showRegions={imageSelect(axes) ? showRegions : undefined}
       controls={
         simulationId && (
           <PseudocolorControls
@@ -78,6 +85,20 @@ const FieldPseudocolorPlot = ({
               zoom.done();
             }}
             onConfigChange={setConfig}
+            select={
+              zoom.select && {
+                shape: zoom.select,
+                x: isSpatial(axes.x),
+                y: isSpatial(axes.y),
+              }
+            }
+            onSelect={(selection) => {
+              regions.save(selection, axes);
+              zoom.done();
+            }}
+            regions={
+              showRegions ? regionsOnAxes(regions.regions, axes.x, axes.y) : []
+            }
           />
         )
       }

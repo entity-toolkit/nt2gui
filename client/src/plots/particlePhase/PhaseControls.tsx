@@ -12,6 +12,7 @@ import { ColorScale, IParticlePhaseConfig } from "../../state/schema";
 import {
   AxisControls,
   CustomQuantities,
+  RegionPicker,
   SpeciesPicker,
   withoutExpression,
 } from "../particles/controls";
@@ -51,6 +52,13 @@ const PhaseControls = ({
           metadata={metadata}
           selected={config.species ?? []}
           onChange={(species) => onChange({ ...config, species })}
+        />
+      </div>
+      <div className={styles.axisRow}>
+        <span className={styles.axisLabel}>inside</span>
+        <RegionPicker
+          selected={config.regions}
+          onChange={(regions) => onChange({ ...config, regions })}
         />
       </div>
       <AxisControls

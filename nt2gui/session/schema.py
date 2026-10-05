@@ -18,6 +18,10 @@ SCHEMA_VERSION = 2
 ScaleKind = Literal["linear", "log", "power"]
 ColorScale = Literal["linear", "log"]
 MAX_PARTICLE_BINS = 2000
+# Lasso regions are simplified on the client; this bounds what the server takes.
+MAX_REGION_POINTS = 2000
+# Playback speed limit (frames per second; playback also waits for renders).
+MAX_PLAYBACK_FPS = 60
 DEFAULT_COLOR_MAP = "viridis"
 
 
@@ -93,6 +97,31 @@ class Range(_Schema):
         return self
 
 
+class RegionPolygon(_Schema):
+    """A lasso: a closed polygon over two spatial coordinates (data units)."""
+
+    x: str
+    y: str
+    points: list[tuple[float, float]] = Field(
+        min_length=3, max_length=MAX_REGION_POINTS
+    )
+
+
+class Region(_Schema):
+    """A named spatial selection; particles inside every constraint belong to it."""
+
+    name: str = Field(min_length=1, max_length=64)
+    # Inclusive range per spatial coordinate (boxes and bands).
+    ranges: dict[str, Range] = {}
+    polygon: RegionPolygon | None = None
+
+    @model_validator(mode="after")
+    def _check_constrained(self) -> "Region":
+        if not self.ranges and self.polygon is None:
+            raise ValueError("a region needs a range or a polygon")
+        return self
+
+
 class LineConfig(_Schema):
     # Field names ("Ex") or vector names ("E", expands to its components).
     quantities: list[str]
@@ -125,6 +154,8 @@ class ParticleAxis(_Schema):
 class ParticleSeries(_Schema):
     # Species indices summed into this line; empty means all species.
     species: list[int] = []
+    # Names of saved regions; only particles inside any of them count. Empty: no filter.
+    regions: list[str] = []
 
 
 class ParticleHistogramConfig(_Schema):
@@ -144,6 +175,8 @@ class ParticlePhaseConfig(_Schema):
     x: ParticleAxis
     y: ParticleAxis
     species: list[int] = []
+    # Names of saved regions (union); empty means no spatial filter.
+    regions: list[str] = []
     color_scale: ColorScale = "log"
     vmin: float | None = None
     vmax: float | None = None
@@ -162,6 +195,12 @@ class Plotter(_Schema):
     line_viewport: Range | None = None
     particle_histogram_config: ParticleHistogramConfig | None = None
     particle_phase_config: ParticlePhaseConfig | None = None
+    # False gives the panel its own time (`local_time`) instead of the global one.
+    sync_time: bool | None = None
+    local_time: float | None = None
+    local_playback_fps: float | None = Field(None, gt=0, le=MAX_PLAYBACK_FPS)
+    # Outline saved regions; unset: on for 1D plots, off for 2D (client default).
+    show_regions: bool | None = None
 
 
 class UiState(_Schema):
@@ -174,6 +213,19 @@ class UiState(_Schema):
     global_line_viewports: dict[str, Range]
     # Whether the simulations sidebar is folded away.
     sidebar_collapsed: bool = False
+    # Whether the global timeline is folded down to its play button.
+    timeline_collapsed: bool = False
+    playback_fps: float | None = Field(None, gt=0, le=MAX_PLAYBACK_FPS)
+    # Spatial selections (region-01, ...) particle plots can filter by.
+    regions: list[Region] = []
+
+    @field_validator("regions")
+    @classmethod
+    def _check_region_names(cls, regions: list[Region]) -> list[Region]:
+        names = [region.name for region in regions]
+        if len(set(names)) != len(names):
+            raise ValueError("region names must be unique")
+        return regions
 
     @field_validator("layout")
     @classmethod

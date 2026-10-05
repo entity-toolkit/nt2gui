@@ -14,6 +14,7 @@ import {
   withAxisScale,
   withoutRange,
   withZoomWindow,
+  withPanWindow,
   hasRange,
 } from "./config";
 
@@ -112,8 +113,35 @@ describe("requests", () => {
       expressions: ["gamma - 1"],
     };
     expect(histogramRequest(config)).toEqual({
-      x: config.x,
-      series: config.series,
+      config: { x: config.x, series: config.series },
+      regions: [],
+    });
+  });
+
+  it("sends the saved regions lines use, dropping deleted ones", () => {
+    const region = { name: "region-01", ranges: { x: { min: 0, max: 1 } } };
+    const config = {
+      x: { quantity: "gamma", scale: "log" as const },
+      series: [
+        { species: [], regions: ["region-01", "gone"] },
+        { species: [1] },
+      ],
+    };
+    expect(histogramRequest(config, [region])).toEqual({
+      config: {
+        x: config.x,
+        series: [{ species: [], regions: ["region-01"] }, { species: [1] }],
+      },
+      regions: [region],
+    });
+    const phase = {
+      x: { quantity: "x", scale: "linear" as const },
+      y: { quantity: "ux", scale: "linear" as const },
+      regions: ["gone", "region-01"],
+    };
+    expect(phaseRequest(phase, [region])).toEqual({
+      config: { ...phase, regions: ["region-01"] },
+      regions: [region],
     });
   });
 
@@ -125,9 +153,8 @@ describe("requests", () => {
       expressions: ["ux * w"],
     };
     expect(phaseRequest(config)).toEqual({
-      x: config.x,
-      y: config.y,
-      colorScale: "linear",
+      config: { x: config.x, y: config.y, colorScale: "linear" },
+      regions: [],
     });
   });
 });
@@ -194,5 +221,17 @@ describe("withZoomWindow", () => {
       y: { quantity: "ux", scale: "power", power: 0.3, min: -3, max: 4 },
       species: [1],
     });
+  });
+});
+
+describe("withPanWindow", () => {
+  it("moves only the axes that have a range", () => {
+    const config = {
+      x: { quantity: "x", scale: "linear" as const, min: 0, max: 1 },
+      y: { quantity: "ux", scale: "linear" as const },
+    };
+    const next = withPanWindow(config, { xMin: 2, xMax: 3, yMin: -5, yMax: 5 });
+    expect(next.x).toEqual({ quantity: "x", scale: "linear", min: 2, max: 3 });
+    expect(next.y).toBe(config.y);
   });
 });

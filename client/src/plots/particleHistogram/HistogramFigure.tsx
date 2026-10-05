@@ -6,11 +6,13 @@ import {
   FigureMessage,
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
-import { IParticleHistogramConfig, IRange } from "../../state/schema";
+import { ChartRegion } from "../../state/regions";
+import { IParticleHistogramConfig, IRange, IRegion } from "../../state/schema";
 import {
+  hasRange,
   histogramRequest,
   histogramToLines,
-  speciesLabel,
+  seriesLabel,
   uniqueLabels,
 } from "../particles/config";
 import ExcludedNote from "../particles/ExcludedNote";
@@ -23,6 +25,12 @@ interface HistogramFigureProps {
   time: number;
   zoomEnabled: boolean;
   onZoom: (range: IRange) => void;
+  /** Every saved region (lines refer to them by name). */
+  savedRegions: IRegion[];
+  selectEnabled: boolean;
+  onSelect: (range: IRange) => void;
+  /** Saved regions to outline on the x axis. */
+  overlays: ChartRegion[];
 }
 
 /** Weighted 1D histograms sharing one binned x axis, one line per series. */
@@ -33,8 +41,12 @@ const HistogramFigure = ({
   time,
   zoomEnabled,
   onZoom,
+  savedRegions,
+  selectEnabled,
+  onSelect,
+  overlays,
 }: HistogramFigureProps) => {
-  const request = histogramRequest(config);
+  const request = histogramRequest(config, savedRegions);
   const { data, error, isRendering } = useServerRender(
     JSON.stringify([simulationId, request, time]),
     (signal) => renderParticleHistogram(simulationId, request, time, signal),
@@ -47,7 +59,7 @@ const HistogramFigure = ({
     );
 
   const labels = uniqueLabels(
-    config.series.map((series) => speciesLabel(series.species, metadata)),
+    config.series.map((series) => seriesLabel(series, metadata, savedRegions)),
   );
   const excluded = data.series.reduce((sum, s) => sum + s.excludedWeight, 0);
 
@@ -66,6 +78,12 @@ const HistogramFigure = ({
         xPower={config.x.power}
         yLog={(config.yScale ?? "log") === "log"}
         step
+        // Panning shifts the binned range (and re-bins), like a zoom.
+        pan={hasRange(config.x) ? {} : undefined}
+        onPan={onZoom}
+        selectEnabled={selectEnabled}
+        onSelect={onSelect}
+        regions={overlays}
       />
       <ExcludedNote weight={excluded} />
     </div>

@@ -1,11 +1,13 @@
 import { renderPseudocolor } from "../../api/fields";
 import { IFieldMetadata } from "../../api/types";
-import ImageChart from "../../charts/ImageChart";
+import ImageChart, { ImageSelect } from "../../charts/ImageChart";
+import { valueBounds } from "../../charts/scales";
 import {
   FigureError,
   FigureMessage,
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
+import { ChartRegion, ChartSelection } from "../../state/regions";
 import { IPseudocolorConfig, IZoomWindow } from "../../state/schema";
 import { withSlice } from "../fields/metadata";
 import SlicedFigure from "../fields/SlicedFigure";
@@ -24,6 +26,9 @@ interface PseudocolorFigureProps {
   zoomEnabled: boolean;
   onZoom: (viewport: IZoomWindow) => void;
   onConfigChange: (config: IPseudocolorConfig) => void;
+  select: ImageSelect | null;
+  onSelect: (selection: ChartSelection) => void;
+  regions: ChartRegion[];
 }
 
 /** One field over two coordinates, with sliders for any further dims. */
@@ -37,6 +42,9 @@ const PseudocolorFigure = ({
   zoomEnabled,
   onZoom,
   onConfigChange,
+  select,
+  onSelect,
+  regions,
 }: PseudocolorFigureProps) => {
   const { expressions: _expressions, ...request } = config;
   const { data, error, isRendering } = useServerRender(
@@ -64,6 +72,22 @@ const PseudocolorFigure = ({
       onZoom={onZoom}
       isRefreshing={isRendering}
       crosshair={{ plotId: nodeId, group: CROSSHAIR_GROUP }}
+      pan={
+        viewport
+          ? {
+              x: true,
+              y: true,
+              bounds: {
+                x: valueBounds(metadata.coords[config.xCoordinate]),
+                y: valueBounds(metadata.coords[config.yCoordinate]),
+              },
+            }
+          : undefined
+      }
+      onPan={onZoom}
+      select={select ?? undefined}
+      onSelect={onSelect}
+      regions={regions}
     />
   ) : (
     <FigureMessage tag="Rendering…" />

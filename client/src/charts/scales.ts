@@ -140,3 +140,38 @@ export const valueDomain = (
   }
   return { domain: [min, max], fixed: true };
 };
+
+/**
+ * Dragging a chart's content by `delta` pixels along a scale: the shift to
+ * apply (limited so the view stays within `bounds`, in data units, when
+ * given) and the domain it shows. Works for any scale kind or direction,
+ * since the drag happens in pixels.
+ */
+export const panScale = (
+  scale: ContinuousScale,
+  delta: number,
+  bounds?: [number, number],
+): { shift: number; domain: [number, number] } => {
+  const [d0, d1] = scale.domain();
+  const a = scale(d0);
+  const b = scale(d1);
+  let shift = delta;
+  if (bounds) {
+    const p0 = scale(bounds[0]);
+    const p1 = scale(bounds[1]);
+    // The shifted view [a, b] - shift must stay inside the bounds' pixels.
+    const most = Math.min(a, b) - Math.min(p0, p1);
+    const least = Math.max(a, b) - Math.max(p0, p1);
+    shift = least > most ? 0 : Math.min(Math.max(shift, least), most);
+  }
+  if (!Number.isFinite(shift)) shift = 0;
+  return { shift, domain: [scale.invert(a - shift), scale.invert(b - shift)] };
+};
+
+/** [min, max] of a coordinate's values (e.g. from field metadata). */
+export const valueBounds = (
+  values: number[] | undefined,
+): [number, number] | undefined =>
+  values && values.length
+    ? [Math.min(...values), Math.max(...values)]
+    : undefined;

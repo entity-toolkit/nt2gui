@@ -10,6 +10,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -126,6 +127,125 @@ describe("App", () => {
     vi.useRealTimers();
   });
 
+  it("keeps the playback speed and the folded timeline in the session", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<App />);
+    const footer = await screen.findByRole("contentinfo", {
+      name: "Global timeline",
+    });
+
+    fireEvent.change(within(footer).getByLabelText("Playback speed"), {
+      target: { value: "30" },
+    });
+    fireEvent.click(
+      within(footer).getByRole("button", { name: "Collapse timeline" }),
+    );
+    // Folded: the slider goes, playback stays.
+    expect(within(footer).queryByRole("slider")).toBeNull();
+    expect(within(footer).getByRole("button", { name: "Play" })).toBeTruthy();
+
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)).toMatchObject({
+      playbackFps: 30,
+      timelineCollapsed: true,
+    });
+    vi.useRealTimers();
+  });
+
+  it("gives an unsynced panel its own timeline", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "fields" }));
+    fireEvent.click(await screen.findByRole("button", { name: "1D plot" }));
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Sync time" }));
+    const panelTimeline = await screen.findByLabelText("Panel timeline");
+    const slider = within(panelTimeline).getByRole("slider");
+    fireEvent.change(slider, { target: { value: "0.3" } });
+    fireEvent.mouseUp(slider);
+
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)?.plotters["panel-1"]).toMatchObject({
+      syncTime: false,
+      localTime: 0.3,
+    });
+    // The global time is untouched.
+    expect(puts.at(-1)?.timeline.current).toBe(0);
+
+    // Syncing again drops the panel's timeline.
+    fireEvent.click(screen.getByRole("checkbox", { name: "Sync time" }));
+    expect(screen.queryByLabelText("Panel timeline")).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)?.plotters["panel-1"].syncTime).toBe(true);
+    expect(puts.at(-1)?.plotters["panel-1"].localTime).toBeUndefined();
+    vi.useRealTimers();
+  });
+
+  it("lists saved regions; deleting one unselects it in particle plots", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const saved = snapshot();
+    saved.state.regions = [
+      { name: "region-01", ranges: { x: { min: 0, max: 0.5 } } },
+      {
+        name: "region-02",
+        polygon: {
+          x: "x",
+          y: "y",
+          points: [
+            [0, 0],
+            [1, 0],
+            [0, 1],
+          ],
+        },
+      },
+    ];
+    saved.state.plotters["panel-1"].particlePhaseConfig = {
+      x: { quantity: "x", scale: "linear" },
+      y: { quantity: "ux", scale: "linear" },
+      regions: ["region-01", "region-02"],
+    };
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      url === "api/state" && init?.method !== "PUT"
+        ? json(saved)
+        : fake(url, init),
+    );
+    render(<App />);
+
+    const list = await screen.findByRole("region", { name: "Regions" });
+    expect(within(list).getByText("x ∈ [0, 0.5]")).toBeTruthy();
+    expect(within(list).getByText("lasso in x–y (3 points)")).toBeTruthy();
+
+    fireEvent.click(
+      within(list).getByRole("button", { name: "Delete region-01" }),
+    );
+    expect(within(list).queryByText("region-01")).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    const state = puts.at(-1)!;
+    expect(state.regions?.map((r) => r.name)).toEqual(["region-02"]);
+    expect(state.plotters["panel-1"].particlePhaseConfig?.regions).toEqual([
+      "region-02",
+    ]);
+    vi.useRealTimers();
+  });
+
+  it("hides regions on 2D plots until shown", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "fields" }));
+    fireEvent.click(await screen.findByRole("button", { name: "2D pseudocolor" }));
+
+    const toggle = await screen.findByRole("checkbox", {
+      name: "Show regions",
+    });
+    expect((toggle as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(toggle);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)?.plotters["panel-1"].showRegions).toBe(true);
+    vi.useRealTimers();
+  });
+
   it("offers to point the UI at another server when this one can't be reached", async () => {
     vi.stubGlobal(
       "fetch",
@@ -136,5 +256,31 @@ describe("App", () => {
     expect(await screen.findByText(/Cannot reach the server/)).toBeTruthy();
     expect(screen.getByPlaceholderText("http://localhost:8765")).toBeTruthy();
     expect(screen.getByRole("button", { name: "connect" })).toBeTruthy();
+  });
+
+  it("plays through time, waiting for pending renders, and stops at the end", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { beginRender } = await import("./state/renderActivity");
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Play" }));
+
+    // ≤ 2 fps by default: one step after 500 ms.
+    const time = () => screen.getByText(/Time:/).textContent;
+    await act(() => vi.advanceTimersByTimeAsync(700));
+    expect(time()).toMatch(/0\.1\b/);
+
+    // A pending render holds playback.
+    const done = beginRender();
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(time()).toMatch(/0\.1\b/);
+    act(() => done());
+
+    // Runs to the end (t = 1), stops there, and syncs the final time to the server.
+    for (let i = 0; i < 40; i++) {
+      await act(() => vi.advanceTimersByTimeAsync(250));
+    }
+    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
+    await vi.waitFor(() => expect(puts.at(-1)?.timeline.current).toBe(1));
+    vi.useRealTimers();
   });
 });

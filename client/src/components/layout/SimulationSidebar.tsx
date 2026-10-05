@@ -2,10 +2,11 @@ import { FormEvent, useState } from "react";
 import { serverErrorMessage } from "../../api/http";
 import { useSimulations } from "../../hooks/useSimulations";
 import { useUi, useUiActions } from "../../state/UiContext";
+import RegionList from "./RegionList";
 import SimulationCard from "./SimulationCard";
 import styles from "./SimulationSidebar.module.css";
 
-/** Collapsible left panel: load simulations and see what each contains. */
+/** Collapsible left panel: load simulations, see what each contains, and the saved regions. */
 const SimulationSidebar = () => {
   const { simulations, uiState } = useUi();
   const { setSidebarCollapsed } = useUiActions();
@@ -111,6 +112,8 @@ const SimulationSidebar = () => {
       ) : (
         <p className={styles.empty}>No simulations loaded yet.</p>
       )}
+
+      {simulations.length > 0 && <RegionList />}
     </aside>
   );
 };

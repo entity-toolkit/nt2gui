@@ -1,4 +1,6 @@
 import SelectionMenu from "../components/common/SelectionMenu";
+import { panelTime } from "../lib/playback";
+import { RenderScope } from "../state/renderActivity";
 import { DataType, PlotType } from "../state/schema";
 import { useUi, useUiActions } from "../state/UiContext";
 import { PLOT_KINDS, findPlotKind } from "./registry";
@@ -65,12 +67,17 @@ const Panel = ({ nodeId }: { nodeId: string }) => {
         nodeId={nodeId}
         plotter={plotter}
         simulationId={plotter.simulationId ?? null}
-        time={uiState.timeline.current}
+        time={panelTime(plotter, uiState.timeline)}
       />
     );
   })();
 
-  return <div className={styles.panel}>{content}</div>;
+  // Renders are tracked per panel, so playback waits only for the panels it drives.
+  return (
+    <RenderScope.Provider value={nodeId}>
+      <div className={styles.panel}>{content}</div>
+    </RenderScope.Provider>
+  );
 };
 
 export default Panel;

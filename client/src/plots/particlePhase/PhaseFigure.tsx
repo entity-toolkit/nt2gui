@@ -1,12 +1,13 @@
 import { renderParticlePhase } from "../../api/particles";
-import ImageChart from "../../charts/ImageChart";
+import ImageChart, { ImageSelect } from "../../charts/ImageChart";
 import {
   FigureError,
   FigureMessage,
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
-import { IParticlePhaseConfig, IZoomWindow } from "../../state/schema";
-import { phaseRequest } from "../particles/config";
+import { ChartRegion, ChartSelection } from "../../state/regions";
+import { IParticlePhaseConfig, IRegion, IZoomWindow } from "../../state/schema";
+import { hasRange, phaseRequest } from "../particles/config";
 import ExcludedNote from "../particles/ExcludedNote";
 import styles from "../particles/figure.module.css";
 
@@ -16,6 +17,13 @@ interface PhaseFigureProps {
   time: number;
   zoomEnabled: boolean;
   onZoom: (window: IZoomWindow) => void;
+  onPan: (window: IZoomWindow) => void;
+  /** Every saved region (the config refers to them by name). */
+  savedRegions: IRegion[];
+  select: ImageSelect | null;
+  onSelect: (selection: ChartSelection) => void;
+  /** Saved regions to outline. */
+  overlays: ChartRegion[];
 }
 
 /** Weighted 2D histogram (phase space) of the selected species. */
@@ -25,8 +33,13 @@ const PhaseFigure = ({
   time,
   zoomEnabled,
   onZoom,
+  onPan,
+  savedRegions,
+  select,
+  onSelect,
+  overlays,
 }: PhaseFigureProps) => {
-  const request = phaseRequest(config);
+  const request = phaseRequest(config, savedRegions);
   const { data, error, isRendering } = useServerRender(
     JSON.stringify([simulationId, request, time]),
     (signal) => renderParticlePhase(simulationId, request, time, signal),
@@ -56,6 +69,15 @@ const PhaseFigure = ({
         colorbarTitle="weighted count"
         zoomEnabled={zoomEnabled}
         onZoom={onZoom}
+        pan={
+          hasRange(config.x) || hasRange(config.y)
+            ? { x: hasRange(config.x), y: hasRange(config.y) }
+            : undefined
+        }
+        onPan={onPan}
+        select={select ?? undefined}
+        onSelect={onSelect}
+        regions={overlays}
         isRefreshing={isRendering}
       />
       <ExcludedNote weight={data.excludedWeight} />

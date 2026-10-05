@@ -14,14 +14,7 @@ import {
   setPlotType,
   updatePlotter,
 } from "./plotters";
-import {
-  DataType,
-  IPlotter,
-  ISimulation,
-  ITimeline,
-  IUiState,
-  PlotType,
-} from "./schema";
+import { DataType, IPlotter, ISimulation, IUiState, PlotType } from "./schema";
 import { SyncStatus } from "./StateSync";
 import { useServerSession } from "./useServerSession";
 
@@ -39,7 +32,6 @@ export interface UiActions {
     plotType: PlotType,
     defaults?: Partial<IPlotter>,
   ) => void;
-  setTimeline: (timeline: ITimeline) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   handleModelChange: (model: Model) => void;
   runServerCommand: <T extends IServerSnapshot>(
@@ -92,8 +84,6 @@ export const UiProvider = ({
           const plotters = setPlotType(prev.plotters, id, plotType, defaults);
           return plotters === prev.plotters ? prev : { ...prev, plotters };
         }),
-      setTimeline: (timeline) =>
-        updateUiState((prev) => ({ ...prev, timeline })),
       setSidebarCollapsed: (sidebarCollapsed) =>
         updateUiState((prev) =>
           (prev.sidebarCollapsed ?? false) === sidebarCollapsed

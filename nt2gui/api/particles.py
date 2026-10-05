@@ -7,7 +7,8 @@ from ..data.particles import quantity_values, sample_dataset
 from ..errors import UserError
 from ..plots.particle_histogram import render_particle_histogram
 from ..plots.particle_phase import render_particle_phase
-from ..session.schema import ParticleHistogramConfig, ParticlePhaseConfig
+from ..data.regions import region_coordinates, resolve_regions
+from ..session.schema import ParticleHistogramConfig, ParticlePhaseConfig, Region
 from .common import (
     json_object,
     parse,
@@ -18,6 +19,17 @@ from .common import (
 )
 
 bp = Blueprint("particles", __name__, url_prefix="/simulations/<simulation_id>")
+
+
+def request_regions(payload: dict) -> dict[str, Region]:
+    """The region definitions sent with a render request, by name. The client
+    sends them (rather than the server reading its session) so a render never
+    races the debounced state sync."""
+    raw = payload.get("regions", [])
+    if not isinstance(raw, list):
+        raise UserError("regions must be a list")
+    regions = [parse(Region, item, "region") for item in raw]
+    return {region.name: region for region in regions}
 
 
 @bp.get("/particles")
@@ -42,9 +54,16 @@ def histogram_plot(simulation_id: str):
     payload = json_object()
     time = require_time(payload)
     config = parse(ParticleHistogramConfig, payload.get("config"), "histogram request")
-    particles, timestamp = particles_at(source, time, [config.x.quantity])
+    regions = request_regions(payload)
+    used = resolve_regions((n for s in config.series for n in s.regions), regions)
+    particles, timestamp = particles_at(
+        source, time, [config.x.quantity, *region_coordinates(used)]
+    )
     return jsonify(
-        {**render_particle_histogram(particles, config), "timestamp": timestamp}
+        {
+            **render_particle_histogram(particles, config, regions),
+            "timestamp": timestamp,
+        }
     )
 
 
@@ -54,7 +73,13 @@ def phase_plot(simulation_id: str):
     payload = json_object()
     time = require_time(payload)
     config = parse(ParticlePhaseConfig, payload.get("config"), "phase-space request")
+    regions = request_regions(payload)
+    used = resolve_regions(config.regions, regions)
     particles, timestamp = particles_at(
-        source, time, [config.x.quantity, config.y.quantity]
+        source,
+        time,
+        [config.x.quantity, config.y.quantity, *region_coordinates(used)],
     )
-    return jsonify({**render_particle_phase(particles, config), "timestamp": timestamp})
+    return jsonify(
+        {**render_particle_phase(particles, config, regions), "timestamp": timestamp}
+    )

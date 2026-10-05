@@ -4,11 +4,13 @@ import {
   IParticleHistogram,
   IParticleMetadata,
 } from "../../api/types";
+import { existingRegionNames, pickRegions } from "../../state/regions";
 import {
   IParticleAxis,
   IParticleHistogramConfig,
   IParticlePhaseConfig,
   IParticleSeries,
+  IRegion,
   ParticleScale,
 } from "../../state/schema";
 
@@ -60,6 +62,17 @@ export const speciesLabel = (
   return selected.map(label).join(" + ");
 };
 
+/** A histogram line's legend label: its species, and regions if filtered. */
+export const seriesLabel = (
+  series: IParticleSeries,
+  metadata: IParticleMetadata | null,
+  saved: IRegion[] | undefined,
+): string => {
+  const species = speciesLabel(series.species, metadata);
+  const regions = existingRegionNames(series.regions, saved);
+  return regions.length ? `${species} in ${regions.join(" ∪ ")}` : species;
+};
+
 /** One histogram line per species. */
 export const seriesPerSpecies = (
   metadata: IParticleMetadata,
@@ -105,6 +118,23 @@ export const withZoomWindow = (
   y: { ...config.y, min: window.yMin, max: window.yMax },
 });
 
+/**
+ * Pans a phase plot: like a zoom window, but only the axes that already have
+ * a range move (an unzoomed axis stays automatic).
+ */
+export const withPanWindow = (
+  config: IParticlePhaseConfig,
+  window: { xMin: number; xMax: number; yMin: number; yMax: number },
+): IParticlePhaseConfig => ({
+  ...config,
+  x: hasRange(config.x)
+    ? { ...config.x, min: window.xMin, max: window.xMax }
+    : config.x,
+  y: hasRange(config.y)
+    ? { ...config.y, min: window.yMin, max: window.yMax }
+    : config.y,
+});
+
 /** Changing the scale drops a range that may be invalid for it (e.g. log of 0). */
 export const withAxisScale = (
   axis: IParticleAxis,
@@ -115,17 +145,40 @@ export const withAxisScale = (
   return { ...rest, scale };
 };
 
-/** What the server needs to bin; display-only settings are left out so
- * changing them doesn't recompute the histogram. */
-export const histogramRequest = ({ x, series }: IParticleHistogramConfig) => ({
-  x,
-  series,
-});
+/** Only names of saved regions that still exist; absent stays absent. */
+const savedOnly = (names: string[] | undefined, saved: IRegion[] | undefined) =>
+  names && existingRegionNames(names, saved);
 
-export const phaseRequest = ({
-  expressions: _expressions,
-  ...rest
-}: IParticlePhaseConfig) => rest;
+/**
+ * What the server needs to bin, and the definitions of the regions used
+ * (sent along so a render never waits for the state sync). Display-only
+ * settings are left out so changing them doesn't recompute the histogram.
+ */
+export const histogramRequest = (
+  { x, series }: IParticleHistogramConfig,
+  saved?: IRegion[],
+) => {
+  const lines = series.map((line) =>
+    line.regions ? { ...line, regions: savedOnly(line.regions, saved) } : line,
+  );
+  return {
+    config: { x, series: lines },
+    regions: pickRegions(
+      lines.flatMap((line) => line.regions ?? []),
+      saved,
+    ),
+  };
+};
+
+export const phaseRequest = (
+  { expressions: _expressions, ...rest }: IParticlePhaseConfig,
+  saved?: IRegion[],
+) => {
+  const config = rest.regions
+    ? { ...rest, regions: savedOnly(rest.regions, saved) }
+    : rest;
+  return { config, regions: pickRegions(config.regions, saved) };
+};
 
 /**
  * A histogram as line data for LineChart, drawn as steps: `coordinates` are

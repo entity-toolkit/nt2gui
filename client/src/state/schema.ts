@@ -39,6 +39,24 @@ export interface IRange {
   max: number;
 }
 
+/** A lasso: a closed polygon over two spatial coordinates (data units). */
+export interface IRegionPolygon {
+  x: string;
+  y: string;
+  points: [number, number][];
+}
+
+/**
+ * A named spatial selection (region-01, …). Particles inside every
+ * constraint belong to it; particle plots can filter by regions.
+ */
+export interface IRegion {
+  name: string;
+  /** Inclusive range per spatial coordinate (boxes and bands). */
+  ranges?: Record<string, IRange>;
+  polygon?: IRegionPolygon;
+}
+
 export type ColorScale = "linear" | "log";
 
 export interface IPseudocolorConfig {
@@ -93,6 +111,8 @@ export interface IParticleAxis {
 export interface IParticleSeries {
   /** Species indices summed into one line; empty means all species. */
   species: number[];
+  /** Saved region names; only particles inside any of them count (empty: no filter). */
+  regions?: string[];
 }
 
 /** 1D weighted histogram, e.g. the energy spectrum of each species. */
@@ -111,6 +131,8 @@ export interface IParticlePhaseConfig {
   y: IParticleAxis;
   /** Empty means all species. */
   species?: number[];
+  /** Saved region names (union); empty means no spatial filter. */
+  regions?: string[];
   colorScale?: ColorScale;
   vmin?: number;
   vmax?: number;
@@ -129,6 +151,12 @@ export interface IPlotter {
   lineViewport?: IRange | null;
   particleHistogramConfig?: IParticleHistogramConfig;
   particlePhaseConfig?: IParticlePhaseConfig;
+  /** false: the panel has its own time (`localTime`) instead of the global one (default true). */
+  syncTime?: boolean;
+  localTime?: number;
+  localPlaybackFps?: number;
+  /** Outline saved regions (default: on for 1D plots, off for 2D). */
+  showRegions?: boolean;
 }
 
 export type IPlotters = Record<string, IPlotter>;
@@ -142,6 +170,12 @@ export interface IUiState {
   globalLineViewports: Record<string, IRange>;
   /** Whether the simulations sidebar is folded away. */
   sidebarCollapsed?: boolean;
+  /** Whether the global timeline is folded down to its play button. */
+  timelineCollapsed?: boolean;
+  /** Global playback speed limit in frames per second (≤ MAX_PLAYBACK_FPS on the server). */
+  playbackFps?: number;
+  /** Spatial selections particle plots can filter by. Names are unique. */
+  regions?: IRegion[];
 }
 
 export interface ISimulation {

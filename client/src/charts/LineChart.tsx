@@ -15,11 +15,13 @@ import {
   scaleExtent,
   stepPath,
   nearestIndex,
+  panScale,
   valueDomain,
 } from "./scales";
 import { ILineRender } from "../api/types";
 import { RefreshingBadge } from "../components/common/FigureMessage";
 import { formatValue } from "../lib/format";
+import { ChartRegion } from "../state/regions";
 import { IRange, ParticleScale } from "../state/schema";
 import { drawAxis, drawGrid } from "./axis";
 import { seriesColor } from "./colors";
@@ -41,10 +43,22 @@ interface LineChartProps {
   yLog?: boolean;
   /** Histograms: `coordinates` are bin edges and lines are drawn as steps. */
   step?: boolean;
+  /**
+   * When set (typically while zoomed), dragging outside zoom mode pans the
+   * view, staying within `bounds` (data units) if given.
+   */
+  pan?: { bounds?: [number, number] };
+  onPan?: (range: IRange) => void;
+  /** While on, dragging selects a coordinate range (for `onSelect`) instead of zooming. */
+  selectEnabled?: boolean;
+  onSelect?: (range: IRange) => void;
+  /** Saved regions to outline (their `x` extent). */
+  regions?: ChartRegion[];
 }
 
 const margin = { top: 14, right: 18, bottom: 42, left: 64 };
-const MIN_ZOOM_PX = 4;
+// Smaller drags are treated as clicks.
+const MIN_DRAG_PX = 4;
 
 /**
  * Draws 1D series against one coordinate. The chart fills its container;
@@ -63,6 +77,11 @@ const LineChart = ({
   xPower,
   yLog = false,
   step = false,
+  pan,
+  onPan,
+  selectEnabled = false,
+  onSelect,
+  regions = [],
 }: LineChartProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -75,6 +94,11 @@ const LineChart = ({
   const innerHeight = Math.max(height - margin.top - margin.bottom, 0);
 
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  // Pointer x where a pan started, and how far the content has moved.
+  const [panning, setPanning] = useState<{
+    start: number;
+    shift: number;
+  } | null>(null);
   const [drag, setDrag] = useState<{ start: number; current: number } | null>(
     null,
   );
@@ -148,6 +172,16 @@ const LineChart = ({
   };
 
   const handleMouseMove = (event: ReactMouseEvent<SVGRectElement>) => {
+    if (panning) {
+      const { shift } = panScale(
+        xScale,
+        event.clientX - panning.start,
+        pan?.bounds,
+      );
+      setPanning({ ...panning, shift });
+      setHoverIndex(null);
+      return;
+    }
     const x = pointerX(event);
     if (x === null) return;
     if (drag) setDrag({ ...drag, current: x });
@@ -163,20 +197,34 @@ const LineChart = ({
   };
 
   const handleMouseDown = (event: ReactMouseEvent<SVGRectElement>) => {
-    if (!zoomEnabled) return;
+    if (!zoomEnabled && !selectEnabled) {
+      if (pan && onPan) setPanning({ start: event.clientX, shift: 0 });
+      return;
+    }
     const x = pointerX(event);
     if (x !== null) setDrag({ start: x, current: x });
   };
 
   const handleMouseUp = () => {
-    if (drag && Math.abs(drag.current - drag.start) >= MIN_ZOOM_PX) {
+    if (panning) {
+      if (Math.abs(panning.shift) >= MIN_DRAG_PX && onPan) {
+        const [a, b] = panScale(xScale, panning.shift, pan?.bounds).domain;
+        onPan({ min: Math.min(a, b), max: Math.max(a, b) });
+      }
+      setPanning(null);
+      return;
+    }
+    if (drag && Math.abs(drag.current - drag.start) >= MIN_DRAG_PX) {
       const [a, b] = [xScale.invert(drag.start), xScale.invert(drag.current)];
-      onRangeChange({ min: Math.min(a, b), max: Math.max(a, b) });
+      const range = { min: Math.min(a, b), max: Math.max(a, b) };
+      if (selectEnabled) onSelect?.(range);
+      else onRangeChange(range);
     }
     setDrag(null);
   };
 
   const handleMouseLeave = () => {
+    handleMouseUp();
     setDrag(null);
     setHoverIndex(null);
   };
@@ -192,6 +240,30 @@ const LineChart = ({
     return xScale.invert((xScale(start) + xScale(end)) / 2);
   })();
   const ready = innerWidth > 0 && innerHeight > 0;
+
+  // Region edges in pixels, kept just outside the plot when off-scale (or
+  // not positive on a log axis).
+  const regionPx = (value: number) => {
+    const px = xScale(value);
+    const [left, right] = [margin.left - 1, margin.left + innerWidth + 1];
+    if (!Number.isFinite(px)) return value > 0 ? right : left;
+    return Math.min(Math.max(px, left), right);
+  };
+  const regionBands = regions.flatMap((region) => {
+    if (!region.x) return [];
+    const [a, b] = region.x.map(regionPx);
+    const width = Math.abs(b - a);
+    return width > 0
+      ? [
+          {
+            name: region.name,
+            color: region.color,
+            left: Math.min(a, b),
+            width,
+          },
+        ]
+      : [];
+  });
 
   return (
     <div className={styles.chart} ref={containerRef}>
@@ -231,14 +303,35 @@ const LineChart = ({
           </text>
 
           <g clipPath={`url(#${clipId})`}>
-            {paths.map((path, index) => (
-              <path
-                key={data.series[index].name}
-                d={path ?? undefined}
-                className={styles.series}
-                stroke={seriesColor(index)}
-              />
-            ))}
+            <g
+              transform={panning ? `translate(${panning.shift}, 0)` : undefined}
+            >
+              {regionBands.map((band) => (
+                <g
+                  key={band.name}
+                  className="chart-region"
+                  style={{ color: band.color }}
+                >
+                  <rect
+                    x={band.left}
+                    y={margin.top}
+                    width={band.width}
+                    height={innerHeight}
+                  />
+                  <text x={band.left + 4} y={margin.top + 12}>
+                    {band.name}
+                  </text>
+                </g>
+              ))}
+              {paths.map((path, index) => (
+                <path
+                  key={data.series[index].name}
+                  d={path ?? undefined}
+                  className={styles.series}
+                  stroke={seriesColor(index)}
+                />
+              ))}
+            </g>
           </g>
 
           {hoverCoordinate !== null && hoverCoordinate !== undefined && (
@@ -266,7 +359,7 @@ const LineChart = ({
 
           {drag && (
             <rect
-              className={styles.zoomBand}
+              className={selectEnabled ? "chart-selection" : styles.zoomBand}
               x={Math.min(drag.start, drag.current)}
               y={margin.top}
               width={Math.abs(drag.current - drag.start)}
@@ -276,7 +369,16 @@ const LineChart = ({
 
           <rect
             className={styles.interactionLayer}
-            style={{ cursor: zoomEnabled ? "col-resize" : "crosshair" }}
+            style={{
+              cursor:
+                zoomEnabled || selectEnabled
+                  ? "col-resize"
+                  : pan && onPan
+                    ? panning
+                      ? "grabbing"
+                      : "grab"
+                    : "crosshair",
+            }}
             x={margin.left}
             y={margin.top}
             width={innerWidth}

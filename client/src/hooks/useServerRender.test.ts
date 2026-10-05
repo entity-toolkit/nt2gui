@@ -13,7 +13,11 @@ afterEach(() => {
 
 /** A request whose calls can be resolved by hand, recording their signals. */
 const controllable = () => {
-  const calls: { key: string; signal: AbortSignal; resolve: (v: string) => void }[] = [];
+  const calls: {
+    key: string;
+    signal: AbortSignal;
+    resolve: (v: string) => void;
+  }[] = [];
   const request = (key: string) => (signal: AbortSignal) =>
     new Promise<string>((resolve, reject) => {
       calls.push({ key, signal, resolve });

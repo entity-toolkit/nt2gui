@@ -116,3 +116,36 @@
   font-size: 12px;
   color: var(--color-axis-text);
 }
+
+.plotTimeline {
+  flex: none;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.segmented button {
+  background: #0f172a;
+  color: var(--color-axis-text);
+  border: none;
+  padding: 6px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--color-border);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  color: var(--color-text-soft);
+}

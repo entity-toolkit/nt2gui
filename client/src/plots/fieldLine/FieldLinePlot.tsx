@@ -1,12 +1,15 @@
+import { valueBounds } from "../../charts/scales";
 import {
   FigureError,
   FigureMessage,
 } from "../../components/common/FigureMessage";
+import { isSpatial, regionsOnAxes, regionsShown } from "../../state/regions";
 import { ILineConfig, IRange } from "../../state/schema";
 import { useUi, useUiActions } from "../../state/UiContext";
 import { quantityDims } from "../fields/metadata";
 import { useFieldMetadata } from "../fields/useFieldMetadata";
 import PlotFrame from "../PlotFrame";
+import { useRegions } from "../useRegions";
 import { PlotKindProps } from "../types";
 import {
   activeLineRange,
@@ -25,6 +28,8 @@ const FieldLinePlot = ({
 }: PlotKindProps) => {
   const { uiState } = useUi();
   const { updatePlotter, updateUiState } = useUiActions();
+  const regions = useRegions();
+  const showRegions = regionsShown(plotter, false);
   const config = plotter.lineConfig ?? defaultLineConfig;
   const { metadata, error, expressionErrors } = useFieldMetadata(
     simulationId,
@@ -52,6 +57,8 @@ const FieldLinePlot = ({
         // 1D plots only sync with other 1D plots along the same coordinate.
         sync: { label: axis },
       }}
+      select={isSpatial(axis) ? {} : undefined}
+      showRegions={isSpatial(axis) ? showRegions : undefined}
       controls={
         simulationId && (
           <LineControls
@@ -83,6 +90,14 @@ const FieldLinePlot = ({
               zoom.done();
             }}
             onConfigChange={setConfig}
+            panBounds={valueBounds(metadata.coords[axis])}
+            onPan={setRange}
+            selectEnabled={zoom.select !== null}
+            onSelect={(selected) => {
+              regions.save({ kind: "range", ...selected }, { x: axis });
+              zoom.done();
+            }}
+            regions={showRegions ? regionsOnAxes(regions.regions, axis) : []}
           />
         )
       }

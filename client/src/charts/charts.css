@@ -18,3 +18,36 @@
   font-size: 13px;
   font-style: italic;
 }
+
+/* Saved regions outlined on charts, and a selection being drawn. */
+.chart-region {
+  pointer-events: none;
+}
+
+.chart-region {
+  color: #34d399;
+}
+
+.chart-region rect,
+.chart-region path {
+  fill: currentColor;
+  fill-opacity: 0.08;
+  stroke: currentColor;
+  stroke-width: 1.4px;
+  stroke-dasharray: 5 3;
+}
+
+.chart-region text {
+  fill: currentColor;
+  font-size: 11px;
+  paint-order: stroke;
+  stroke: rgba(5, 8, 15, 0.8);
+  stroke-width: 3px;
+}
+
+.chart-selection {
+  fill: rgba(52, 211, 153, 0.15);
+  stroke: rgb(52, 211, 153);
+  stroke-width: 1.4px;
+  pointer-events: none;
+}

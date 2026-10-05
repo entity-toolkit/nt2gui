@@ -4,6 +4,9 @@ import { IParticleMetadata } from "../../api/types";
 import ExpressionInput from "../../components/common/ExpressionInput";
 import { parseOptionalNumber } from "../../components/common/LimitInputs";
 import { normalizeExpression } from "../../lib/expressions";
+import { describeRegion, regionColor } from "../../state/regions";
+import { useUi } from "../../state/UiContext";
+import { formatValue } from "../../lib/format";
 import {
   DEFAULT_PARTICLE_BINS,
   DEFAULT_PARTICLE_POWER,
@@ -63,6 +66,62 @@ export const SpeciesPicker = ({
           />
           {species.label}
           {species.mass === 0 && <span className={styles.chipNote}>m=0</span>}
+        </label>
+      ))}
+    </div>
+  );
+};
+
+/**
+ * Chips for each saved region: only particles inside any checked region
+ * count. Nothing checked means no spatial filter.
+ */
+export const RegionPicker = ({
+  selected,
+  onChange,
+}: {
+  selected: string[] | undefined;
+  onChange: (regions: string[]) => void;
+}) => {
+  const regions = useUi().uiState.regions ?? [];
+  if (!regions.length) {
+    return (
+      <span className={styles.chipNote}>
+        no saved regions — use “Select region” on a plot with a spatial axis
+      </span>
+    );
+  }
+  const checked = selected ?? [];
+  return (
+    <div className={styles.chips} role="group" aria-label="Regions">
+      {regions.map((region) => (
+        <label
+          key={region.name}
+          className={styles.chip}
+          title={describeRegion(region, formatValue)}
+        >
+          <input
+            type="checkbox"
+            checked={checked.includes(region.name)}
+            onChange={() =>
+              onChange(
+                checked.includes(region.name)
+                  ? checked.filter((name) => name !== region.name)
+                  : regions
+                      .map((r) => r.name)
+                      .filter(
+                        (name) =>
+                          name === region.name || checked.includes(name),
+                      ),
+              )
+            }
+          />
+          <span
+            className={styles.regionDot}
+            style={{ background: regionColor(region.name) }}
+            aria-hidden="true"
+          />
+          {region.name}
         </label>
       ))}
     </div>

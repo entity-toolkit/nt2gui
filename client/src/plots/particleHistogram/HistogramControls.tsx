@@ -14,6 +14,7 @@ import { seriesPerSpecies, withAxisQuantity } from "../particles/config";
 import {
   AxisControls,
   CustomQuantities,
+  RegionPicker,
   SpeciesPicker,
   withoutExpression,
 } from "../particles/controls";
@@ -67,17 +68,29 @@ const HistogramControls = ({
                 style={{ background: seriesColor(index) }}
                 aria-hidden="true"
               />
-              <SpeciesPicker
-                metadata={metadata}
-                selected={series.species}
-                onChange={(species) =>
-                  setSeries(
-                    config.series.map((s, i) =>
-                      i === index ? { species } : s,
-                    ),
-                  )
-                }
-              />
+              <div className={styles.seriesFilters}>
+                <SpeciesPicker
+                  metadata={metadata}
+                  selected={series.species}
+                  onChange={(species) =>
+                    setSeries(
+                      config.series.map((s, i) =>
+                        i === index ? { ...s, species } : s,
+                      ),
+                    )
+                  }
+                />
+                <RegionPicker
+                  selected={series.regions}
+                  onChange={(regions) =>
+                    setSeries(
+                      config.series.map((s, i) =>
+                        i === index ? { ...s, regions } : s,
+                      ),
+                    )
+                  }
+                />
+              </div>
               {config.series.length > 1 && (
                 <button
                   type="button"

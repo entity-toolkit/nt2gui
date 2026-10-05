@@ -125,19 +125,22 @@ class TestBinEdges:
             bin_edges(np.array([1.0, 2.0]), **args)
 
 
+def selections(ds, *species_lists):
+    return [species_mask(ds, species) for species in species_lists]
+
+
 class TestHistogram1D:
     def test_weighted_counts_per_series_share_bins(self, ds):
-        result = histogram_1d(ds, axis("x", bins=4), [[1], [2, 3], []])
+        result = histogram_1d(ds, axis("x", bins=4), selections(ds, [1], [2, 3], []))
 
         np.testing.assert_allclose(result["edges"], [0, 1, 2, 3, 4])
         counts = [line["counts"] for line in result["series"]]
         assert counts[0] == [1, 2, 0, 0]  # species 1: x=0 (w1), x=1 (w2)
         assert counts[1] == [0, 0, 3, 9]  # species 2+3; last bin is closed
         assert counts[2] == [1, 2, 3, 9]  # all species
-        assert [line["species"] for line in result["series"]] == [[1], [2, 3], []]
 
     def test_log_scale_reports_excluded_weight(self, ds):
-        result = histogram_1d(ds, axis("energy", "log", bins=2), [[2]])
+        result = histogram_1d(ds, axis("energy", "log", bins=2), selections(ds, [2]))
 
         # Species 2 has energies 0 (weight 3, excluded) and 1 (weight 4).
         line = result["series"][0]
@@ -145,7 +148,9 @@ class TestHistogram1D:
         assert line["excludedWeight"] == 3
 
     def test_edges_are_in_data_units(self, ds):
-        result = histogram_1d(ds, axis("energy", "log", bins=2, min=1, max=100), [[]])
+        result = histogram_1d(
+            ds, axis("energy", "log", bins=2, min=1, max=100), selections(ds, [])
+        )
         np.testing.assert_allclose(result["edges"], [1, 10, 100])
 
     def test_needs_a_series(self, ds):
@@ -156,7 +161,10 @@ class TestHistogram1D:
 class TestHistogram2D:
     def test_counts_are_weighted_and_indexed_y_then_x(self, ds):
         result = histogram_2d(
-            ds, axis("x", bins=2, min=0, max=4), axis("ux", bins=2, min=-4, max=4), [1]
+            ds,
+            axis("x", bins=2, min=0, max=4),
+            axis("ux", bins=2, min=-4, max=4),
+            species_mask(ds, [1]),
         )
 
         # Species 1: (x=0, ux=3, w=1) and (x=1, ux=-3, w=2).
@@ -168,7 +176,7 @@ class TestHistogram2D:
             ds,
             axis("x", bins=1),
             axis("ux", "power", power=0.5, bins=2, min=-4, max=4),
-            [],
+            species_mask(ds, []),
         )
         np.testing.assert_allclose(result["edges"][1], [-4, 0, 4])
         assert result["counts"].sum() == pytest.approx(15)
@@ -187,16 +195,16 @@ class TestPhasePlot:
         )
 
     def test_extent_is_the_outer_bin_edges(self, ds):
-        result = render_particle_phase(ds, self.config(species=[1]))
+        result = render_particle_phase(ds, self.config(species=[1]), {})
         assert result["extent"] == {"xMin": 0, "xMax": 4, "yMin": -4, "yMax": 4}
         assert result["imageSize"] == {"width": 2, "height": 2}
 
     def test_log_colors_follow_the_non_empty_bins(self, ds):
-        colorbar = render_particle_phase(ds, self.config(species=[1]))["colorbar"]
+        colorbar = render_particle_phase(ds, self.config(species=[1]), {})["colorbar"]
         assert (colorbar["vmin"], colorbar["vmax"], colorbar["scale"]) == (1, 2, "log")
 
     def test_linear_colors_start_at_zero(self, ds):
-        colorbar = render_particle_phase(ds, self.config(colorScale="linear"))[
+        colorbar = render_particle_phase(ds, self.config(colorScale="linear"), {})[
             "colorbar"
         ]
         assert colorbar["vmin"] == 0

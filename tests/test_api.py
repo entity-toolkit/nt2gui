@@ -90,10 +90,63 @@ def test_adding_simulation_sets_timeline_and_is_idempotent(client):
     second = client.post("/api/simulations", json={"path": "demo:run1"}).get_json()
 
     assert first["simulations"] == [
-        {"id": first["simulations"][0]["id"], "path": "demo:run1"}
+        {"id": first["simulations"][0]["id"], "path": "demo:run1", "name": "run1"}
     ]
     assert first["state"]["timeline"]["max"] == 1.0
     assert second["revision"] == first["revision"]
+
+
+def test_simulations_are_named_after_their_run_uniquely(client):
+    first = load_demo(client, "demo:a")
+    client.patch(f"/api/simulations/{first}", json={"name": "c"})
+    # A run whose own name ("c") is taken gets a numbered one.
+    load_demo(client, "demo:c")
+    simulations = client.get("/api/state").get_json()["simulations"]
+    assert [s["name"] for s in simulations] == ["c", "c-01"]
+
+
+def test_duplicate_run_names_get_numbered():
+    from nt2gui.workspace import unique_name
+
+    assert unique_name("run", set()) == "run"
+    assert unique_name("run", {"run"}) == "run-01"
+    assert unique_name("run", {"run", "run-01", "run-02"}) == "run-03"
+
+
+def test_renaming_a_simulation(client):
+    first = load_demo(client, "demo:a")
+    load_demo(client, "demo:b")
+    url = f"/api/simulations/{first}"
+
+    renamed = client.patch(url, json={"name": "  shock run "})
+    assert renamed.status_code == 200
+    assert renamed.get_json()["simulations"][0]["name"] == "shock run"
+
+    taken = client.patch(url, json={"name": "b"})
+    assert taken.status_code == 409
+    assert "already called 'b'" in taken.get_json()["error"]
+    assert client.patch(url, json={"name": " "}).status_code == 400
+    assert client.patch(url, json={"name": "x" * 101}).status_code == 400
+    assert client.patch("/api/simulations/nope", json={"name": "c"}).status_code == 404
+    # Keeping its own name is fine.
+    assert client.patch(url, json={"name": "shock run"}).status_code == 200
+
+
+def test_unnamed_simulations_of_old_sessions_get_names(state_file):
+    import json
+
+    client = create_app(state_file).test_client()
+    load_demo(client, "demo:run")
+    load_demo(client, "demo:run2")
+    saved = json.loads(state_file.read_text())
+    for record in saved["simulations"]:
+        del record["name"]
+    saved["simulations"][1]["path"] = "demo:run"  # two runs with the same name
+    state_file.write_text(json.dumps(saved))
+
+    restarted = create_app(state_file).test_client()
+    names = [s["name"] for s in restarted.get("/api/state").get_json()["simulations"]]
+    assert names == ["run", "run-01"]
 
 
 def test_add_simulation_requires_path(client):

@@ -116,6 +116,13 @@ def parse_species_info(text: str) -> dict[int, dict[str, Any]]:
     return species
 
 
+def run_name(root: Path) -> str:
+    """The simulation's name: Entity writes `<name>.info` next to its output;
+    without one, the directory's name."""
+    info = next(iter(sorted(root.glob("*.info"))), None)
+    return info.stem if info else root.resolve().name
+
+
 def _read_species_info(root: Path) -> dict[int, dict[str, Any]]:
     for info in sorted(root.glob("*.info")):
         try:
@@ -135,6 +142,7 @@ class Nt2Simulation:
 
         self.id = simulation_id or uuid4().hex
         self.path = path
+        self.name = run_name(root)
         self._field_cache: StepCache[Any] = StepCache(
             max_bytes=config.cache_bytes(
                 config.FIELD_CACHE_ENV, config.DEFAULT_FIELD_CACHE_MB

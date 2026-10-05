@@ -217,15 +217,29 @@ describe("App", () => {
     expect(within(list).getByText("x ∈ [0, 0.5]")).toBeTruthy();
     expect(within(list).getByText("lasso in x–y (3 points)")).toBeTruthy();
 
+    // Renaming: a taken name is refused, a new one renames every reference.
+    fireEvent.click(
+      within(list).getByRole("button", { name: "Rename region-02" }),
+    );
+    const input = within(list).getByRole("textbox", { name: "Region name" });
+    fireEvent.change(input, { target: { value: "region-01" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(within(list).getByRole("alert").textContent).toBe(
+      "Another region is already called 'region-01'",
+    );
+    fireEvent.change(input, { target: { value: "upstream" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await within(list).findByText("upstream")).toBeTruthy();
+
     fireEvent.click(
       within(list).getByRole("button", { name: "Delete region-01" }),
     );
     expect(within(list).queryByText("region-01")).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(1000));
     const state = puts.at(-1)!;
-    expect(state.regions?.map((r) => r.name)).toEqual(["region-02"]);
+    expect(state.regions?.map((r) => r.name)).toEqual(["upstream"]);
     expect(state.plotters["panel-1"].particlePhaseConfig?.regions).toEqual([
-      "region-02",
+      "upstream",
     ]);
     vi.useRealTimers();
   });
@@ -234,7 +248,9 @@ describe("App", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "fields" }));
-    fireEvent.click(await screen.findByRole("button", { name: "2D pseudocolor" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "2D pseudocolor" }),
+    );
 
     const toggle = await screen.findByRole("checkbox", {
       name: "Show regions",
@@ -244,6 +260,68 @@ describe("App", () => {
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(puts.at(-1)?.plotters["panel-1"].showRegions).toBe(true);
     vi.useRealTimers();
+  });
+
+  it("renames a simulation, and titles panels once several are loaded", async () => {
+    const two = snapshot();
+    two.simulations = [
+      { id: "sim1", path: "/data/shock", name: "shock" },
+      { id: "sim2", path: "/data/shock2", name: "shock-01" },
+    ];
+    two.state.plotters["panel-1"] = {
+      plotType: PlotType.Line,
+      dataType: DataType.Fields,
+      simulationId: "sim2",
+      lineConfig: { quantities: [], axis: "", slices: {} },
+    };
+    const renames: unknown[] = [];
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "api/simulations/sim2" && init?.method === "PATCH") {
+        const { name } = JSON.parse(String(init.body));
+        renames.push(name);
+        if (name === "shock") {
+          return json(
+            { error: "Another simulation is already called 'shock'" },
+            409,
+          );
+        }
+        two.simulations[1] = { ...two.simulations[1], name };
+        two.revision += 1;
+        return json(two);
+      }
+      if (url === "api/state" && init?.method !== "PUT") return json(two);
+      return fake(url, init);
+    });
+    render(<App />);
+
+    // The panel's simulation, by name, at its top.
+    expect(
+      await screen.findByRole("heading", { name: "shock-01" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename shock-01" }));
+    const input = screen.getByRole("textbox", { name: "Simulation name" });
+    fireEvent.change(input, { target: { value: "shock" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toMatch(/already called/);
+
+    fireEvent.change(input, { target: { value: " wide box " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(
+      await screen.findByRole("heading", { name: "wide box" }),
+    ).toBeTruthy();
+    expect(renames).toEqual(["shock", "wide box"]);
+  });
+
+  it("doesn't title panels when only one simulation is loaded", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "fields" }));
+    fireEvent.click(await screen.findByRole("button", { name: "1D plot" }));
+    await screen.findByRole("button", { name: "Zoom" });
+    expect(screen.queryByRole("heading", { name: "demo:run" })).toBeNull();
   });
 
   it("offers to point the UI at another server when this one can't be reached", async () => {

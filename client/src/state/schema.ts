@@ -55,6 +55,8 @@ export interface IRegion {
   /** Inclusive range per spatial coordinate (boxes and bands). */
   ranges?: Record<string, IRange>;
   polygon?: IRegionPolygon;
+  /** Outline color, fixed when saved so renaming keeps it (CSS hex). */
+  color?: string;
 }
 
 export type ColorScale = "linear" | "log";
@@ -181,4 +183,6 @@ export interface IUiState {
 export interface ISimulation {
   id: string;
   path: string;
+  /** Display name, unique among the loaded simulations (set by the server). */
+  name?: string;
 }

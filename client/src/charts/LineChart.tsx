@@ -102,16 +102,25 @@ const LineChart = ({
   const [drag, setDrag] = useState<{ start: number; current: number } | null>(
     null,
   );
+  // After a pan is released without a `range` (histograms re-bin instead):
+  // the panned domain, kept until the data for it arrives so the current
+  // lines stay where they were dragged to.
+  const [pannedView, setPannedView] = useState<{
+    data: ILineRender;
+    domain: [number, number];
+  } | null>(null);
+  const pannedDomain = pannedView?.data === data ? pannedView.domain : null;
 
   const xScale = useMemo(() => {
     const domain = range
       ? [range.min, range.max]
-      : (scaleExtent(data.coordinates, xScaleKind) ??
+      : (pannedDomain ??
+        scaleExtent(data.coordinates, xScaleKind) ??
         (xScaleKind === "log" ? [1, 10] : [0, 1]));
     return makeScale(xScaleKind, xPower)
       .domain(domain)
       .range([margin.left, margin.left + innerWidth]);
-  }, [data.coordinates, innerWidth, range, xPower, xScaleKind]);
+  }, [data.coordinates, innerWidth, pannedDomain, range, xPower, xScaleKind]);
 
   const yScale = useMemo(() => {
     const values = data.series.flatMap((series) => series.values);
@@ -208,7 +217,9 @@ const LineChart = ({
   const handleMouseUp = () => {
     if (panning) {
       if (Math.abs(panning.shift) >= MIN_DRAG_PX && onPan) {
-        const [a, b] = panScale(xScale, panning.shift, pan?.bounds).domain;
+        const { domain } = panScale(xScale, panning.shift, pan?.bounds);
+        const [a, b] = domain;
+        if (!range) setPannedView({ data, domain });
         onPan({ min: Math.min(a, b), max: Math.max(a, b) });
       }
       setPanning(null);

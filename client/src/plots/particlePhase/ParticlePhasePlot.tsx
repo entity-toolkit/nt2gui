@@ -38,7 +38,6 @@ const ParticlePhasePlot = ({
     <PlotFrame
       nodeId={nodeId}
       plotter={plotter}
-      label="2D particle histogram"
       // Zooming re-bins the box, so resolution follows the zoom.
       zoom={{
         canZoom: true,

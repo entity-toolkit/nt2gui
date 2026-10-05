@@ -6,7 +6,10 @@ import {
   pickRegions,
   polygonArea,
   REGION_COLORS,
+  colorForName,
   regionColor,
+  regionNameProblem,
+  withRenamedRegion,
   regionOnAxes,
   regionsOnAxes,
   regionsShown,
@@ -180,12 +183,12 @@ describe("regionOnAxes", () => {
 
 describe("region colors and visibility", () => {
   it("colors regions by number, wrapping around the palette", () => {
-    expect(regionColor("region-01")).toBe(REGION_COLORS[0]);
-    expect(regionColor("region-03")).toBe(REGION_COLORS[2]);
-    expect(regionColor(`region-${REGION_COLORS.length + 1}`)).toBe(
+    expect(colorForName("region-01")).toBe(REGION_COLORS[0]);
+    expect(colorForName("region-03")).toBe(REGION_COLORS[2]);
+    expect(colorForName(`region-${REGION_COLORS.length + 1}`)).toBe(
       REGION_COLORS[0],
     );
-    expect(REGION_COLORS).toContain(regionColor("custom"));
+    expect(REGION_COLORS).toContain(colorForName("custom"));
     expect(regionsOnAxes([band, lasso], "x").map((r) => r.color)).toEqual([
       REGION_COLORS[0],
       REGION_COLORS[1],
@@ -197,6 +200,42 @@ describe("region colors and visibility", () => {
     expect(regionsShown({}, false)).toBe(true);
     expect(regionsShown({ showRegions: true }, true)).toBe(true);
     expect(regionsShown({ showRegions: false }, false)).toBe(false);
+  });
+});
+
+describe("renaming regions", () => {
+  it("renames the region and every reference, keeping its color", () => {
+    const next = withRenamedRegion(state([band, lasso]), "region-01", " left ");
+    expect(next.regions?.map((r) => r.name)).toEqual(["left", "region-02"]);
+    expect(next.regions?.[0].color).toBe(colorForName("region-01"));
+    expect(regionColor(next.regions![0])).toBe(REGION_COLORS[0]);
+    expect(next.plotters.phase.particlePhaseConfig?.regions).toEqual([
+      "left",
+      "region-02",
+    ]);
+    const series = next.plotters.spectrum.particleHistogramConfig?.series;
+    expect(series?.[0].regions).toEqual(["left"]);
+    expect(series?.[1].regions).toBeUndefined();
+  });
+
+  it("refuses empty, too long, and taken names", () => {
+    const regions = [band, lasso];
+    expect(regionNameProblem(regions, "region-01", " ")).toMatch(/required/);
+    expect(regionNameProblem(regions, "region-01", "x".repeat(65))).toMatch(
+      /at most 64/,
+    );
+    expect(regionNameProblem(regions, "region-01", "region-02")).toBe(
+      "Another region is already called 'region-02'",
+    );
+    expect(regionNameProblem(regions, "region-01", "region-01")).toBeNull();
+    const before = state(regions);
+    expect(withRenamedRegion(before, "region-01", "region-02")).toBe(before);
+    expect(withRenamedRegion(before, "region-01", "region-01")).toBe(before);
+  });
+
+  it("saves new regions with their color", () => {
+    const next = withRegion(state([]), { ranges: { x: { min: 0, max: 1 } } });
+    expect(next.regions?.[0].color).toBe(REGION_COLORS[0]);
   });
 });
 

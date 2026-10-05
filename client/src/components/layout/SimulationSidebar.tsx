@@ -10,7 +10,8 @@ import styles from "./SimulationSidebar.module.css";
 const SimulationSidebar = () => {
   const { simulations, uiState } = useUi();
   const { setSidebarCollapsed } = useUiActions();
-  const { isLoading, addSimulation, unloadSimulation } = useSimulations();
+  const { isLoading, addSimulation, unloadSimulation, renameSimulation } =
+    useSimulations();
   const collapsed = uiState.sidebarCollapsed ?? false;
   const [path, setPath] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +107,7 @@ const SimulationSidebar = () => {
                   setError(serverErrorMessage(err)),
                 )
               }
+              onRename={renameSimulation}
             />
           ))}
         </ul>

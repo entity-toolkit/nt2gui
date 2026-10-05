@@ -44,7 +44,6 @@ const FieldPseudocolorPlot = ({
     <PlotFrame
       nodeId={nodeId}
       plotter={plotter}
-      label="2D field"
       zoom={{
         canZoom: !!config.field,
         isZoomed: !!viewport,

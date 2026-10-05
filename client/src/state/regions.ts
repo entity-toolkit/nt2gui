@@ -22,7 +22,7 @@ export type ChartSelection =
 /** A region as seen on one chart's axes; a missing side is unbounded. */
 export interface ChartRegion {
   name: string;
-  /** Outline color (see `regionColor`); charts fall back to the first one. */
+  /** Outline color (see `regionColor`); charts fall back to a default. */
   color?: string;
   x?: [number, number];
   y?: [number, number];
@@ -45,10 +45,11 @@ export const REGION_COLORS = [
 ];
 
 /**
- * A region's color, from its number (region-03 → the third color), so a
- * region keeps its color when others are deleted. Other names hash.
+ * The color a region named `name` starts with, from its number (region-03 →
+ * the third color), so a region keeps its color when others are deleted.
+ * Other names hash.
  */
-export const regionColor = (name: string): string => {
+export const colorForName = (name: string): string => {
   const match = REGION_NAME.exec(name);
   const index = match
     ? Number(match[1]) - 1
@@ -65,6 +66,10 @@ export const regionsShown = (
   plotter: { showRegions?: boolean },
   is2d: boolean,
 ): boolean => plotter.showRegions ?? !is2d;
+
+/** A region's color: the one it was saved with, else from its name. */
+export const regionColor = (region: IRegion): string =>
+  region.color ?? colorForName(region.name);
 
 /** region-01, region-02, …: one past the highest number in use. */
 export const nextRegionName = (regions: IRegion[]): string => {
@@ -112,18 +117,19 @@ export const withRegion = (
   region: Omit<IRegion, "name">,
 ): IUiState => {
   const regions = state.regions ?? [];
+  const name = nextRegionName(regions);
   return {
     ...state,
-    regions: [...regions, { ...region, name: nextRegionName(regions) }],
+    regions: [...regions, { ...region, name, color: colorForName(name) }],
   };
 };
 
-const withoutName = (names: string[] | undefined, name: string) =>
-  names?.includes(name) ? names.filter((n) => n !== name) : names;
-
-/** Removes a region and every particle plot's reference to it. */
-export const withoutRegion = (state: IUiState, name: string): IUiState => {
-  const plotters = Object.fromEntries(
+/** Applies `update` to every particle plot's list of region names. */
+const mapRegionReferences = (
+  state: IUiState,
+  update: (names: string[] | undefined) => string[] | undefined,
+): IUiState["plotters"] =>
+  Object.fromEntries(
     Object.entries(state.plotters).map(([id, plotter]): [string, IPlotter] => {
       const phase = plotter.particlePhaseConfig;
       const histogram = plotter.particleHistogramConfig;
@@ -132,17 +138,14 @@ export const withoutRegion = (state: IUiState, name: string): IUiState => {
         {
           ...plotter,
           ...(phase && {
-            particlePhaseConfig: {
-              ...phase,
-              regions: withoutName(phase.regions, name),
-            },
+            particlePhaseConfig: { ...phase, regions: update(phase.regions) },
           }),
           ...(histogram && {
             particleHistogramConfig: {
               ...histogram,
               series: histogram.series.map((series) => ({
                 ...series,
-                regions: withoutName(series.regions, name),
+                regions: update(series.regions),
               })),
             },
           }),
@@ -150,10 +153,61 @@ export const withoutRegion = (state: IUiState, name: string): IUiState => {
       ];
     }),
   );
+
+/** Removes a region and every particle plot's reference to it. */
+export const withoutRegion = (state: IUiState, name: string): IUiState => ({
+  ...state,
+  plotters: mapRegionReferences(state, (names) =>
+    names?.includes(name) ? names.filter((n) => n !== name) : names,
+  ),
+  regions: (state.regions ?? []).filter((region) => region.name !== name),
+});
+
+// Matches `Region.name` in nt2gui/session/schema.py.
+export const MAX_REGION_NAME = 64;
+
+/** Why `next` can't be the new name of region `name`, or null if it can. */
+export const regionNameProblem = (
+  regions: IRegion[] | undefined,
+  name: string,
+  next: string,
+): string | null => {
+  if (!next.trim()) return "A region name is required";
+  if (next.trim().length > MAX_REGION_NAME) {
+    return `Region names are at most ${MAX_REGION_NAME} characters`;
+  }
+  const taken = regions?.some(
+    (region) => region.name === next.trim() && region.name !== name,
+  );
+  return taken ? `Another region is already called '${next.trim()}'` : null;
+};
+
+/**
+ * Renames a region and every particle plot's reference to it. Its color is
+ * kept (stored, if it was still derived from the old name). Invalid names
+ * (see `regionNameProblem`) leave the state unchanged.
+ */
+export const withRenamedRegion = (
+  state: IUiState,
+  name: string,
+  next: string,
+): IUiState => {
+  const target = next.trim();
+  if (target === name || regionNameProblem(state.regions, name, target)) {
+    return state;
+  }
   return {
     ...state,
-    plotters,
-    regions: (state.regions ?? []).filter((region) => region.name !== name),
+    plotters: mapRegionReferences(state, (names) =>
+      names?.includes(name)
+        ? names.map((n) => (n === name ? target : n))
+        : names,
+    ),
+    regions: (state.regions ?? []).map((region) =>
+      region.name === name
+        ? { ...region, name: target, color: regionColor(region) }
+        : region,
+    ),
   };
 };
 
@@ -232,7 +286,7 @@ export const regionsOnAxes = (
 ): ChartRegion[] =>
   (regions ?? []).flatMap((region) => {
     const shape = regionOnAxes(region, x, y);
-    return shape ? [{ ...shape, color: regionColor(region.name) }] : [];
+    return shape ? [{ ...shape, color: regionColor(region) }] : [];
   });
 
 /** A one-line description, e.g. "x ∈ [0, 1], y ∈ [2, 3]" or "lasso in x–y". */

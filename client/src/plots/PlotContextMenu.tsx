@@ -1,5 +1,6 @@
 import { ChangeEvent, ReactNode, useId } from "react";
 import { FormField } from "../components/common/FormField";
+import { simulationName } from "../lib/simulations";
 import { ISimulation } from "../state/schema";
 import contextStyles from "./PlotContextMenu.module.css";
 
@@ -53,7 +54,7 @@ const PlotContextMenu = ({
               ) : (
                 simulations.map((simulation) => (
                   <option key={simulation.id} value={simulation.id}>
-                    {simulation.path}
+                    {simulationName(simulation)}
                   </option>
                 ))
               )}

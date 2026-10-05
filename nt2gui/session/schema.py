@@ -20,6 +20,7 @@ ColorScale = Literal["linear", "log"]
 MAX_PARTICLE_BINS = 2000
 # Lasso regions are simplified on the client; this bounds what the server takes.
 MAX_REGION_POINTS = 2000
+MAX_SIMULATION_NAME = 100
 # Playback speed limit (frames per second; playback also waits for renders).
 MAX_PLAYBACK_FPS = 60
 DEFAULT_COLOR_MAP = "viridis"
@@ -114,6 +115,8 @@ class Region(_Schema):
     # Inclusive range per spatial coordinate (boxes and bands).
     ranges: dict[str, Range] = {}
     polygon: RegionPolygon | None = None
+    # Outline color, fixed when saved so renaming keeps it.
+    color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{3,8}$")
 
     @model_validator(mode="after")
     def _check_constrained(self) -> "Region":
@@ -238,6 +241,9 @@ class UiState(_Schema):
 class SimulationRecord(_Schema):
     id: str
     path: str
+    # Display name, unique among the loaded simulations. Sessions saved before
+    # names existed lack it; the workspace fills it in when re-opening.
+    name: str | None = Field(None, min_length=1, max_length=MAX_SIMULATION_NAME)
 
 
 class Session(_Schema):

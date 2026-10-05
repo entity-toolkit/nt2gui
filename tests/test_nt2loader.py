@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from nt2gui.sources.nt2 import parse_species_info
+from nt2gui.sources.nt2 import parse_species_info, run_name
 
 INFO = """
     Particles
@@ -209,3 +209,11 @@ def test_metadata_and_summary_read_no_particle_data(real_client, monkeypatch):
     client.get(f"/api/simulations/{sim_id}/summary")
     # At most the species index, for the counts.
     assert all(columns == [] for columns in loads)
+
+
+def test_run_name_comes_from_the_info_file_else_the_directory(tmp_path):
+    run = tmp_path / "output"
+    run.mkdir()
+    assert run_name(run) == "output"
+    (run / "shock.info").write_text("")
+    assert run_name(run) == "shock"

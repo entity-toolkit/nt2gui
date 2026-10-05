@@ -31,7 +31,7 @@ def test_save_then_load_on_server_restores_state_and_simulations(client, tmp_pat
     body = loaded.get_json()
     assert loaded.status_code == 200
     assert body["state"] == saved_state
-    assert body["simulations"] == [{"id": sim_id, "path": "demo:run1"}]
+    assert body["simulations"] == [{"id": sim_id, "path": "demo:run1", "name": "run1"}]
     assert body["warnings"] == []
     assert body["revision"] == revision_before + 1
     # The simulation is live again under the same id.

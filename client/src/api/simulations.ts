@@ -4,6 +4,12 @@ import { IServerSnapshot, ISimulationSummary } from "./types";
 export const addSimulation = (path: string) =>
   requestJson<IServerSnapshot>(apiUrl("simulations"), { body: { path } });
 
+export const renameSimulation = (id: string, name: string) =>
+  requestJson<IServerSnapshot>(simulationUrl(id), {
+    method: "PATCH",
+    body: { name },
+  });
+
 export const unloadSimulation = (id: string) =>
   requestJson<IServerSnapshot>(simulationUrl(id), { method: "DELETE" });
 

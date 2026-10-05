@@ -90,8 +90,13 @@ def test_resolve_and_columns():
         {},
         {"ranges": {"x": {"min": 1, "max": 0}}},
         {"polygon": {"x": "x", "y": "y", "points": [[0, 0], [1, 1]]}},
+        {"ranges": {"x": {"min": 0, "max": 1}}, "color": "red; x"},
     ],
 )
 def test_invalid_regions_are_rejected(fields):
     with pytest.raises(ValueError):
         region(**fields)
+
+
+def test_region_color_is_kept():
+    assert region(ranges={"x": {"min": 0, "max": 1}}, color="#34d399").color == "#34d399"

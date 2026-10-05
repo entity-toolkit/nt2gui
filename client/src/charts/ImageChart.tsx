@@ -127,6 +127,15 @@ const ImageChart = ({
     start: [number, number];
     current: [number, number];
   } | null>(null);
+  // After a pan is released: the panned window (data units), kept until the
+  // image for it arrives. Meanwhile the current image stays where it was
+  // dragged to (drawn at its own extent), rather than jumping back.
+  const [pannedView, setPannedView] = useState<{
+    data: IImageRender;
+    x: [number, number];
+    y: [number, number];
+  } | null>(null);
+  const view = pannedView?.data === data ? pannedView : null;
   // The lasso being drawn, in pixels.
   const [lasso, setLasso] = useState<[number, number][] | null>(null);
   const shared = useCrosshair();
@@ -159,16 +168,32 @@ const ImageChart = ({
   const xScale = useMemo(
     () =>
       makeScale(xAxis.scale, xAxis.power)
-        .domain([extent.xMin, extent.xMax])
+        .domain(view?.x ?? [extent.xMin, extent.xMax])
         .range([plot.left, plot.left + plot.width]),
-    [extent.xMax, extent.xMin, plot.left, plot.width, xAxis.power, xAxis.scale],
+    [
+      extent.xMax,
+      extent.xMin,
+      plot.left,
+      plot.width,
+      view?.x,
+      xAxis.power,
+      xAxis.scale,
+    ],
   );
   const yScale = useMemo(
     () =>
       makeScale(yAxis.scale, yAxis.power)
-        .domain([extent.yMin, extent.yMax])
+        .domain(view?.y ?? [extent.yMin, extent.yMax])
         .range([plot.top + plot.height, plot.top]),
-    [extent.yMax, extent.yMin, plot.height, plot.top, yAxis.power, yAxis.scale],
+    [
+      extent.yMax,
+      extent.yMin,
+      plot.height,
+      plot.top,
+      view?.y,
+      yAxis.power,
+      yAxis.scale,
+    ],
   );
   const colorScale = useMemo(
     () =>
@@ -325,6 +350,7 @@ const ImageChart = ({
         const moved = panBy(dx, dy);
         const [x0, x1] = moved.x.domain;
         const [y0, y1] = moved.y.domain;
+        setPannedView({ data, x: moved.x.domain, y: moved.y.domain });
         onPan({
           xMin: Math.min(x0, x1),
           xMax: Math.max(x0, x1),
@@ -377,6 +403,15 @@ const ImageChart = ({
       : null;
 
   const ready = plot.width > 0 && plot.height > 0;
+  // The image covers its extent: the whole plot, unless a pan moved the view.
+  const [ix0, ix1] = [xScale(extent.xMin), xScale(extent.xMax)];
+  const [iy0, iy1] = [yScale(extent.yMin), yScale(extent.yMax)];
+  const imageBox = {
+    x: Math.min(ix0, ix1),
+    y: Math.min(iy0, iy1),
+    width: Math.abs(ix1 - ix0),
+    height: Math.abs(iy1 - iy0),
+  };
 
   // Saved regions in pixels; values off a log axis land just outside the plot.
   const toPx = (
@@ -468,10 +503,7 @@ const ImageChart = ({
             <image
               className={styles.image}
               href={`data:image/png;base64,${data.image}`}
-              x={plot.left}
-              y={plot.top}
-              width={plot.width}
-              height={plot.height}
+              {...imageBox}
               preserveAspectRatio="none"
               transform={
                 panning

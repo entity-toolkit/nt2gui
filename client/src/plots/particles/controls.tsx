@@ -118,7 +118,7 @@ export const RegionPicker = ({
           />
           <span
             className={styles.regionDot}
-            style={{ background: regionColor(region.name) }}
+            style={{ background: regionColor(region) }}
             aria-hidden="true"
           />
           {region.name}

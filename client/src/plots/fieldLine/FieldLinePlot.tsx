@@ -49,7 +49,6 @@ const FieldLinePlot = ({
     <PlotFrame
       nodeId={nodeId}
       plotter={plotter}
-      label="1D field cut"
       zoom={{
         canZoom: !!axis && config.quantities.length > 0,
         isZoomed: !!range,

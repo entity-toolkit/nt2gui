@@ -148,3 +148,82 @@ describe("ImageChart panning", () => {
     expect(window.yMax).toBeCloseTo(10);
   });
 });
+
+describe("after a pan is released", () => {
+  const image: IImageRender = {
+    image: "",
+    imageSize: { width: 2, height: 2 },
+    extent: { xMin: 0, xMax: 10, yMin: 0, yMax: 10 },
+    colorbar: {
+      vmin: 0,
+      vmax: 1,
+      scale: "linear",
+      colors: ["#000000", "#ffffff"],
+    },
+    timestamp: 0,
+  };
+  const imageChart = (data: IImageRender) => (
+    <ImageChart
+      data={data}
+      xAxis={{ title: "x" }}
+      yAxis={{ title: "y" }}
+      colorbarTitle="f"
+      zoomEnabled={false}
+      onZoom={() => undefined}
+      isRefreshing={false}
+      pan={{ x: true, y: false }}
+      onPan={() => undefined}
+    />
+  );
+
+  it("the image stays where it was dragged until the new one arrives", () => {
+    const { container, rerender } = render(imageChart(image));
+    const img = () => container.querySelector("image")!;
+    const left = Number(img().getAttribute("x"));
+    drag(interactionLayer(container), [300, 200], [250, 200]);
+
+    // Dragged 50 px left, and kept there (not translated, but placed).
+    expect(Number(img().getAttribute("x"))).toBeCloseTo(left - 50);
+    expect(img().getAttribute("transform")).toBeNull();
+
+    rerender(
+      imageChart({ ...image, extent: { ...image.extent, xMin: 1, xMax: 11 } }),
+    );
+    expect(Number(img().getAttribute("x"))).toBeCloseTo(left);
+  });
+
+  it("histogram lines stay where they were dragged until re-binned", () => {
+    const data: ILineRender = {
+      axis: "x",
+      coordinates: [0, 50, 100],
+      series: [{ name: "f", values: [1, 2, 2] }],
+      slices: {},
+      timestamp: 0,
+    };
+    const chart = (lines: ILineRender) => (
+      <LineChart
+        data={lines}
+        range={null}
+        zoomEnabled={false}
+        onRangeChange={() => undefined}
+        isRefreshing={false}
+        step
+        pan={{}}
+        onPan={() => undefined}
+      />
+    );
+    const { container, rerender } = render(chart(data));
+    const start = () =>
+      Number(
+        /^M([-\d.]+)/.exec(
+          container.querySelector("path[class*=series]")!.getAttribute("d")!,
+        )![1],
+      );
+    const before = start();
+    drag(interactionLayer(container), [400, 100], [440, 100]);
+    expect(start()).toBeCloseTo(before + 40);
+
+    rerender(chart({ ...data, coordinates: [-20, 30, 80] }));
+    expect(start()).toBeCloseTo(before);
+  });
+});

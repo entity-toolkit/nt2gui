@@ -37,7 +37,6 @@ const ParticleHistogramPlot = ({
     <PlotFrame
       nodeId={nodeId}
       plotter={plotter}
-      label="1D particle histogram"
       // Zooming narrows the binned range, so resolution follows the zoom.
       zoom={{
         canZoom: true,

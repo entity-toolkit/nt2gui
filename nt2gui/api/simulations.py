@@ -14,6 +14,12 @@ def add_simulation():
     return jsonify(workspace().add(path))
 
 
+@bp.patch("/simulations/<simulation_id>")
+def rename_simulation(simulation_id: str):
+    name = require_text(json_object(), "name", "A simulation name is required")
+    return jsonify(workspace().rename(simulation_id, name))
+
+
 @bp.delete("/simulations/<simulation_id>")
 def remove_simulation(simulation_id: str):
     return jsonify(workspace().remove(simulation_id))

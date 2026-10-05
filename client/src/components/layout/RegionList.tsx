@@ -1,11 +1,28 @@
 import { formatValue } from "../../lib/format";
 import { useRegions } from "../../plots/useRegions";
-import { describeRegion, regionColor } from "../../state/regions";
+import {
+  MAX_REGION_NAME,
+  describeRegion,
+  regionColor,
+  regionNameProblem,
+  withRenamedRegion,
+} from "../../state/regions";
+import { useUiActions } from "../../state/UiContext";
+import EditableName from "../common/EditableName";
 import styles from "./SimulationSidebar.module.css";
 
-/** The saved regions particle plots can filter by; deleting one unselects it everywhere. */
+/**
+ * The saved regions particle plots can filter by. Renaming or deleting one
+ * updates every plot that uses it.
+ */
 const RegionList = () => {
   const { regions, remove } = useRegions();
+  const { updateUiState } = useUiActions();
+  const rename = (name: string, next: string) => {
+    const problem = regionNameProblem(regions, name, next);
+    if (problem) throw new Error(problem);
+    updateUiState((state) => withRenamedRegion(state, name, next));
+  };
   return (
     <section className={styles.regions} aria-label="Regions">
       <h3 className={styles.sectionTitle}>Regions</h3>
@@ -15,11 +32,17 @@ const RegionList = () => {
             <li key={region.name} className={styles.region}>
               <span
                 className={styles.regionSwatch}
-                style={{ background: regionColor(region.name) }}
+                style={{ background: regionColor(region) }}
                 aria-hidden="true"
               />
               <div className={styles.cardTitle}>
-                <span className={styles.cardName}>{region.name}</span>
+                <EditableName
+                  name={region.name}
+                  onRename={(next) => rename(region.name, next)}
+                  inputLabel="Region name"
+                  maxLength={MAX_REGION_NAME}
+                  nameClassName={styles.cardName}
+                />
                 <span className={styles.detail}>
                   {describeRegion(region, formatValue)}
                 </span>

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from . import combined_timeline, nearest_index
+from . import DEMO_PREFIX, combined_timeline, nearest_index
 from .cache import StepCache
 
 # nt2py reports species by index only; masses and labels come with the data.
@@ -33,6 +33,7 @@ class DemoSimulation:
         # plotters referencing this simulation stay valid across restarts.
         self.id = simulation_id or uuid4().hex
         self.path = path
+        self.name = path.removeprefix(DEMO_PREFIX) or "demo"
 
         self._t = np.linspace(0, 1, 50)
         self._x = np.linspace(0, 10, 100)

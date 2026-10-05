@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { fetchSimulationSummary } from "../../api/simulations";
 import { IGridSummary } from "../../api/types";
+import EditableName from "../common/EditableName";
 import { cachedLoader, useCachedResource } from "../../hooks/useCachedResource";
 import { ISimulation } from "../../state/schema";
 import {
@@ -11,6 +12,7 @@ import {
   formatResolution,
   formatTimes,
 } from "../../lib/format";
+import { simulationName } from "../../lib/simulations";
 import styles from "./SimulationSidebar.module.css";
 
 // A loaded simulation's contents don't change, and ids are unique per load.
@@ -19,6 +21,8 @@ const getSummary = cachedLoader(fetchSimulationSummary);
 interface SimulationCardProps {
   simulation: ISimulation;
   onUnload: (id: string) => void;
+  /** Rejects (with the server's reason) if the name can't be used. */
+  onRename: (id: string, name: string) => Promise<void>;
 }
 
 const Section = ({
@@ -60,17 +64,29 @@ const GridSection = ({
   </Section>
 );
 
-/** One loaded simulation and an overview of its fields, particles and spectra. */
-const SimulationCard = ({ simulation, onUnload }: SimulationCardProps) => {
+/**
+ * One loaded simulation and an overview of its fields, particles and
+ * spectra; its name can be edited in place.
+ */
+const SimulationCard = ({
+  simulation,
+  onUnload,
+  onRename,
+}: SimulationCardProps) => {
   const { data: summary, error } = useCachedResource(simulation.id, getSummary);
-  const name =
-    simulation.path.split("/").filter(Boolean).pop() ?? simulation.path;
+  const name = simulationName(simulation);
 
   return (
     <li className={styles.card}>
       <div className={styles.cardHeader}>
         <div className={styles.cardTitle}>
-          <span className={styles.cardName}>{name}</span>
+          <EditableName
+            name={name}
+            onRename={(next) => onRename(simulation.id, next)}
+            inputLabel="Simulation name"
+            maxLength={100}
+            nameClassName={styles.cardName}
+          />
           <span className={styles.cardPath} title={simulation.path}>
             {simulation.path}
           </span>

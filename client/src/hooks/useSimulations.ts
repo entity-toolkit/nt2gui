@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { addSimulation, unloadSimulation } from "../api/simulations";
+import {
+  addSimulation,
+  renameSimulation,
+  unloadSimulation,
+} from "../api/simulations";
 import { IServerSnapshot } from "../api/types";
 import { useUiActions } from "../state/UiContext";
 
@@ -25,5 +29,7 @@ export const useSimulations = () => {
     isLoading,
     addSimulation: (path: string) => run(() => addSimulation(path)),
     unloadSimulation: (id: string) => run(() => unloadSimulation(id)),
+    renameSimulation: (id: string, name: string) =>
+      run(() => renameSimulation(id, name)),
   };
 };

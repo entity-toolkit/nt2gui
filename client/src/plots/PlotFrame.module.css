@@ -94,27 +94,14 @@
   position: relative;
 }
 
-.plotFooter {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: auto;
-}
-
-.plotMeta {
-  display: flex;
-  gap: 8px;
-}
-
-.plotBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--color-hover);
-  border: 1px solid var(--color-border);
-  font-size: 12px;
-  color: var(--color-axis-text);
+.plotTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .plotTimeline {

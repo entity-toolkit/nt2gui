@@ -19,6 +19,8 @@ EMPTY_TIMELINE = {"current": 0.0, "min": 0.0, "max": 1.0, "step": 1.0}
 class SimulationSource(Protocol):
     id: str
     path: str
+    # The run's own name, the default display name (made unique by the workspace).
+    name: str
 
     @property
     def fields(self) -> xr.Dataset:

@@ -3,6 +3,7 @@ import { FigureMessage } from "../components/common/FigureMessage";
 import TimeControls from "../components/common/TimeControls";
 import { DEFAULT_PLAYBACK_FPS, isTimeSynced, panelTime } from "../lib/playback";
 import { isSpatial } from "../state/regions";
+import { simulationName } from "../lib/simulations";
 import { useRendersPending } from "../state/renderActivity";
 import { IPlotter } from "../state/schema";
 import { useUi, useUiActions } from "../state/UiContext";
@@ -46,7 +47,6 @@ export const imageSelect = (axes: {
 interface PlotFrameProps {
   nodeId: string;
   plotter: IPlotter;
-  label: string;
   zoom: PlotZoom;
   /** Plot-kind settings, shown in the right-click menu below the simulation. */
   controls: ReactNode;
@@ -69,7 +69,6 @@ interface PlotFrameProps {
 const PlotFrame = ({
   nodeId,
   plotter,
-  label,
   zoom,
   controls,
   select,
@@ -131,6 +130,12 @@ const PlotFrame = ({
   return (
     <div className={styles.plot}>
       <div className={styles.plotBody}>
+        {/* Which simulation, when there is a choice. */}
+        {simulation && simulations.length > 1 && (
+          <h3 className={styles.plotTitle} title={simulation.path}>
+            {simulationName(simulation)}
+          </h3>
+        )}
         <div className={styles.plotToolbar}>
           <div className={styles.toolbarGroup}>
             <button
@@ -265,15 +270,6 @@ const PlotFrame = ({
             />
           </div>
         )}
-      </div>
-
-      <div className={styles.plotFooter}>
-        <div className={styles.plotMeta}>
-          <span className={styles.plotBadge}>{label}</span>
-          <span className={styles.plotBadge}>
-            Simulation: {simulation?.path ?? "none"}
-          </span>
-        </div>
       </div>
 
       {menuPosition && (

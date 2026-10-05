@@ -10,9 +10,10 @@ import logging
 import threading
 from typing import Any
 
-from .errors import NotFound, UserError
+from .errors import Conflict, NotFound, UserError
 from .session.schema import (
     DEFAULT_TIMELINE,
+    MAX_SIMULATION_NAME,
     Plotter,
     Session,
     SessionDocument,
@@ -35,8 +36,13 @@ class Workspace:
         self._simulations: dict[str, SimulationSource] = opened
         for path, error in failed.values():
             logger.error("Could not re-open %s: %s", path, error)
-        if failed:
-            store.update(lambda session: forget_simulations(session, set(failed)))
+
+        def tidy(session: Session) -> None:
+            forget_simulations(session, set(failed))
+            name_simulations(session, opened)
+
+        if failed or any(record.name is None for record in store.session.simulations):
+            store.update(tidy)
 
     def simulation(self, simulation_id: str) -> SimulationSource:
         simulation = self._simulations.get(simulation_id)
@@ -56,14 +62,44 @@ class Workspace:
                 raise UserError(f"Could not open {path}: {_message(error)}") from error
 
             def mutate(session: Session) -> None:
+                taken = {record.name for record in session.simulations}
                 session.simulations.append(
-                    SimulationRecord(id=simulation.id, path=simulation.path)
+                    SimulationRecord(
+                        id=simulation.id,
+                        path=simulation.path,
+                        name=unique_name(simulation.name, taken),
+                    )
                 )
                 session.state.timeline = Timeline.model_validate(simulation.timeline)
 
             snapshot = self.store.update(mutate)
             self._simulations = {**self._simulations, simulation.id: simulation}
             return snapshot
+
+    def rename(self, simulation_id: str, name: str) -> dict[str, Any]:
+        """Give a loaded simulation a new display name (unique among them)."""
+        name = name.strip()
+        if not name:
+            raise UserError("A simulation name is required")
+        if len(name) > MAX_SIMULATION_NAME:
+            raise UserError(
+                f"Simulation names are at most {MAX_SIMULATION_NAME} characters"
+            )
+        with self._lock:
+            self.simulation(simulation_id)
+            session = self.store.session
+            if any(
+                record.name == name and record.id != simulation_id
+                for record in session.simulations
+            ):
+                raise Conflict(f"Another simulation is already called '{name}'")
+
+            def mutate(session: Session) -> None:
+                for record in session.simulations:
+                    if record.id == simulation_id:
+                        record.name = name
+
+            return self.store.update(mutate)
 
     def remove(self, simulation_id: str) -> dict[str, Any]:
         with self._lock:
@@ -89,6 +125,7 @@ class Workspace:
                 session.simulations = [r.model_copy() for r in document.simulations]
                 if failed:
                     forget_simulations(session, set(failed))
+                name_simulations(session, opened)
 
             snapshot = self.store.update(mutate)
             self._simulations = opened
@@ -116,6 +153,27 @@ def _open_all(
         except Exception as error:  # moved or deleted data
             failed[record.id] = (record.path, _message(error))
     return opened, failed
+
+
+def unique_name(base: str, taken: set[str | None]) -> str:
+    """`base`, or `base-01`, `base-02`, … if that is taken."""
+    if base not in taken:
+        return base
+    index = 1
+    while f"{base}-{index:02d}" in taken:
+        index += 1
+    return f"{base}-{index:02d}"
+
+
+def name_simulations(session: Session, sources: dict[str, SimulationSource]) -> None:
+    """Give unnamed simulations (from sessions saved before names existed)
+    their run's name, kept unique."""
+    taken = {record.name for record in session.simulations}
+    for record in session.simulations:
+        if record.name is None:
+            source = sources.get(record.id)
+            record.name = unique_name(source.name if source else record.path, taken)
+            taken.add(record.name)
 
 
 def forget_simulations(session: Session, ids: set[str]) -> None:

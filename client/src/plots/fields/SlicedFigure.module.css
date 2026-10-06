@@ -1,0 +1,54 @@
+.slicedFigure {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.figureArea {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sliders {
+  flex: none;
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 4px;
+  overflow-y: auto;
+  border-left: 1px solid var(--color-border);
+  padding-left: 12px;
+}
+
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.slider input {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.sliderLabel {
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sliderRange {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-muted);
+}

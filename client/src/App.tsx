@@ -1,99 +1,39 @@
-import { useCallback, useState } from "react";
-
 import {
+  BorderNode,
+  ITabRenderValues,
+  ITabSetRenderValues,
   Layout,
-  Model,
   TabNode,
   TabSetNode,
-  BorderNode,
-  ITabSetRenderValues,
 } from "flexlayout-react";
 import "flexlayout-react/style/dark.css";
 
-import { ITooltipDatum, IUiState } from "./global";
-import AddTabButton from "./components/AddTabButton";
-import Panel from "./components/Panel";
-import Menubar from "./components/Menubar";
-import FooterBar from "./components/FooterBar";
-import { useUiState } from "./hooks/useUiState";
-import { useSimulations } from "./hooks/useSimulations";
+import AddTabButton from "./components/layout/AddTabButton";
+import Menubar from "./components/layout/Menubar";
+import SimulationSidebar from "./components/layout/SimulationSidebar";
+import TimelineBar from "./components/layout/TimelineBar";
+import ServerUrlForm from "./components/common/ServerUrlForm";
+import { getServerUrl } from "./config";
+import Panel from "./plots/Panel";
+import { UiProvider, useUi, useUiActions } from "./state/UiContext";
 
-const App = () => {
-  const {
-    model,
-    uiState,
-    simulations,
-    syncStatus,
-    loadError,
-    runServerCommand,
-    onDataTypeChange,
-    onPlotTypeChange,
-    onPseudocolorConfigChange,
-    onPlotSimulationChange,
-    onTimelineChange,
-    onGlobalViewportChange,
-    onLocalViewportChange,
-    onSyncViewportToggle,
-    handleModelChange,
-  } = useUiState();
-  const { isLoading, addSimulation, unloadSimulation } =
-    useSimulations(runServerCommand);
+const Workspace = () => {
+  const { model, simulations } = useUi();
+  const { handleModelChange } = useUiActions();
 
-  const [globalTooltip, setGlobalTooltip] = useState<ITooltipDatum | null>(null);
-  const handleGlobalTooltipChange = useCallback(
-    (tooltip: ITooltipDatum | null) => setGlobalTooltip(tooltip),
-    [],
-  );
-
-  if (!model || !uiState) {
-    return (
-      <div className="app-loading" role="status">
-        {loadError
-          ? `Cannot reach the server (${loadError}). Retrying…`
-          : "Loading session…"}
-      </div>
+  const factory = (node: TabNode) =>
+    node.getComponent() === "panel" ? (
+      <Panel nodeId={node.getId()} />
+    ) : (
+      <div>{`unknown component: ${node.getComponent()}`}</div>
     );
-  }
-
-  const { plotters, timeline, globalViewport } = uiState;
-
-  const factory = (node: TabNode) => {
-    const component = node.getComponent();
-    switch (component) {
-      case "panel":
-        return (
-          <Panel
-            node={node}
-            plotters={plotters}
-            timeline={timeline}
-            simulations={simulations}
-            globalViewport={globalViewport}
-            onGlobalViewportChange={onGlobalViewportChange}
-            onLocalViewportChange={onLocalViewportChange}
-            onSyncViewportToggle={onSyncViewportToggle}
-            globalTooltip={globalTooltip}
-            onGlobalTooltipChange={handleGlobalTooltipChange}
-            onDataTypeChange={onDataTypeChange}
-            onPlotTypeChange={onPlotTypeChange}
-            onPseudocolorConfigChange={onPseudocolorConfigChange}
-            onPlotSimulationChange={onPlotSimulationChange}
-          />
-        );
-      case "json":
-        return (
-          <ModelJson uiState={uiState} />
-        );
-      default:
-        return <div>{`unknown component: ${component}`}</div>;
-    }
-  };
 
   const onRenderTabSet = (
     node: TabSetNode | BorderNode,
-    renderValues: ITabSetRenderValues,
+    values: ITabSetRenderValues,
   ) => {
     if (node instanceof TabSetNode) {
-      renderValues.stickyButtons.push(
+      values.stickyButtons.push(
         <AddTabButton
           key={`add-tab-${node.getId()}`}
           model={model}
@@ -103,38 +43,56 @@ const App = () => {
     }
   };
 
+  // A hint on each panel tab (the whole label, via its content).
+  const onRenderTab = (node: TabNode, values: ITabRenderValues) => {
+    values.content = (
+      <span title="Double click to rename, drag to reposition">
+        {node.getName()}
+      </span>
+    );
+  };
+
   return (
     <div className="app-shell">
-      <Menubar
-        simulations={simulations}
-        onAddSimulation={addSimulation}
-        onUnloadSimulation={unloadSimulation}
-        isLoading={isLoading}
-      />
-      <div className="layout-container">
-        <div id="content"></div>
-        <Layout
-          model={model}
-          factory={factory}
-          onModelChange={(updatedModel: Model) =>
-            handleModelChange(updatedModel)
-          }
-          onRenderTabSet={onRenderTabSet}
-          realtimeResize={true}
-        />
+      <Menubar />
+      <div className="app-main">
+        <SimulationSidebar />
+        <div className="layout-container">
+          <Layout
+            model={model}
+            factory={factory}
+            onModelChange={handleModelChange}
+            onRenderTabSet={onRenderTabSet}
+            onRenderTab={onRenderTab}
+            realtimeResize
+          />
+        </div>
       </div>
-      <FooterBar
-        timeline={timeline}
-        onTimelineChange={onTimelineChange}
-        syncStatus={syncStatus}
-        showTimeline={simulations.length > 0}
-      />
+      {simulations.length > 0 && <TimelineBar />}
     </div>
   );
 };
 
-const ModelJson = ({ uiState }: { uiState: IUiState }) => {
-  return <pre>{JSON.stringify(uiState, null, "\t")}</pre>;
-};
+const serverLabel = () => (getServerUrl() ? ` at ${getServerUrl()}` : "");
+
+const App = () => (
+  <UiProvider
+    fallback={(loadError) => (
+      <div className="app-loading">
+        <div className="app-loading-box">
+          <p role="status">
+            {loadError
+              ? `Cannot reach the server${serverLabel()} (${loadError}). Retrying…`
+              : "Loading session…"}
+          </p>
+          {/* The server may simply be elsewhere (UI run with `nt2gui client`). */}
+          {loadError && <ServerUrlForm />}
+        </div>
+      </div>
+    )}
+  >
+    <Workspace />
+  </UiProvider>
+);
 
 export default App;

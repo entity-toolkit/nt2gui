@@ -1,0 +1,44 @@
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.tag {
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(59, 130, 246, 0.1);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-weight: 600;
+}
+
+.error {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.refreshing {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(17, 24, 39, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: var(--color-text-soft);
+  font-size: 13px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}

@@ -1,7 +1,7 @@
 blinker==1.9.0
 click==8.3.1
 Flask==3.1.2
-flask-cors==6.0.1
+waitress==3.0.2
 itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
@@ -14,3 +14,7 @@ Werkzeug==3.1.4
 xarray==2025.1.0
 pydantic==2.13.5
 pytest==9.1.1
+build==1.6.1
+pandas==3.0.6
+nt2py[hdf5]==1.6.0
+h5py==3.16.0

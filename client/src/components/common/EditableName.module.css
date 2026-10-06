@@ -1,0 +1,49 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rename {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  opacity: 0;
+}
+
+/* Revealed while hovering whatever holds the name. */
+:hover > .row .rename,
+.rename:focus-visible {
+  opacity: 1;
+}
+
+.rename:hover {
+  color: var(--color-text-soft);
+  background: var(--color-hover);
+}
+
+.input {
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent);
+  background: var(--color-subtle);
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.error {
+  font-size: 12px;
+  color: var(--color-danger);
+  overflow-wrap: anywhere;
+}

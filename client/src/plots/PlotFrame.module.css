@@ -1,0 +1,166 @@
+.plot {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+.plotBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.plotToolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+/* Zoom tools, region tools: each a group, separated by a rule. */
+.toolbarGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbarGroup + .toolbarGroup {
+  padding-left: 14px;
+  border-left: 1px solid var(--color-border);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 0;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iconButton:not(:disabled):hover {
+  background: var(--color-hover);
+  border-color: var(--color-axis-line);
+}
+
+.iconButton[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.toolbarToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-axis-text);
+  font-size: 13px;
+}
+
+/* Time sits below the figure: the sync toggle, and the panel's own timeline. */
+.timeBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.plotFigure {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px dashed #243049;
+  background:
+    radial-gradient(
+      circle at 20% 20%,
+      rgba(59, 130, 246, 0.05),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 80% 30%,
+      rgba(16, 185, 129, 0.08),
+      transparent 40%
+    ),
+    var(--color-bg);
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  position: relative;
+}
+
+.plotTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plotTimeline {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  background: #0f172a;
+  color: var(--color-axis-text);
+  border: none;
+  font-size: 16px;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--color-border);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  color: var(--color-text-soft);
+}

@@ -1,0 +1,142 @@
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  color: var(--color-text-soft);
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.chip input {
+  accent-color: var(--color-accent);
+  margin: 0;
+}
+
+.chipNote {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.axis {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.axisRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.axisLabel,
+.inlineLabel {
+  color: var(--color-axis-text);
+  font-size: 13px;
+  flex: none;
+  min-width: 18px;
+}
+
+.axisLabel {
+  font-weight: 600;
+}
+
+.axisRow select,
+.axisRow input[type="number"] {
+  padding: 6px 8px;
+  min-width: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-subtle);
+  color: var(--color-text-soft);
+  font-size: 13px;
+  flex: 1;
+}
+
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-axis-text);
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
+.inline input {
+  width: 64px;
+}
+
+.seriesList {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.series {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.buttons button {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-hover);
+  color: var(--color-text-soft);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.buttons button:hover {
+  border-color: var(--color-axis-line);
+}
+
+.seriesFilters {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.regionDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}

@@ -1,0 +1,58 @@
+.note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--color-warning);
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.option form {
+  width: 100%;
+}
+
+.optionTitle {
+  margin: 0;
+  font-size: 15px;
+}
+
+.optionHint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-warning);
+  overflow-wrap: anywhere;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.success {
+  color: var(--color-success);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.messageText {
+  margin: 0;
+}
+
+.warnings {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--color-warning);
+}

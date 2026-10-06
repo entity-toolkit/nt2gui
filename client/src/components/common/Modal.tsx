@@ -9,10 +9,12 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Extra class for the dialog box (e.g. a wider one). */
+  className?: string;
 }
 
 /** A dialog over the app; closes on Escape, the × button, or a click outside. */
-const Modal = ({ title, onClose, children }: ModalProps) => {
+const Modal = ({ title, onClose, children, className }: ModalProps) => {
   const titleId = useId();
 
   useEffect(() => {
@@ -26,7 +28,7 @@ const Modal = ({ title, onClose, children }: ModalProps) => {
   return createPortal(
     <div className={styles.overlay} role="presentation" onClick={onClose}>
       <div
-        className={styles.modal}
+        className={`${styles.modal} ${className ?? ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

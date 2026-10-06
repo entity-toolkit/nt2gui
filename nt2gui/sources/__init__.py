@@ -33,6 +33,12 @@ class SimulationSource(Protocol):
         ...
 
     @property
+    def attrs(self) -> dict[str, Any]:
+        """The run's parameters, flat with dotted keys (`grid.resolution`);
+        values may be numpy scalars, arrays or bytes."""
+        ...
+
+    @property
     def timeline(self) -> dict[str, float]:
         """{current, min, max, step} spanning all outputs."""
         ...

@@ -7,6 +7,7 @@ import {
   FigureMessage,
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
+import { useSimulationVersion } from "../../state/simulationData";
 import { ChartRegion, ChartSelection } from "../../state/regions";
 import { IPseudocolorConfig, IZoomWindow } from "../../state/schema";
 import { withSlice } from "../fields/metadata";
@@ -57,9 +58,11 @@ const PseudocolorFigure = ({
   regions,
 }: PseudocolorFigureProps) => {
   const { expressions: _expressions, ...request } = config;
+  // Renders again when the simulation is reloaded from disk.
+  const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(
     config.field
-      ? JSON.stringify([simulationId, request, time, viewport])
+      ? JSON.stringify([simulationId, version, request, time, viewport])
       : null,
     (signal) =>
       renderPseudocolor(simulationId, request, time, viewport, signal),

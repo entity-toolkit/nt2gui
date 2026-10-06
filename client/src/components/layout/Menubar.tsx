@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { TbChevronDown } from "react-icons/tb";
 import { apiBaseFor, getServerUrl } from "../../config";
+import { useDismiss } from "../../hooks/useDismiss";
 import { useSessionFiles } from "../../hooks/useSessionFiles";
 import { useUi } from "../../state/UiContext";
 import Modal, { modalStyles } from "../common/Modal";
@@ -27,20 +28,7 @@ const StateMenu = ({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) =>
-      event.key === "Escape" && setOpen(false);
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+  useDismiss(ref, open, () => setOpen(false));
 
   const choose = (dialog: SessionDialogMode) => {
     setOpen(false);

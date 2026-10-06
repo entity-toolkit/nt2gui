@@ -106,3 +106,38 @@ def summarize(simulation: SimulationSource) -> dict[str, Any]:
         "particles": describe_particles(simulation),
         "spectra": describe_grid(spectra) if spectra is not None else None,
     }
+
+
+# Longer array attributes are cut (they are parameters, not data).
+MAX_ATTRIBUTE_ITEMS = 256
+
+
+def attribute_value(value: Any) -> Any:
+    """An attribute as JSON: bytes as (trimmed) text, numpy scalars as
+    numbers (float32 by its shortest repr, so 0.1 stays 0.1), arrays as
+    lists; anything else unknown as its text."""
+    if isinstance(value, (bytes, np.bytes_)):
+        return bytes(value).decode("utf-8", errors="replace").strip()
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        number = float(str(value)) if isinstance(value, np.float32) else float(value)
+        return number if np.isfinite(number) else str(number)
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, np.ndarray):
+        flat = value.ravel()
+        return [attribute_value(item) for item in flat[:MAX_ATTRIBUTE_ITEMS]]
+    if isinstance(value, (list, tuple)):
+        return [attribute_value(item) for item in value[:MAX_ATTRIBUTE_ITEMS]]
+    return str(value)
+
+
+def simulation_attributes(simulation: SimulationSource) -> dict[str, Any]:
+    """The run's parameters (`<block>.<subblock>.<name>` keys), sorted."""
+    return {
+        str(key): attribute_value(value)
+        for key, value in sorted(simulation.attrs.items(), key=lambda kv: str(kv[0]))
+    }

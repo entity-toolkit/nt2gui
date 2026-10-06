@@ -21,14 +21,21 @@ from .session.schema import (
     Timeline,
 )
 from .session.store import SessionStore
+from .session.templates import (
+    TemplateStore,
+    apply_template,
+    check_name,
+    template_from_state,
+)
 from .sources import SimulationSource, open_simulation
 
 logger = logging.getLogger(__name__)
 
 
 class Workspace:
-    def __init__(self, store: SessionStore) -> None:
+    def __init__(self, store: SessionStore, templates: TemplateStore | None = None) -> None:
         self.store = store
+        self.templates = templates or TemplateStore(None)
         self._lock = threading.Lock()
         # Simulation data lives only in memory; the session records which
         # paths were open, so they are re-opened (same ids) on restart.
@@ -100,6 +107,45 @@ class Workspace:
                         record.name = name
 
             return self.store.update(mutate)
+
+    def reload(self, simulation_id: str) -> dict[str, Any]:
+        """Re-open a simulation from disk (same id and name), picking up new
+        outputs; its timeline becomes the global one, keeping the current time
+        where it still fits. Cached data of the old instance is dropped with it."""
+        with self._lock:
+            old = self.simulation(simulation_id)
+            try:
+                simulation = open_simulation(old.path, simulation_id)
+            except Exception as error:  # the data may have moved or broken
+                logger.error("Could not reload %s: %s", old.path, error)
+                raise UserError(
+                    f"Could not reload {old.path}: {_message(error)}"
+                ) from error
+
+            def mutate(session: Session) -> None:
+                current = session.state.timeline.current
+                timeline = Timeline.model_validate(simulation.timeline)
+                timeline.current = min(max(current, timeline.min), timeline.max)
+                session.state.timeline = timeline
+
+            snapshot = self.store.update(mutate)
+            self._simulations = {**self._simulations, simulation_id: simulation}
+            return snapshot
+
+    def save_template(self, name: str, overwrite: bool = False) -> list[dict[str, Any]]:
+        """Save the current panels as template `name`."""
+        template = template_from_state(self.store.session.state, check_name(name))
+        return self.templates.save(template, overwrite)
+
+    def apply_template(self, name: str, simulation_id: str | None) -> dict[str, Any]:
+        """Replace the panels with template `name`'s, showing `simulation_id`."""
+        template = self.templates.get(name)
+        with self._lock:
+            if simulation_id is not None:
+                self.simulation(simulation_id)
+            return self.store.update(
+                lambda session: apply_template(session.state, template, simulation_id)
+            )
 
     def remove(self, simulation_id: str) -> dict[str, Any]:
         with self._lock:

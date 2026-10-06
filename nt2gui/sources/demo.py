@@ -157,3 +157,27 @@ class DemoSimulation:
     @property
     def timeline(self) -> dict[str, float]:
         return combined_timeline(self._t)
+
+    @property
+    def attrs(self) -> dict[str, Any]:
+        # Shaped like Entity's (see nt2.Data.attrs): flat, dotted, numpy-typed.
+        return {
+            "Coordinates": np.bytes_(b"cart"),
+            "Dimension": np.uint64(3),
+            "simulation.name": np.bytes_(self.name.encode()),
+            "simulation.engine": np.bytes_(b"demo"),
+            "grid.resolution": np.array(
+                [self._x.size, self._y.size, self._z.size], dtype=np.uint64
+            ),
+            "grid.extent": np.array(
+                [self._x[0], self._x[-1], self._y[0], self._y[-1], self._z[0], self._z[-1]],
+                dtype=np.float32,
+            ),
+            "grid.metric.metric": np.bytes_(b"minkowski"),
+            "grid.boundaries.fields": np.array([b"periodic", b"periodic"], dtype="S8"),
+            "algorithms.timestep.CFL": np.float32(0.5),
+            "algorithms.timestep.dt": np.float32(self._t[1] - self._t[0]),
+            "algorithms.deposit.enable": np.int32(1),
+            "output.fields.quantities": np.array([b"E  ", b"B  ", b"N_1"], dtype="S3"),
+            "output.interval": np.uint64(1),
+        }

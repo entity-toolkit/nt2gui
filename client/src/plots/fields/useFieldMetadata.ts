@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { checkQuantity, fetchFieldMetadata } from "../../api/fields";
 import { serverErrorMessage } from "../../api/http";
 import { cachedLoader, useCachedResource } from "../../hooks/useCachedResource";
+import { useSimulationVersion } from "../../state/simulationData";
 import { withExpressionFields } from "./metadata";
 
 const SEPARATOR = "\u0000";
@@ -26,6 +27,7 @@ export const checkExpression = (
 const useExpressionDims = (
   simulationId: string | null,
   expressions: string[],
+  version: number,
 ) => {
   const key = simulationId
     ? [simulationId, ...expressions].join(SEPARATOR)
@@ -55,7 +57,7 @@ const useExpressionDims = (
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, version]);
 
   const ready = !expressions.length || state.key === key;
   return state.key === key
@@ -73,8 +75,9 @@ export const useFieldMetadata = (
   expressions: string[] | undefined,
 ) => {
   const list = useMemo(() => expressions ?? [], [expressions]);
-  const base = useCachedResource(simulationId, getFieldMetadata);
-  const checked = useExpressionDims(simulationId, list);
+  const version = useSimulationVersion(simulationId);
+  const base = useCachedResource(simulationId, getFieldMetadata, version);
+  const checked = useExpressionDims(simulationId, list, version);
   const metadata = useMemo(
     () =>
       base.data && checked.ready

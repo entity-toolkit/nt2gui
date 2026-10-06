@@ -1,10 +1,12 @@
 import { useState } from "react";
 import {
   addSimulation,
+  reloadSimulation,
   renameSimulation,
   unloadSimulation,
 } from "../api/simulations";
 import { IServerSnapshot } from "../api/types";
+import { markSimulationReloaded } from "../state/simulationData";
 import { useUiActions } from "../state/UiContext";
 
 /**
@@ -31,5 +33,10 @@ export const useSimulations = () => {
     unloadSimulation: (id: string) => run(() => unloadSimulation(id)),
     renameSimulation: (id: string, name: string) =>
       run(() => renameSimulation(id, name)),
+    /** Re-reads a simulation from disk; its cached data and plots refresh. */
+    reloadSimulation: async (id: string) => {
+      await runServerCommand(() => reloadSimulation(id));
+      markSimulationReloaded(id);
+    },
   };
 };

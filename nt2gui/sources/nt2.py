@@ -179,6 +179,10 @@ class Nt2Simulation:
         return self._fields
 
     @property
+    def attrs(self) -> dict[str, Any]:
+        return dict(self._data.attrs)
+
+    @property
     def spectra(self) -> xr.Dataset | None:
         return self._data.spectra if self._data.spectra_defined else None
 

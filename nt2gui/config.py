@@ -5,6 +5,12 @@ from pathlib import Path
 
 STATE_FILE_ENV = "NT2GUI_STATE_FILE"
 DEFAULT_STATE_FILE = Path(".nt2gui") / "session.json"
+def templates_file(session_file: Path) -> Path:
+    """Templates are kept next to the session file (shared by every session
+    saved in that directory)."""
+    return session_file.parent / "templates.json"
+
+
 # The built client (`npm run build`), bundled into the wheel as package data.
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 

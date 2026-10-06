@@ -1,9 +1,12 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
+import { TbListDetails, TbRefresh } from "react-icons/tb";
+import { serverErrorMessage } from "../../api/http";
 import { fetchSimulationSummary } from "../../api/simulations";
 import { IGridSummary } from "../../api/types";
 import EditableName from "../common/EditableName";
 import { cachedLoader, useCachedResource } from "../../hooks/useCachedResource";
 import { ISimulation } from "../../state/schema";
+import { useSimulationVersion } from "../../state/simulationData";
 import {
   formatAxes,
   formatCount,
@@ -13,9 +16,10 @@ import {
   formatTimes,
 } from "../../lib/format";
 import { simulationName } from "../../lib/simulations";
+import AttributesModal from "./AttributesModal";
 import styles from "./SimulationSidebar.module.css";
 
-// A loaded simulation's contents don't change, and ids are unique per load.
+// Cached until the simulation is reloaded (see state/simulationData.ts).
 const getSummary = cachedLoader(fetchSimulationSummary);
 
 interface SimulationCardProps {
@@ -23,6 +27,8 @@ interface SimulationCardProps {
   onUnload: (id: string) => void;
   /** Rejects (with the server's reason) if the name can't be used. */
   onRename: (id: string, name: string) => Promise<void>;
+  /** Re-reads the simulation from disk; rejects with the server's reason. */
+  onReload: (id: string) => Promise<void>;
 }
 
 const Section = ({
@@ -72,9 +78,29 @@ const SimulationCard = ({
   simulation,
   onUnload,
   onRename,
+  onReload,
 }: SimulationCardProps) => {
-  const { data: summary, error } = useCachedResource(simulation.id, getSummary);
+  const { data: summary, error } = useCachedResource(
+    simulation.id,
+    getSummary,
+    useSimulationVersion(simulation.id),
+  );
   const name = simulationName(simulation);
+  const [reloading, setReloading] = useState(false);
+  const [reloadError, setReloadError] = useState<string | null>(null);
+  const [showAttributes, setShowAttributes] = useState(false);
+
+  const reload = async () => {
+    setReloading(true);
+    setReloadError(null);
+    try {
+      await onReload(simulation.id);
+    } catch (err) {
+      setReloadError(serverErrorMessage(err));
+    } finally {
+      setReloading(false);
+    }
+  };
 
   return (
     <li className={styles.card}>
@@ -93,6 +119,25 @@ const SimulationCard = ({
         </div>
         <button
           type="button"
+          className={styles.cardAction}
+          aria-label={`Attributes of ${name}`}
+          title="Attributes"
+          onClick={() => setShowAttributes(true)}
+        >
+          <TbListDetails aria-hidden />
+        </button>
+        <button
+          type="button"
+          className={`${styles.cardAction} ${reloading ? styles.spinning : ""}`}
+          aria-label={`Reload ${name}`}
+          title="Reload from disk (new outputs)"
+          disabled={reloading}
+          onClick={() => void reload()}
+        >
+          <TbRefresh aria-hidden />
+        </button>
+        <button
+          type="button"
           className={styles.unload}
           aria-label={`Unload ${simulation.path}`}
           title="Unload"
@@ -102,6 +147,18 @@ const SimulationCard = ({
         </button>
       </div>
 
+      {reloadError && (
+        <p className={styles.error} role="alert">
+          {reloadError}
+        </p>
+      )}
+      {showAttributes && (
+        <AttributesModal
+          simulationId={simulation.id}
+          name={name}
+          onClose={() => setShowAttributes(false)}
+        />
+      )}
       {error ? (
         <p className={styles.error}>{error}</p>
       ) : !summary ? (

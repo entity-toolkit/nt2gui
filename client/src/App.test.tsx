@@ -395,6 +395,145 @@ describe("App", () => {
     ).toBeTruthy();
   });
 
+  it("reloads a simulation from disk and refetches what it shows", async () => {
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    const calls: string[] = [];
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      if (url === "api/simulations/sim1/reload") return json(snapshot());
+      return fake(url, init);
+    });
+    render(<App />);
+    const reload = await screen.findByRole("button", {
+      name: "Reload demo:run",
+    });
+    // Summaries are cached per simulation; a reload must fetch it again.
+    const before = calls.length;
+    fireEvent.click(reload);
+
+    await vi.waitFor(() =>
+      expect(calls.slice(before)).toContain("GET api/simulations/sim1/summary"),
+    );
+    expect(calls.slice(before)[0]).toBe("POST api/simulations/sim1/reload");
+  });
+
+  it("shows a simulation's attributes grouped into blocks", async () => {
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      url === "api/simulations/sim1/attrs"
+        ? json({
+            attrs: {
+              Dimension: 2,
+              "grid.resolution": [32, 64],
+              "grid.metric.metric": "minkowski",
+              "algorithms.timestep.CFL": 0.5,
+            },
+          })
+        : fake(url, init),
+    );
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Attributes of demo:run" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Attributes · demo:run",
+    });
+    const grid = await within(dialog).findByRole("region", { name: "grid" });
+    expect(within(grid).getByText("[32, 64]")).toBeTruthy();
+    expect(within(grid).getByRole("heading", { name: "metric" })).toBeTruthy();
+    expect(within(dialog).getByText("4 attributes")).toBeTruthy();
+
+    // Blocks fold; a filter shows only matches (in every block).
+    fireEvent.click(within(grid).getByRole("button", { name: /grid/ }));
+    expect(within(grid).queryByText("[32, 64]")).toBeNull();
+    fireEvent.change(within(dialog).getByLabelText("Filter attributes"), {
+      target: { value: "cfl" },
+    });
+    expect(within(dialog).getByText("1 of 4 attributes")).toBeTruthy();
+    expect(within(dialog).queryByRole("region", { name: "grid" })).toBeNull();
+    expect(within(dialog).getByText("0.5")).toBeTruthy();
+  });
+
+  it("saves the panels as a template and applies one to a simulation", async () => {
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    let templates = [{ name: "shock", panels: 2, savedAt: null }];
+    const requests: { url: string; method: string; body: unknown }[] = [];
+    const applied = snapshot();
+    applied.state.layout = {
+      global: {},
+      layout: {
+        type: "row",
+        children: [
+          {
+            type: "tabset",
+            children: [
+              { type: "tab", id: "t1", component: "panel", name: "Spectrum" },
+            ],
+          },
+        ],
+      },
+    };
+    applied.state.plotters = {
+      t1: {
+        plotType: PlotType.Line,
+        dataType: DataType.Fields,
+        simulationId: "sim1",
+        lineConfig: { quantities: [], axis: "", slices: {} },
+      },
+    };
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      if (url.startsWith("api/templates")) {
+        requests.push({ url, method, body });
+        if (url === "api/templates" && method === "POST") {
+          if (body.name === "shock" && !body.overwrite) {
+            return json({ error: "exists" }, 409);
+          }
+          templates = [
+            ...templates.filter((t) => t.name !== body.name),
+            { name: body.name, panels: 0, savedAt: null },
+          ];
+        }
+        if (url.endsWith("/apply")) return json(applied);
+        return json({ templates });
+      }
+      return fake(url, init);
+    });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /Templates/ }));
+    const menu = await screen.findByRole("dialog", { name: "Templates" });
+    expect(await within(menu).findByText("shock")).toBeTruthy();
+    expect(within(menu).getByText("apply to demo:run")).toBeTruthy();
+
+    // A taken name asks before replacing.
+    fireEvent.change(within(menu).getByPlaceholderText("Template name"), {
+      target: { value: "shock" },
+    });
+    fireEvent.click(within(menu).getByRole("button", { name: "Save" }));
+    fireEvent.click(
+      await within(menu).findByRole("button", { name: "Replace" }),
+    );
+    await vi.waitFor(() =>
+      expect(requests.at(-1)).toMatchObject({
+        method: "POST",
+        body: { name: "shock", overwrite: true },
+      }),
+    );
+
+    // No plots yet, so applying needs no confirmation.
+    fireEvent.click(within(menu).getByRole("button", { name: "Apply shock" }));
+    expect((await screen.findAllByText("Spectrum")).length).toBeGreaterThan(0);
+    expect(requests.at(-1)).toMatchObject({
+      url: "api/templates/shock/apply",
+      body: { simulationId: "sim1" },
+    });
+    expect(screen.queryByRole("dialog", { name: "Templates" })).toBeNull();
+  });
+
   it("offers to point the UI at another server when this one can't be reached", async () => {
     vi.stubGlobal(
       "fetch",

@@ -1,5 +1,5 @@
 import { apiUrl, requestJson, simulationUrl } from "./http";
-import { IServerSnapshot, ISimulationSummary } from "./types";
+import { AttributeValue, IServerSnapshot, ISimulationSummary } from "./types";
 
 export const addSimulation = (path: string) =>
   requestJson<IServerSnapshot>(apiUrl("simulations"), { body: { path } });
@@ -15,3 +15,14 @@ export const unloadSimulation = (id: string) =>
 
 export const fetchSimulationSummary = (id: string) =>
   requestJson<ISimulationSummary>(simulationUrl(id, "summary"));
+
+/** Re-reads a simulation from disk (new outputs, …); same id and name. */
+export const reloadSimulation = (id: string) =>
+  requestJson<IServerSnapshot>(simulationUrl(id, "reload"), {
+    method: "POST",
+  });
+
+export const fetchSimulationAttributes = (id: string) =>
+  requestJson<{ attrs: Record<string, AttributeValue> }>(
+    simulationUrl(id, "attrs"),
+  );

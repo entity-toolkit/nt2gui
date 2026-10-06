@@ -6,6 +6,7 @@ import {
   FigureMessage,
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
+import { useSimulationVersion } from "../../state/simulationData";
 import { ChartRegion } from "../../state/regions";
 import { ILineConfig, IRange } from "../../state/schema";
 import { quantityDims, withSlice } from "../fields/metadata";
@@ -48,9 +49,11 @@ const LineFigure = ({
   const dims = quantityDims(metadata, config.quantities);
   const axis = effectiveAxis(config.axis, dims);
   const request = { ...lineRequest(config), axis };
+  // Renders again when the simulation is reloaded from disk.
+  const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(
     config.quantities.length && axis
-      ? JSON.stringify([simulationId, request, time, range])
+      ? JSON.stringify([simulationId, version, request, time, range])
       : null,
     (signal) => renderLine(simulationId, request, time, range, signal),
   );

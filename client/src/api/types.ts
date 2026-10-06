@@ -127,3 +127,19 @@ export interface IParticleHistogram {
   series: { species: number[]; counts: number[]; excludedWeight: number }[];
   timestamp: number;
 }
+
+/** A run parameter (`GET /simulations/<id>/attrs`), from Entity's output. */
+export type AttributeValue =
+  | string
+  | number
+  | boolean
+  | (string | number | boolean)[];
+
+/** A saved template, as listed (`GET /templates`). */
+export interface ITemplateSummary {
+  name: string;
+  /** Panels that show a plot. */
+  panels: number;
+  /** ISO time it was last saved. */
+  savedAt: string | null;
+}

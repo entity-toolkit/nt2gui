@@ -12,6 +12,7 @@ from .api import create_api
 from .api.common import EXTENSION_KEY
 from .errors import UserError
 from .session.store import SessionStore
+from .session.templates import TemplateStore
 from .static_client import serve_client
 from .workspace import Workspace
 
@@ -34,7 +35,9 @@ def create_app(
 
     path = config.state_file(state_file)
     app.logger.info("Session file: %s", path.resolve())
-    app.extensions[EXTENSION_KEY] = Workspace(SessionStore(path))
+    app.extensions[EXTENSION_KEY] = Workspace(
+        SessionStore(path), TemplateStore(config.templates_file(path))
+    )
 
     @app.errorhandler(UserError)
     def user_error(error: UserError):

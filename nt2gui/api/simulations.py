@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify
 
-from ..data.metadata import summarize
+from ..data.metadata import simulation_attributes, summarize
 from .common import json_object, require_text, simulation, workspace
 
 bp = Blueprint("simulations", __name__)
@@ -23,6 +23,16 @@ def rename_simulation(simulation_id: str):
 @bp.delete("/simulations/<simulation_id>")
 def remove_simulation(simulation_id: str):
     return jsonify(workspace().remove(simulation_id))
+
+
+@bp.post("/simulations/<simulation_id>/reload")
+def reload_simulation(simulation_id: str):
+    return jsonify(workspace().reload(simulation_id))
+
+
+@bp.get("/simulations/<simulation_id>/attrs")
+def get_attributes(simulation_id: str):
+    return jsonify({"attrs": simulation_attributes(simulation(simulation_id))})
 
 
 @bp.get("/simulations/<simulation_id>/summary")

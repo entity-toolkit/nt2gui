@@ -4,14 +4,20 @@ import { useSimulations } from "../../hooks/useSimulations";
 import { useUi, useUiActions } from "../../state/UiContext";
 import RegionList from "./RegionList";
 import SimulationCard from "./SimulationCard";
+import TemplateMenu from "./TemplateMenu";
 import styles from "./SimulationSidebar.module.css";
 
 /** Collapsible left panel: load simulations, see what each contains, and the saved regions. */
 const SimulationSidebar = () => {
   const { simulations, uiState } = useUi();
   const { setSidebarCollapsed } = useUiActions();
-  const { isLoading, addSimulation, unloadSimulation, renameSimulation } =
-    useSimulations();
+  const {
+    isLoading,
+    addSimulation,
+    unloadSimulation,
+    renameSimulation,
+    reloadSimulation,
+  } = useSimulations();
   const collapsed = uiState.sidebarCollapsed ?? false;
   const [path, setPath] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +62,7 @@ const SimulationSidebar = () => {
     <aside className={styles.sidebar} aria-label="Simulations">
       <div className={styles.header}>
         <h2 className={styles.title}>Simulations</h2>
+        <TemplateMenu />
         <button
           type="button"
           className={styles.toggle}
@@ -108,6 +115,7 @@ const SimulationSidebar = () => {
                 )
               }
               onRename={renameSimulation}
+              onReload={reloadSimulation}
             />
           ))}
         </ul>

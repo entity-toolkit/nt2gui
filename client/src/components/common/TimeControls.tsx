@@ -1,6 +1,13 @@
 import { ReactNode, useEffect, useEffectEvent, useId, useState } from "react";
 import { formatNumber } from "../../lib/format";
-import { PLAYBACK_SPEEDS, nextTime } from "../../lib/playback";
+import { TbPlayerPauseFilled, TbPlayerPlayFilled } from "react-icons/tb";
+import {
+  PLAYBACK_SPEEDS,
+  indexOfTime,
+  nextTime,
+  stepCount,
+  timeAtIndex,
+} from "../../lib/playback";
 import { ITimeline } from "../../state/schema";
 import styles from "./TimeControls.module.css";
 
@@ -83,20 +90,26 @@ const TimeControls = ({
           aria-pressed={playing}
           title={playing ? "Pause" : "Play through time"}
         >
-          {playing ? "❚❚" : "▶"}
+          {playing ? (
+            <TbPlayerPauseFilled aria-hidden />
+          ) : (
+            <TbPlayerPlayFilled aria-hidden />
+          )}
         </button>
         {variant !== "minimal" && (
           <input
             className={styles.slider}
             type="range"
             aria-label="Time"
-            min={timeline.min}
-            max={timeline.max}
-            step={timeline.step}
-            value={value}
+            // Over grid indices: always a valid value, whatever the floats.
+            min={0}
+            max={stepCount(timeline)}
+            step={1}
+            value={indexOfTime(timeline, value)}
+            aria-valuetext={formatNumber(value)}
             onChange={(event) => {
               setPlaying(false);
-              setDraft(Number(event.target.value));
+              setDraft(timeAtIndex(timeline, Number(event.target.value)));
             }}
             onMouseUp={commit}
             onTouchEnd={commit}
@@ -110,10 +123,11 @@ const TimeControls = ({
             value={fps}
             onChange={(event) => onFpsChange(Number(event.target.value))}
             aria-label="Playback speed"
+            title="Target fps"
           >
             {speeds.map((option) => (
               <option key={option} value={option}>
-                ≤ {option} fps
+                {option} fps
               </option>
             ))}
           </select>

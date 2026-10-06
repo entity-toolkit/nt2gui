@@ -9,7 +9,7 @@ import { ChartRegion, ChartSelection } from "../../state/regions";
 import { IParticlePhaseConfig, IRegion, IZoomWindow } from "../../state/schema";
 import { hasRange, phaseRequest } from "../particles/config";
 import ExcludedNote from "../particles/ExcludedNote";
-import styles from "../particles/figure.module.css";
+import styles from "../figure.module.css";
 
 interface PhaseFigureProps {
   simulationId: string;

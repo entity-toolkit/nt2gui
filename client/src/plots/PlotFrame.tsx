@@ -1,4 +1,11 @@
 import { ReactNode, useEffect, useState, type MouseEvent } from "react";
+import {
+  TbLasso,
+  TbLassoPolygon,
+  TbSquareDashed,
+  TbZoomIn,
+  TbZoomReset,
+} from "react-icons/tb";
 import { FigureMessage } from "../components/common/FigureMessage";
 import TimeControls from "../components/common/TimeControls";
 import { DEFAULT_PLAYBACK_FPS, isTimeSynced, panelTime } from "../lib/playback";
@@ -62,9 +69,9 @@ interface PlotFrameProps {
 }
 
 /**
- * Everything plots have in common: the zoom and time toolbar, the panel's own
- * timeline when its time isn't synced, the right-click menu with the
- * simulation picker, and the footer. The figure itself comes from the kind.
+ * Everything plots have in common: zoom and region tools on top, time below
+ * (with the panel's own timeline when its time isn't synced), and the
+ * right-click menu with the simulation picker. The figure comes from the kind.
  */
 const PlotFrame = ({
   nodeId,
@@ -119,13 +126,26 @@ const PlotFrame = ({
     setMenuPosition({ x: event.clientX, y: event.clientY });
   };
 
-  const zoomStatus = zoom.sync
-    ? `${syncZoom ? "Global" : "Local"} zoom${zoom.sync.label ? ` (${zoom.sync.label})` : ""}${
-        zoom.isZoomed ? " • zoomed" : ""
-      }`
-    : zoom.isZoomed
-      ? "Custom range"
-      : "Full range";
+  const syncTimeToggle = (
+    <label className={styles.toolbarToggle}>
+      <input
+        type="checkbox"
+        checked={syncTime}
+        onChange={({ target: { checked } }) =>
+          updatePlotter(nodeId, (current) =>
+            checked
+              ? { syncTime: true, localTime: undefined }
+              : // Start from the time the panel shows now.
+                {
+                  syncTime: false,
+                  localTime: panelTime(current, uiState.timeline),
+                },
+          )
+        }
+      />
+      Sync time
+    </label>
+  );
 
   return (
     <div className={styles.plot}>
@@ -137,58 +157,31 @@ const PlotFrame = ({
           </h3>
         )}
         <div className={styles.plotToolbar}>
-          <div className={styles.toolbarGroup}>
+          <div className={styles.toolbarGroup} role="group" aria-label="Zoom">
             <button
               type="button"
-              className={styles.toolbarButton}
+              className={styles.iconButton}
               disabled={!zoom.canZoom}
               aria-pressed={zoomMode}
+              aria-label="Zoom area"
+              title="Zoom area"
               onClick={() => setTool(zoomMode ? null : "zoom")}
             >
-              {zoomMode ? "Cancel zoom" : "Zoom"}
+              <TbZoomIn aria-hidden />
             </button>
             <button
               type="button"
-              className={styles.toolbarButton}
+              className={styles.iconButton}
               disabled={!zoom.isZoomed}
+              aria-label="Reset zoom"
+              title="Reset zoom"
               onClick={() => {
                 zoom.reset();
                 setTool(null);
               }}
             >
-              Reset zoom
+              <TbZoomReset aria-hidden />
             </button>
-            {select && (
-              <button
-                type="button"
-                className={styles.toolbarButton}
-                aria-pressed={selectShape !== null}
-                title="Drag over the plot to save a spatial region"
-                onClick={() => setTool(selectShape !== null ? null : "select")}
-              >
-                {selectShape !== null ? "Cancel select" : "Select region"}
-              </button>
-            )}
-            {selectShape !== null && shapes.length > 1 && (
-              <span
-                className={styles.segmented}
-                role="group"
-                aria-label="Selection shape"
-              >
-                {shapes.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={selectShape === option}
-                    onClick={() => setShape(option)}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </span>
-            )}
-          </div>
-          <div className={styles.toolbarGroup}>
             {zoom.sync && (
               <label className={styles.toolbarToggle}>
                 <input
@@ -203,40 +196,63 @@ const PlotFrame = ({
                 Sync zoom
               </label>
             )}
-            {showRegions !== undefined && (
-              <label className={styles.toolbarToggle}>
-                <input
-                  type="checkbox"
-                  checked={showRegions}
-                  onChange={(event) =>
-                    updatePlotter(nodeId, {
-                      showRegions: event.target.checked,
-                    })
-                  }
-                />
-                Show regions
-              </label>
-            )}
-            <label className={styles.toolbarToggle}>
-              <input
-                type="checkbox"
-                checked={syncTime}
-                onChange={({ target: { checked } }) =>
-                  updatePlotter(nodeId, (current) =>
-                    checked
-                      ? { syncTime: true, localTime: undefined }
-                      : // Start from the time the panel shows now.
-                        {
-                          syncTime: false,
-                          localTime: panelTime(current, uiState.timeline),
-                        },
-                  )
-                }
-              />
-              Sync time
-            </label>
-            <span className={styles.toolbarStatus}>{zoomStatus}</span>
           </div>
+
+          {select && (
+            <div
+              className={styles.toolbarGroup}
+              role="group"
+              aria-label="Regions"
+            >
+              <button
+                type="button"
+                className={styles.iconButton}
+                aria-pressed={selectShape !== null}
+                aria-label="Select region for particles"
+                title="Select region for particles"
+                onClick={() => setTool(selectShape !== null ? null : "select")}
+              >
+                <TbLassoPolygon aria-hidden />
+              </button>
+              {selectShape !== null && shapes.length > 1 && (
+                <span
+                  className={styles.segmented}
+                  role="group"
+                  aria-label="Selection shape"
+                >
+                  {shapes.map((option) => {
+                    const Icon = option === "lasso" ? TbLasso : TbSquareDashed;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        aria-pressed={selectShape === option}
+                        aria-label={option}
+                        title={option === "lasso" ? "Lasso" : "Box"}
+                        onClick={() => setShape(option)}
+                      >
+                        <Icon aria-hidden />
+                      </button>
+                    );
+                  })}
+                </span>
+              )}
+              {showRegions !== undefined && (
+                <label className={styles.toolbarToggle}>
+                  <input
+                    type="checkbox"
+                    checked={showRegions}
+                    onChange={(event) =>
+                      updatePlotter(nodeId, {
+                        showRegions: event.target.checked,
+                      })
+                    }
+                  />
+                  Show regions
+                </label>
+              )}
+            </div>
+          )}
         </div>
 
         <div className={styles.plotFigure} onContextMenu={openMenu}>
@@ -253,23 +269,28 @@ const PlotFrame = ({
           )}
         </div>
 
-        {!syncTime && (
-          <div className={styles.plotTimeline} aria-label="Panel timeline">
-            <TimeControls
-              variant="compact"
-              timeline={{
-                ...uiState.timeline,
-                current: panelTime(plotter, uiState.timeline),
-              }}
-              onTimeChange={(localTime) => updatePlotter(nodeId, { localTime })}
-              fps={plotter.localPlaybackFps ?? DEFAULT_PLAYBACK_FPS}
-              onFpsChange={(localPlaybackFps) =>
-                updatePlotter(nodeId, { localPlaybackFps })
-              }
-              waiting={ownRenderPending}
-            />
-          </div>
-        )}
+        <div className={styles.timeBar} role="group" aria-label="Time">
+          {syncTimeToggle}
+          {!syncTime && (
+            <div className={styles.plotTimeline} aria-label="Panel timeline">
+              <TimeControls
+                variant="compact"
+                timeline={{
+                  ...uiState.timeline,
+                  current: panelTime(plotter, uiState.timeline),
+                }}
+                onTimeChange={(localTime) =>
+                  updatePlotter(nodeId, { localTime })
+                }
+                fps={plotter.localPlaybackFps ?? DEFAULT_PLAYBACK_FPS}
+                onFpsChange={(localPlaybackFps) =>
+                  updatePlotter(nodeId, { localPlaybackFps })
+                }
+                waiting={ownRenderPending}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {menuPosition && (

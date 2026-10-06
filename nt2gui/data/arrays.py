@@ -52,3 +52,41 @@ def minmax_indices(lines: list[np.ndarray], max_points: int) -> np.ndarray:
         keep += [starts + lows, starts + highs]
     indices = np.unique(np.concatenate(keep))
     return indices[indices < length]
+
+
+def block_factor(size: int, max_size: int) -> int:
+    """The smallest block size that brings `size` cells down to at most
+    `max_size` blocks (1: keep every cell)."""
+    return max(1, -(-size // max_size))
+
+
+def block_mean(values: np.ndarray, factors: tuple[int, int]) -> np.ndarray:
+    """Averages a 2D array over blocks of `factors` (rows, columns) cells,
+    ignoring NaNs. Blocks at the far ends may be partial (they average what
+    is there); an all-NaN block stays NaN."""
+    data = np.asarray(values, dtype=float)
+    fy, fx = factors
+    if fy == 1 and fx == 1:
+        return data
+    ny, nx = data.shape
+    shape = (-(-ny // fy), -(-nx // fx))
+    has_nan = bool(np.isnan(data).any())
+    clean = np.where(np.isnan(data), 0.0, data) if has_nan else data
+    sums = np.zeros(shape)
+    counts = np.zeros(shape) if has_nan else None
+    # One strided view per offset within a block: much faster than reducing
+    # a reshaped (blocks, factor) array.
+    for i in range(fy):
+        for j in range(fx):
+            part = clean[i::fy, j::fx]
+            sums[: part.shape[0], : part.shape[1]] += part
+            if counts is not None:
+                finite = ~np.isnan(data[i::fy, j::fx])
+                counts[: part.shape[0], : part.shape[1]] += finite
+    if counts is None:
+        # Cells per block: full blocks, except the last row/column of blocks.
+        rows = np.minimum(fy, ny - fy * np.arange(shape[0]))
+        cols = np.minimum(fx, nx - fx * np.arange(shape[1]))
+        counts = np.outer(rows, cols)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(counts > 0, sums / counts, np.nan)

@@ -1,3 +1,4 @@
+import { TbChevronDown, TbChevronUp } from "react-icons/tb";
 import TimeControls from "../common/TimeControls";
 import { DEFAULT_PLAYBACK_FPS, isTimeSynced } from "../../lib/playback";
 import { useRendersPending } from "../../state/renderActivity";
@@ -50,7 +51,11 @@ const TimelineBar = () => {
             aria-label={collapsed ? "Expand timeline" : "Collapse timeline"}
             title={collapsed ? "Expand timeline" : "Collapse timeline"}
           >
-            {collapsed ? "▴" : "▾"}
+            {collapsed ? (
+              <TbChevronUp aria-hidden />
+            ) : (
+              <TbChevronDown aria-hidden />
+            )}
           </button>
         }
       />

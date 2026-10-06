@@ -110,6 +110,8 @@ export interface IImageRender {
 export interface IPseudocolorRender extends IImageRender {
   /** Coordinates actually used for dims beyond x/y (nearest grid point). */
   slices: Record<string, number>;
+  /** Cells averaged into one pixel along each axis (1: full resolution). */
+  sampling?: { x: number; y: number };
 }
 
 export interface IParticlePhase extends IImageRender {

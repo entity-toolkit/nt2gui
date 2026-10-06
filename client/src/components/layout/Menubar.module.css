@@ -44,3 +44,68 @@
   text-decoration: underline;
   background: #1e293b;
 }
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.caret {
+  font-size: 14px;
+}
+
+.dropdown {
+  position: relative;
+  display: flex;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+.dropdownMenu button {
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dropdownMenu button:hover,
+.dropdownMenu button:focus-visible {
+  background: var(--color-hover);
+}
+
+.connection {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.connection > span {
+  margin: 0;
+}
+
+.connectionUrl {
+  font-size: 13px;
+  color: var(--color-text-soft);
+  overflow-wrap: anywhere;
+}

@@ -112,7 +112,9 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "1D plot" }));
 
     // The kind's frame renders: toolbar, and (no quantities yet) a hint.
-    expect(await screen.findByRole("button", { name: "Zoom" })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: "Zoom area" }),
+    ).toBeTruthy();
     expect(await screen.findByText("Nothing selected")).toBeTruthy();
 
     // The choice (with the kind's defaults and a simulation) reaches the server.
@@ -161,7 +163,8 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("checkbox", { name: "Sync time" }));
     const panelTimeline = await screen.findByLabelText("Panel timeline");
     const slider = within(panelTimeline).getByRole("slider");
-    fireEvent.change(slider, { target: { value: "0.3" } });
+    // The slider moves over output indices: index 3 is t = 0.3.
+    fireEvent.change(slider, { target: { value: "3" } });
     fireEvent.mouseUp(slider);
 
     await act(() => vi.advanceTimersByTimeAsync(1000));
@@ -320,8 +323,25 @@ describe("App", () => {
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "fields" }));
     fireEvent.click(await screen.findByRole("button", { name: "1D plot" }));
-    await screen.findByRole("button", { name: "Zoom" });
+    await screen.findByRole("button", { name: "Zoom area" });
     expect(screen.queryByRole("heading", { name: "demo:run" })).toBeNull();
+  });
+
+  it("saves and loads from the State menu; settings show the connection", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "State" }));
+    expect(screen.getByRole("menuitem", { name: "Load" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save" }));
+    expect(screen.queryByRole("menu")).toBeNull();
+    const save = screen.getByRole("dialog");
+    fireEvent.click(within(save).getByRole("button", { name: /close/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const connection = screen.getByLabelText("Current connection");
+    expect(within(connection).getByText(/\/api$/)).toBeTruthy();
+    expect(
+      within(connection).getByText("the server that served this page"),
+    ).toBeTruthy();
   });
 
   it("offers to point the UI at another server when this one can't be reached", async () => {

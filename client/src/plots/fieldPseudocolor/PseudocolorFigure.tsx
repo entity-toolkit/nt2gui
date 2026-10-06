@@ -11,7 +11,17 @@ import { ChartRegion, ChartSelection } from "../../state/regions";
 import { IPseudocolorConfig, IZoomWindow } from "../../state/schema";
 import { withSlice } from "../fields/metadata";
 import SlicedFigure from "../fields/SlicedFigure";
+import figureStyles from "../figure.module.css";
 import { pseudocolorSliceDims } from "./config";
+
+/** Says when the image averages blocks of cells (large slices). */
+const SamplingNote = ({ sampling }: { sampling?: { x: number; y: number } }) =>
+  sampling && (sampling.x > 1 || sampling.y > 1) ? (
+    <p className={figureStyles.note}>
+      Each pixel averages {sampling.x}×{sampling.y} cells — zoom in for full
+      resolution
+    </p>
+  ) : null;
 
 /** Plots of fields share a crosshair: their axes are the same coordinates. */
 const CROSSHAIR_GROUP = "fields";
@@ -62,33 +72,36 @@ const PseudocolorFigure = ({
   ) : error ? (
     <FigureError>{error}</FigureError>
   ) : data ? (
-    <ImageChart
-      data={data}
-      xAxis={{ title: config.xCoordinate }}
-      yAxis={{ title: config.yCoordinate }}
-      colorbarTitle={config.field}
-      preserveAspect
-      zoomEnabled={zoomEnabled}
-      onZoom={onZoom}
-      isRefreshing={isRendering}
-      crosshair={{ plotId: nodeId, group: CROSSHAIR_GROUP }}
-      pan={
-        viewport
-          ? {
-              x: true,
-              y: true,
-              bounds: {
-                x: valueBounds(metadata.coords[config.xCoordinate]),
-                y: valueBounds(metadata.coords[config.yCoordinate]),
-              },
-            }
-          : undefined
-      }
-      onPan={onZoom}
-      select={select ?? undefined}
-      onSelect={onSelect}
-      regions={regions}
-    />
+    <div className={figureStyles.figure}>
+      <ImageChart
+        data={data}
+        xAxis={{ title: config.xCoordinate }}
+        yAxis={{ title: config.yCoordinate }}
+        colorbarTitle={config.field}
+        preserveAspect
+        zoomEnabled={zoomEnabled}
+        onZoom={onZoom}
+        isRefreshing={isRendering}
+        crosshair={{ plotId: nodeId, group: CROSSHAIR_GROUP }}
+        pan={
+          viewport
+            ? {
+                x: true,
+                y: true,
+                bounds: {
+                  x: valueBounds(metadata.coords[config.xCoordinate]),
+                  y: valueBounds(metadata.coords[config.yCoordinate]),
+                },
+              }
+            : undefined
+        }
+        onPan={onZoom}
+        select={select ?? undefined}
+        onSelect={onSelect}
+        regions={regions}
+      />
+      <SamplingNote sampling={data.sampling} />
+    </div>
   ) : (
     <FigureMessage tag="Rendering…" />
   );

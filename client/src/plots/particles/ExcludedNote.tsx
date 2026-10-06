@@ -1,5 +1,5 @@
 import { formatNumber } from "../../lib/format";
-import styles from "./figure.module.css";
+import styles from "../figure.module.css";
 
 /** Particles left out because a log axis can't show values <= 0. */
 const ExcludedNote = ({ weight }: { weight: number }) =>

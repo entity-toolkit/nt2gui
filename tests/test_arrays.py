@@ -1,6 +1,13 @@
 import numpy as np
+import pytest
 
-from nt2gui.data.arrays import even_sample, finite_list, minmax_indices
+from nt2gui.data.arrays import (
+    block_factor,
+    block_mean,
+    even_sample,
+    finite_list,
+    minmax_indices,
+)
 
 
 def test_finite_list_rounds_and_nulls_non_finite():
@@ -42,3 +49,36 @@ class TestMinmaxIndices:
         line[50_000] = 1.0
         keep = minmax_indices([line], 1000)
         assert 50_000 in keep and len(keep) <= 1000
+
+
+class TestBlockMean:
+    def test_factor(self):
+        assert block_factor(4096, 4096) == 1
+        assert block_factor(4097, 4096) == 2
+        assert block_factor(10_000, 4096) == 3
+
+    def test_averages_blocks_including_a_partial_one(self):
+        values = np.arange(10, dtype=float).reshape(2, 5)
+        np.testing.assert_allclose(
+            block_mean(values, (1, 2)), [[0.5, 2.5, 4], [5.5, 7.5, 9]]
+        )
+        np.testing.assert_allclose(block_mean(values, (2, 5)), [[4.5]])
+
+    def test_ignores_nans_and_keeps_all_nan_blocks(self):
+        values = np.array([[1.0, np.nan, np.nan, np.nan]])
+        np.testing.assert_allclose(block_mean(values, (1, 2)), [[1.0, np.nan]])
+
+    @pytest.mark.parametrize("with_nan", [False, True])
+    def test_matches_a_reference_mean_with_partial_blocks(self, with_nan):
+        values = np.random.default_rng(0).random((7, 5))
+        if with_nan:
+            values[0, 0] = values[6, 3] = np.nan
+        reference = [
+            [np.nanmean(values[i : i + 3, j : j + 2]) for j in range(0, 5, 2)]
+            for i in range(0, 7, 3)
+        ]
+        np.testing.assert_allclose(block_mean(values, (3, 2)), reference)
+
+    def test_factor_one_is_a_no_op(self):
+        values = np.arange(6.0).reshape(2, 3)
+        np.testing.assert_array_equal(block_mean(values, (1, 1)), values)

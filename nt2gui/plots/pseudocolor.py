@@ -2,9 +2,9 @@
 
 from typing import Any
 
-import numpy as np
 import xarray as xr
 
+from ..data.arrays import block_factor, block_mean
 from ..data.quantities import (
     QuantityError,
     cell_edges,
@@ -16,18 +16,26 @@ from ..errors import UserError
 from ..render import shade
 from ..session.schema import PseudocolorConfig, ZoomWindow
 
+# Images are sized for the screen, not the data: beyond this many cells along
+# an axis, blocks of cells are averaged into one pixel. The zoom window is cut
+# first, so zooming in brings back full resolution.
+MAX_IMAGE_SIZE = 4096
+
 
 def render_pseudocolor(
     fields: xr.Dataset,
     config: PseudocolorConfig,
     time: float,
     viewport: ZoomWindow | None = None,
+    max_size: int = MAX_IMAGE_SIZE,
 ) -> dict[str, Any]:
     """Shade one field (or expression) over (x, y) at `time`.
 
     Dims beyond x/y are cut at `config.slices` (the middle by default). With
-    a `viewport`, only the cells inside it are shaded. The extent spans the
-    outer cell *edges*, so each cell is drawn where it is.
+    a `viewport`, only the cells inside it are shaded. More than `max_size`
+    cells along an axis are averaged in blocks (`sampling` gives the block
+    size per axis). The extent spans the outer cell *edges*, so each cell is
+    drawn where it is.
     """
     x, y = config.x_coordinate, config.y_coordinate
     if not config.field:
@@ -56,8 +64,12 @@ def render_pseudocolor(
 
     x_edges = cell_edges(data.coords[x].values)
     y_edges = cell_edges(data.coords[y].values)
+    sampling = {
+        "x": block_factor(data.sizes[x], max_size),
+        "y": block_factor(data.sizes[y], max_size),
+    }
     image = shade(
-        np.asarray(data.values, dtype=float),
+        block_mean(data.values, (sampling["y"], sampling["x"])),
         config.color_map,
         config.color_scale,
         config.vmin,
@@ -67,6 +79,7 @@ def render_pseudocolor(
         **image,
         "timestamp": timestamp if timestamp is not None else float(time),
         "slices": used_slices,
+        "sampling": sampling,
         "extent": {
             "xMin": float(x_edges[0]),
             "xMax": float(x_edges[-1]),

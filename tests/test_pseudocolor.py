@@ -103,3 +103,22 @@ def test_linear_limits_and_timestamp_of_static_data():
 def test_invalid_requests(extra, message):
     with pytest.raises(UserError, match=message):
         render_pseudocolor(make_dataset(-np.ones((4, 4))), config(**extra), 0)
+
+
+def test_large_slices_are_averaged_and_zooming_recovers_full_resolution():
+    values = np.arange(100.0 * 30).reshape(100, 30)  # 100 cells along x
+    ds = make_dataset(values, x=np.arange(100.0), y=np.arange(30.0))
+
+    full = render_pseudocolor(ds, config(), 0, max_size=40)
+    # 100 x-cells in blocks of 3 (34 pixels, the last one partial); y as is.
+    assert full["sampling"] == {"x": 3, "y": 1}
+    assert full["imageSize"] == {"width": 34, "height": 30}
+    # The extent still spans every cell.
+    assert full["extent"]["xMin"] == -0.5 and full["extent"]["xMax"] == 99.5
+    # Block averages set the color range: the first block is cells 0..2.
+    assert full["colorbar"]["vmin"] == pytest.approx(values[:3, 0].mean())
+
+    window = ZoomWindow(x_min=10, x_max=40, y_min=0, y_max=29)
+    zoomed = render_pseudocolor(ds, config(), 0, window, max_size=40)
+    assert zoomed["sampling"] == {"x": 1, "y": 1}
+    assert zoomed["imageSize"] == {"width": 31, "height": 30}

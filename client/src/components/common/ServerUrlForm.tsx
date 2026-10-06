@@ -1,6 +1,7 @@
 import { FormEvent, useId, useState } from "react";
 import { getServerUrl, normalizeServerUrl, setServerUrl } from "../../config";
 import { modalStyles } from "./Modal";
+import styles from "./ServerUrlForm.module.css";
 
 /**
  * Which nt2gui server this UI talks to. Saving reloads the page, so caches
@@ -27,7 +28,7 @@ const ServerUrlForm = () => {
   };
 
   return (
-    <form onSubmit={submit}>
+    <form className={styles.form} onSubmit={submit}>
       <label htmlFor={id} className={modalStyles.status}>
         Server URL — empty to use the server that served this page
         {current ? "" : " (current)"}

@@ -1,5 +1,6 @@
 import {
   BorderNode,
+  ITabRenderValues,
   ITabSetRenderValues,
   Layout,
   TabNode,
@@ -42,6 +43,15 @@ const Workspace = () => {
     }
   };
 
+  // A hint on each panel tab (the whole label, via its content).
+  const onRenderTab = (node: TabNode, values: ITabRenderValues) => {
+    values.content = (
+      <span title="Double click to rename, drag to reposition">
+        {node.getName()}
+      </span>
+    );
+  };
+
   return (
     <div className="app-shell">
       <Menubar />
@@ -53,6 +63,7 @@ const Workspace = () => {
             factory={factory}
             onModelChange={handleModelChange}
             onRenderTabSet={onRenderTabSet}
+            onRenderTab={onRenderTab}
             realtimeResize
           />
         </div>

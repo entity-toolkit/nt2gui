@@ -1,4 +1,5 @@
 import { KeyboardEvent, useRef, useState } from "react";
+import { TbPencil } from "react-icons/tb";
 import { serverErrorMessage } from "../../api/http";
 import styles from "./EditableName.module.css";
 
@@ -70,7 +71,7 @@ const EditableName = ({
             title="Rename"
             onClick={() => setDraft(name)}
           >
-            ✎
+            <TbPencil aria-hidden />
           </button>
         </span>
       ) : (

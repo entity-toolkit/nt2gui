@@ -17,11 +17,12 @@
 
 .plotToolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
 
+/* Zoom tools, region tools: each a group, separated by a rule. */
 .toolbarGroup {
   display: inline-flex;
   align-items: center;
@@ -29,27 +30,43 @@
   flex-wrap: wrap;
 }
 
-.toolbarButton {
+.toolbarGroup + .toolbarGroup {
+  padding-left: 14px;
+  border-left: 1px solid var(--color-border);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   background: #0f172a;
   color: #e2e8f0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 17px;
+  line-height: 0;
   transition:
     background 0.2s ease,
     border-color 0.2s ease;
 }
 
-.toolbarButton:disabled {
-  opacity: 0.6;
+.iconButton:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.toolbarButton:not(:disabled):hover {
+.iconButton:not(:disabled):hover {
   background: var(--color-hover);
   border-color: var(--color-axis-line);
+}
+
+.iconButton[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
 }
 
 .toolbarToggle {
@@ -60,9 +77,13 @@
   font-size: 13px;
 }
 
-.toolbarStatus {
-  font-size: 12px;
-  color: var(--color-muted);
+/* Time sits below the figure: the sync toggle, and the panel's own timeline. */
+.timeBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .plotFigure {
@@ -105,7 +126,8 @@
 }
 
 .plotTimeline {
-  flex: none;
+  flex: 1;
+  min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -120,11 +142,17 @@
 }
 
 .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
   background: #0f172a;
   color: var(--color-axis-text);
   border: none;
-  padding: 6px 9px;
-  font-size: 12px;
+  font-size: 16px;
+  line-height: 0;
   cursor: pointer;
 }
 

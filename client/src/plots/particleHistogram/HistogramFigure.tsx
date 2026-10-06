@@ -16,7 +16,7 @@ import {
   uniqueLabels,
 } from "../particles/config";
 import ExcludedNote from "../particles/ExcludedNote";
-import styles from "../particles/figure.module.css";
+import styles from "../figure.module.css";
 
 interface HistogramFigureProps {
   simulationId: string;

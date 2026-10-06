@@ -1,56 +1,43 @@
-import SelectionMenu from "../components/common/SelectionMenu";
 import { panelTime } from "../lib/playback";
 import { RenderScope } from "../state/renderActivity";
 import { DataType, PlotType } from "../state/schema";
 import { useUi, useUiActions } from "../state/UiContext";
-import { PLOT_KINDS, findPlotKind } from "./registry";
+import { useFieldMetadata } from "./fields/useFieldMetadata";
+import PlotPicker from "./PlotPicker";
+import { findPlotKind } from "./registry";
 import styles from "./Panel.module.css";
-
-/** Plot types that are planned but not available yet. */
-const COMING_SOON: Partial<Record<DataType, string[]>> = {
-  [DataType.Fields]: ["2D scatter"],
-};
-
-const DATA_TYPES = [
-  { label: "fields", dataType: DataType.Fields },
-  { label: "particles", dataType: DataType.Particles },
-];
 
 /**
  * One layout tab: pick the data type, then the plot kind, then show the plot.
  */
 const Panel = ({ nodeId }: { nodeId: string }) => {
-  const { uiState } = useUi();
+  const { uiState, simulations } = useUi();
   const { setDataType, setPlotType } = useUiActions();
   const plotter = uiState.plotters[nodeId];
 
+  const dataType = plotter?.dataType ?? DataType.None;
+  const picking = !plotter || plotter.plotType === PlotType.None;
+  // The simulation a new plot would show (see assignSimulations), so the
+  // picker can rule out kinds its data can't make.
+  const pickerSimulation =
+    picking && dataType === DataType.Fields
+      ? (plotter?.simulationId ?? simulations[0]?.id ?? null)
+      : null;
+  const { metadata: fieldMetadata } = useFieldMetadata(
+    pickerSimulation,
+    undefined,
+  );
+
   const content = (() => {
-    if (!plotter || plotter.dataType === DataType.None) {
+    if (!plotter || picking) {
       return (
-        <SelectionMenu
-          options={DATA_TYPES.map(({ label, dataType }) => ({
-            label,
-            onSelect: () => setDataType(nodeId, dataType),
-          }))}
-        />
-      );
-    }
-    if (plotter.plotType === PlotType.None) {
-      return (
-        <SelectionMenu
-          options={[
-            ...PLOT_KINDS.filter(
-              (kind) => kind.dataType === plotter.dataType,
-            ).map((kind) => ({
-              label: kind.label,
-              onSelect: () => setPlotType(nodeId, kind.plotType, kind.defaults),
-            })),
-            ...(COMING_SOON[plotter.dataType] ?? []).map((label) => ({
-              label,
-              disabled: true,
-            })),
-          ]}
-          helperText="Right-click a plot to choose what it shows."
+        <PlotPicker
+          dataType={dataType}
+          context={{ fieldMetadata }}
+          onDataType={(next) => setDataType(nodeId, next)}
+          onPlotKind={(kind) =>
+            setPlotType(nodeId, kind.plotType, kind.defaults)
+          }
         />
       );
     }

@@ -81,6 +81,16 @@ def test_log_colors_leave_non_positive_values_transparent():
     )
 
 
+def test_power_colors_pass_the_exponent():
+    values = np.linspace(-1, 1, 200).reshape(20, 10)
+    result = render_pseudocolor(
+        make_dataset(values), config(colorScale="power", colorPower=0.25), 0
+    )
+    assert result["colorbar"]["scale"] == "power"
+    assert result["colorbar"]["power"] == 0.25
+    assert result["colorbar"]["vmin"] == pytest.approx(-1)
+
+
 def test_linear_limits_and_timestamp_of_static_data():
     result = render_pseudocolor(
         make_dataset(np.linspace(-1, 1, 200).reshape(20, 10)),

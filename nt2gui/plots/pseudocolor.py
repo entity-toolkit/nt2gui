@@ -74,6 +74,7 @@ def render_pseudocolor(
         config.color_scale,
         config.vmin,
         config.vmax,
+        config.color_power,
     )
     return {
         **image,

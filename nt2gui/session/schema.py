@@ -46,7 +46,6 @@ class DataType(str, Enum):
 class PlotType(str, Enum):
     NONE = "none"
     LINE = "line"
-    SCATTER = "scatter"
     PSEUDOCOLOR = "pseudocolor"
 
 
@@ -77,8 +76,9 @@ class PseudocolorConfig(_Schema):
     vmin: float | None = None
     vmax: float | None = None
     color_map: str = DEFAULT_COLOR_MAP
-    # Log colors leave values <= 0 transparent.
-    color_scale: ColorScale = "linear"
+    # Log colors leave values <= 0 transparent; power colors by sign(A)|A|^p.
+    color_scale: ScaleKind = "linear"
+    color_power: float = Field(0.5, gt=0)
     # Coordinate value at which each dim beyond x/y is sliced (3D fields).
     slices: dict[str, float] = {}
     # Custom quantities (e.g. "f + g") offered alongside the fields.
@@ -135,6 +135,9 @@ class LineConfig(_Schema):
     # Fixed value-axis limits (display only); unset means automatic.
     y_min: float | None = None
     y_max: float | None = None
+    # Value axis (display only): log hides values <= 0; power is sign(A)|A|^p.
+    y_scale: ScaleKind = "linear"
+    y_power: float = Field(0.5, gt=0)
     # Custom quantities (e.g. "sqrt(Ex**2 + Ey**2)") offered alongside the
     # fields; selected ones also appear in `quantities`.
     expressions: list[str] = []

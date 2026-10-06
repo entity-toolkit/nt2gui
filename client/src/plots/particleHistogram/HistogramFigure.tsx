@@ -76,7 +76,7 @@ const HistogramFigure = ({
         yMax={config.yMax}
         xScaleKind={config.x.scale}
         xPower={config.x.power}
-        yLog={(config.yScale ?? "log") === "log"}
+        yScaleKind={config.yScale ?? "log"}
         step
         // Panning shifts the binned range (and re-bins), like a zoom.
         pan={hasRange(config.x) ? {} : undefined}

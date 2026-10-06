@@ -53,9 +53,16 @@ const json = (body: unknown, status = 200) =>
   Promise.resolve(new Response(JSON.stringify(body), { status }));
 
 let puts: IServerSnapshot["state"][] = [];
+// What GET /fields returns; tests needing 2D fields replace it.
+let fieldMetadata: unknown;
 
 beforeEach(() => {
   puts = [];
+  fieldMetadata = {
+    fields: [{ name: "Bx", dims: ["x"] }],
+    vectors: [],
+    coords: { x: [0, 1] },
+  };
   // jsdom has no layout. flexlayout only mounts tab content once it measures
   // a non-empty area, so give every element a size.
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(
@@ -82,13 +89,7 @@ beforeEach(() => {
       if (url.endsWith("/summary")) {
         return json({ fields: null, particles: null, spectra: null });
       }
-      if (url.endsWith("/fields")) {
-        return json({
-          fields: [{ name: "Bx", dims: ["x"] }],
-          vectors: [],
-          coords: { x: [0, 1] },
-        });
-      }
+      if (url.endsWith("/fields")) return json(fieldMetadata);
       return json({ error: `unexpected ${url}` }, 404);
     }),
   );
@@ -127,6 +128,41 @@ describe("App", () => {
       lineConfig: { quantities: [], axis: "", slices: {} },
     });
     vi.useRealTimers();
+  });
+
+  it("picks the plot kind below the data type, which can still be changed", async () => {
+    render(<App />);
+    const fields = await screen.findByRole("button", { name: "fields" });
+    expect(fields.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.queryByRole("button", { name: "1D plot" })).toBeNull();
+
+    fireEvent.click(fields);
+    // The data step stays (marked chosen) and the plot kinds appear below it.
+    expect(fields.getAttribute("aria-pressed")).toBe("true");
+    expect(await screen.findByRole("button", { name: "1D plot" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /scatter/ })).toBeNull();
+    // These fields are 1D, so a 2D plot can't be made from them.
+    const pseudocolor = await screen.findByRole("button", {
+      name: "2D pseudocolor",
+    });
+    await vi.waitFor(() =>
+      expect((pseudocolor as HTMLButtonElement).disabled).toBe(true),
+    );
+    expect(pseudocolor.getAttribute("title")).toBe(
+      "This simulation's fields are 1D",
+    );
+
+    // Switching the data type swaps the kinds; clicking it again goes back.
+    fireEvent.click(screen.getByRole("button", { name: "particles" }));
+    expect(
+      await screen.findByRole("button", { name: "1D histogram" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "1D plot" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "particles" }));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("button", { name: "1D histogram" })).toBeNull(),
+    );
+    expect(screen.queryByText(/Right-click a plot/)).toBeNull();
   });
 
   it("keeps the playback speed and the folded timeline in the session", async () => {
@@ -249,11 +285,26 @@ describe("App", () => {
 
   it("hides regions on 2D plots until shown", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "fields" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: "2D pseudocolor" }),
+    const saved = snapshot();
+    saved.state.plotters["panel-1"] = {
+      dataType: DataType.Fields,
+      plotType: PlotType.Pseudocolor,
+      simulationId: "sim1",
+      pseudocolorConfig: {
+        field: "",
+        xCoordinate: "x",
+        yCoordinate: "y",
+        colorMap: "viridis",
+      },
+    };
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      url === "api/state" && init?.method !== "PUT"
+        ? json(saved)
+        : fake(url, init),
     );
+    render(<App />);
 
     const toggle = await screen.findByRole("checkbox", {
       name: "Show regions",

@@ -76,13 +76,15 @@ describe("withAxisRange", () => {
 });
 
 describe("lineRequest", () => {
-  it("drops display-only limits so changing them doesn't refetch", () => {
+  it("drops display-only limits and scale so changing them doesn't refetch", () => {
     const config = {
       quantities: ["B"],
       axis: "x",
       slices: { y: 1 },
       yMin: 0,
       yMax: 1,
+      yScale: "power" as const,
+      yPower: 0.3,
     };
     expect(lineRequest(config)).toEqual({
       quantities: ["B"],

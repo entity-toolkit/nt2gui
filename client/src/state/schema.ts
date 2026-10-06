@@ -15,7 +15,6 @@ export enum DataType {
 export enum PlotType {
   None = "none",
   Line = "line",
-  Scatter = "scatter",
   Pseudocolor = "pseudocolor",
 }
 
@@ -61,6 +60,15 @@ export interface IRegion {
 
 export type ColorScale = "linear" | "log";
 
+/**
+ * A value scale: linear, log10 (values <= 0 can't be shown), or the
+ * sign-preserving power stretch sign(A)·|A|^p (a "symlog" for data of either
+ * sign).
+ */
+export type ScaleKind = "linear" | "log" | "power";
+
+export const DEFAULT_SCALE_POWER = 0.5;
+
 export interface IPseudocolorConfig {
   /** Field name or expression. */
   field: string;
@@ -70,7 +78,9 @@ export interface IPseudocolorConfig {
   vmax?: number;
   colorMap: string;
   /** Log colors leave values <= 0 transparent (default linear). */
-  colorScale?: ColorScale;
+  colorScale?: ScaleKind;
+  /** Exponent p of the power color scale (default DEFAULT_SCALE_POWER). */
+  colorPower?: number;
   /** Coordinate value at which each dim beyond x/y is sliced (3D fields). */
   slices?: Record<string, number>;
   /** Custom quantities (e.g. "f + g") offered alongside the fields. */
@@ -87,6 +97,9 @@ export interface ILineConfig {
   /** Fixed value-axis limits; either may be left unset (auto). */
   yMin?: number;
   yMax?: number;
+  /** Value-axis scale (display only, default linear) and its power-scale exponent. */
+  yScale?: ScaleKind;
+  yPower?: number;
   /** Custom quantities offered alongside the fields; selected ones are also in `quantities`. */
   expressions?: string[];
 }

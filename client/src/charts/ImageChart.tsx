@@ -197,10 +197,10 @@ const ImageChart = ({
   );
   const colorScale = useMemo(
     () =>
-      makeScale(colorbar.scale)
+      makeScale(colorbar.scale, colorbar.power)
         .domain([colorbar.vmin, colorbar.vmax])
         .range([plot.height, 0]),
-    [colorbar.scale, colorbar.vmax, colorbar.vmin, plot.height],
+    [colorbar.power, colorbar.scale, colorbar.vmax, colorbar.vmin, plot.height],
   );
 
   useEffect(() => {

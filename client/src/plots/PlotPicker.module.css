@@ -1,0 +1,156 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(360px, 100%);
+  max-height: 100%;
+  margin: auto 0;
+  overflow-y: auto;
+  /* Room for the focus rings, which the scroll box would clip. */
+  padding: 4px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: opacity 0.2s ease;
+}
+
+/* A finished step steps back, but stays usable. */
+.done {
+  opacity: 0.55;
+}
+
+.done:hover,
+.done:focus-within {
+  opacity: 1;
+}
+
+.enter {
+  animation: enter 0.18s ease-out;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.number {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.dataTypes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dataType,
+.kind {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--color-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-soft);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.dataType {
+  justify-content: center;
+}
+
+.dataType:hover,
+.kind:hover:enabled,
+.dataType:focus-visible,
+.kind:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+  outline: none;
+}
+
+.dataType[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+.icon,
+.check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.check {
+  margin-left: auto;
+}
+
+.kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kind:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.kindIcon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--color-axis-text);
+}
+
+.kindText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.kindLabel {
+  color: var(--color-text);
+}
+
+.about {
+  color: var(--color-muted);
+  font-size: 12px;
+}

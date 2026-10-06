@@ -3,16 +3,12 @@ import { useId } from "react";
 import { IParticleMetadata } from "../../api/types";
 import ExpressionInput from "../../components/common/ExpressionInput";
 import { parseOptionalNumber } from "../../components/common/LimitInputs";
+import ScaleSelect from "../../components/common/ScaleSelect";
 import { normalizeExpression } from "../../lib/expressions";
 import { describeRegion, regionColor } from "../../state/regions";
 import { useUi } from "../../state/UiContext";
 import { formatValue } from "../../lib/format";
-import {
-  DEFAULT_PARTICLE_BINS,
-  DEFAULT_PARTICLE_POWER,
-  IParticleAxis,
-  ParticleScale,
-} from "../../state/schema";
+import { DEFAULT_PARTICLE_BINS, IParticleAxis } from "../../state/schema";
 import listStyles from "../fields/QuantityList.module.css";
 import {
   isSpeciesSelected,
@@ -180,32 +176,18 @@ export const AxisControls = ({
         </select>
       </div>
       <div className={styles.axisRow}>
-        <select
-          aria-label={`${label} scale`}
-          value={axis.scale}
-          onChange={(event) =>
-            onChange(withAxisScale(axis, event.target.value as ParticleScale))
+        <ScaleSelect
+          label={`${label} scale`}
+          scale={axis.scale}
+          power={axis.power}
+          onChange={(scale, power) =>
+            onChange(
+              scale === axis.scale
+                ? { ...axis, power }
+                : withAxisScale(axis, scale),
+            )
           }
-        >
-          <option value="linear">linear</option>
-          <option value="log">log</option>
-          <option value="power">sign·|A|^p</option>
-        </select>
-        {axis.scale === "power" && (
-          <label className={styles.inline}>
-            p
-            <input
-              type="number"
-              min={0.01}
-              step={0.05}
-              value={axis.power ?? DEFAULT_PARTICLE_POWER}
-              onChange={(event) => {
-                const power = Number(event.target.value);
-                if (power > 0) onChange({ ...axis, power });
-              }}
-            />
-          </label>
-        )}
+        />
         <label className={styles.inline}>
           bins
           <input

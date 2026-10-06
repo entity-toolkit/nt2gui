@@ -1,0 +1,12 @@
+.power {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-axis-text);
+  font-size: 13px;
+  flex: none;
+}
+
+.power input {
+  width: 64px;
+}

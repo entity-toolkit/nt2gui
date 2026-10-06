@@ -75,6 +75,8 @@ const LineFigure = ({
       isRefreshing={isRendering}
       yMin={config.yMin}
       yMax={config.yMax}
+      yScaleKind={config.yScale}
+      yPower={config.yPower}
     />
   ) : (
     <FigureMessage tag="Rendering…" />

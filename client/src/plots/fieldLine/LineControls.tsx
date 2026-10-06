@@ -6,6 +6,7 @@ import {
   FormStack,
 } from "../../components/common/FormField";
 import LimitInputs from "../../components/common/LimitInputs";
+import ScaleSelect from "../../components/common/ScaleSelect";
 import {
   addExpression,
   normalizeExpression,
@@ -37,6 +38,7 @@ const LineControls = ({
   onChange,
 }: LineControlsProps) => {
   const axisId = useId();
+  const scaleId = useId();
   if (!metadata) {
     return (
       <FormHint>{metadataError ?? "Loading the simulation's fields…"}</FormHint>
@@ -109,6 +111,23 @@ const LineControls = ({
             </option>
           ))}
         </select>
+      </FormField>
+
+      <FormField label="y scale" htmlFor={scaleId}>
+        <ScaleSelect
+          id={scaleId}
+          label="y scale"
+          scale={config.yScale ?? "linear"}
+          power={config.yPower}
+          onChange={(yScale, yPower) =>
+            onChange(
+              yScale === (config.yScale ?? "linear")
+                ? { ...config, yPower }
+                : // Limits valid on one scale (e.g. negative) may not be on another.
+                  { ...config, yScale, yMin: undefined, yMax: undefined },
+            )
+          }
+        />
       </FormField>
 
       <LimitInputs

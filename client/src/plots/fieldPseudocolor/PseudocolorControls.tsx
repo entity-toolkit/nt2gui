@@ -7,12 +7,13 @@ import {
   FormStack,
 } from "../../components/common/FormField";
 import LimitInputs from "../../components/common/LimitInputs";
+import ScaleSelect from "../../components/common/ScaleSelect";
 import {
   addExpression,
   normalizeExpression,
   removeExpression,
 } from "../../lib/expressions";
-import { ColorScale, IPseudocolorConfig } from "../../state/schema";
+import { IPseudocolorConfig } from "../../state/schema";
 import { withExpressionFields } from "../fields/metadata";
 import QuantityList from "../fields/QuantityList";
 import { checkExpression } from "../fields/useFieldMetadata";
@@ -44,6 +45,7 @@ const PseudocolorControls = ({
 }: PseudocolorControlsProps) => {
   const axesId = useId();
   const colorId = useId();
+  const colorMapId = useId();
   if (!metadata) {
     return (
       <FormHint>{metadataError ?? "Loading the simulation's fields…"}</FormHint>
@@ -140,25 +142,31 @@ const PseudocolorControls = ({
         onChange={(vmin, vmax) => onChange({ ...config, vmin, vmax })}
       />
 
-      <FormField label="color" htmlFor={colorId}>
-        <select
+      <FormField label="color scale" htmlFor={colorId}>
+        <ScaleSelect
           id={colorId}
-          aria-label="color scale"
-          value={config.colorScale ?? "linear"}
-          onChange={(event) =>
-            onChange({
-              ...config,
-              colorScale: event.target.value as ColorScale,
-              // Limits valid for one scale (e.g. negative) may not be for the other.
-              vmin: undefined,
-              vmax: undefined,
-            })
+          label="color scale"
+          scale={config.colorScale ?? "linear"}
+          power={config.colorPower}
+          onChange={(colorScale, colorPower) =>
+            onChange(
+              colorScale === (config.colorScale ?? "linear")
+                ? { ...config, colorPower }
+                : {
+                    ...config,
+                    colorScale,
+                    // Limits valid for one scale (e.g. negative) may not be for another.
+                    vmin: undefined,
+                    vmax: undefined,
+                  },
+            )
           }
-        >
-          <option value="linear">linear</option>
-          <option value="log">log</option>
-        </select>
+        />
+      </FormField>
+
+      <FormField label="colormap" htmlFor={colorMapId}>
         <select
+          id={colorMapId}
           aria-label="colormap"
           value={config.colorMap}
           onChange={(event) =>

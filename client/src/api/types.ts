@@ -1,6 +1,6 @@
 /** Shapes of the server's responses (see `nt2gui/api/*` and `nt2gui/plots/*`). */
 import {
-  ColorScale,
+  ScaleKind,
   ISimulation,
   IUiState,
   ParticleScale,
@@ -101,7 +101,9 @@ export interface IImageRender {
   colorbar: {
     vmin: number;
     vmax: number;
-    scale: ColorScale;
+    scale: ScaleKind;
+    /** Exponent of the power scale (sign(A)·|A|^p). */
+    power?: number;
     colors: string[];
   };
   timestamp: number;

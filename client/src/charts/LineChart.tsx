@@ -22,7 +22,7 @@ import { ILineRender } from "../api/types";
 import { RefreshingBadge } from "../components/common/FigureMessage";
 import { formatValue } from "../lib/format";
 import { ChartRegion } from "../state/regions";
-import { IRange, ParticleScale } from "../state/schema";
+import { IRange, ScaleKind } from "../state/schema";
 import { drawAxis, drawGrid } from "./axis";
 import { seriesColor } from "./colors";
 import { useElementSize } from "./useElementSize";
@@ -38,9 +38,11 @@ interface LineChartProps {
   yMin?: number;
   yMax?: number;
   /** Coordinate-axis scale (default linear); power uses sign(A)·|A|^p. */
-  xScaleKind?: ParticleScale;
+  xScaleKind?: ScaleKind;
   xPower?: number;
-  yLog?: boolean;
+  /** Value-axis scale (default linear); log leaves gaps at values <= 0. */
+  yScaleKind?: ScaleKind;
+  yPower?: number;
   /** Histograms: `coordinates` are bin edges and lines are drawn as steps. */
   step?: boolean;
   /**
@@ -75,7 +77,8 @@ const LineChart = ({
   yMax,
   xScaleKind = "linear",
   xPower,
-  yLog = false,
+  yScaleKind = "linear",
+  yPower,
   step = false,
   pan,
   onPan,
@@ -124,21 +127,22 @@ const LineChart = ({
 
   const yScale = useMemo(() => {
     const values = data.series.flatMap((series) => series.values);
-    const { domain, fixed } = yLog
-      ? logValueDomain(scaleExtent(values, "log"), yMin, yMax)
-      : valueDomain(scaleExtent(values), yMin, yMax);
-    const scale = makeScale(yLog ? "log" : "linear")
+    const { domain, fixed } =
+      yScaleKind === "log"
+        ? logValueDomain(scaleExtent(values, "log"), yMin, yMax)
+        : valueDomain(scaleExtent(values), yMin, yMax);
+    const scale = makeScale(yScaleKind, yPower)
       .domain(domain)
       .range([margin.top + innerHeight, margin.top]);
     // Rounding the domain outwards would move limits the user typed in.
     return fixed ? scale : scale.nice();
-  }, [data.series, innerHeight, yLog, yMax, yMin]);
+  }, [data.series, innerHeight, yMax, yMin, yPower, yScaleKind]);
 
   // Zero or negative values have no place on a log axis: leave gaps.
   const isDrawable = useCallback(
     (value: number | null): value is number =>
-      value !== null && (!yLog || value > 0),
-    [yLog],
+      value !== null && (yScaleKind !== "log" || value > 0),
+    [yScaleKind],
   );
 
   // The axis groups only exist once the container has a size.

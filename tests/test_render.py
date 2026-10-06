@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from nt2gui.errors import UserError
-from nt2gui.render import color_limits, shade
+from nt2gui.render import color_limits, shade, sign_power
 
 
 def decode(result):
@@ -61,6 +61,23 @@ class TestShade:
         assert result["colorbar"]["vmin"] == 0 and result["colorbar"]["vmax"] == 2
         assert result["colorbar"]["scale"] == "linear"
         assert len(result["colorbar"]["colors"]) == 128
+
+    def test_power_scale_keeps_the_sign(self):
+        # sign(A)|A|^0.5 over [-4, 4]: -1 is a quarter of the way from the
+        # middle to the bottom, so it's darker than halfway on a gray map.
+        values = np.array([[-4.0, -1.0, 0.0, 1.0, 4.0]])
+        result = shade(values, "gray", "power", power=0.5)
+        gray = decode(result)[0, :, 0]
+        expected = (sign_power(values[0], 0.5) + 2) / 4
+        assert gray == pytest.approx(expected, abs=0.01)
+        assert result["colorbar"]["scale"] == "power"
+        assert result["colorbar"]["power"] == 0.5
+        assert (result["colorbar"]["vmin"], result["colorbar"]["vmax"]) == (-4, 4)
+        assert "power" not in shade(values, "gray", "linear")["colorbar"]
+
+    def test_power_must_be_positive(self):
+        with pytest.raises(UserError, match="power must be positive"):
+            shade(np.ones((1, 1)), "gray", "power", power=0)
 
     def test_unknown_colormap(self):
         with pytest.raises(UserError, match="Unknown colormap"):

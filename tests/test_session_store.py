@@ -111,6 +111,44 @@ def test_optional_fields_round_trip_without_becoming_null(tmp_path):
     assert snapshot["state"]["plotters"] == plotters
 
 
+def test_value_scales_round_trip_and_scatter_is_gone():
+    plotters = {
+        "line": {
+            "plotType": "line",
+            "dataType": "fields",
+            "lineConfig": {
+                "quantities": ["Ex"],
+                "axis": "x",
+                "yScale": "power",
+                "yPower": 0.3,
+            },
+        },
+        "image": {
+            "plotType": "pseudocolor",
+            "dataType": "fields",
+            "pseudocolorConfig": {
+                "field": "f",
+                "colorScale": "power",
+                "colorPower": 0.25,
+            },
+        },
+    }
+    state = make_state(plotters=plotters).to_wire()
+    assert state["plotters"] == plotters
+    with pytest.raises(ValueError):
+        make_state(plotters={"p": {"plotType": "scatter", "dataType": "fields"}})
+    with pytest.raises(ValueError):
+        make_state(
+            plotters={
+                "p": {
+                    "plotType": "line",
+                    "dataType": "fields",
+                    "lineConfig": {"quantities": [], "axis": "", "yPower": 0},
+                }
+            }
+        )
+
+
 def test_corrupt_file_is_backed_up_and_replaced_by_default(tmp_path):
     path = tmp_path / "session.json"
     path.write_text("{not json")

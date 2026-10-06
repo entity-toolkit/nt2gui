@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nt2gui"
-version = "0.1.0"
-description = "Browser UI for visualizing Entity simulation output, served from where the data lives."
+version = "0.2"
+description = "Browser UI for visualizing Entity simulation output"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Hayk Hakobyan", email = "hhakobyan@flatironinstitute.org" }]
+authors = [{ name = "Hayk Hakobyan", email = "haykh.astro@gmail.com" }]
 dependencies = [
   "flask>=3.0",
   "waitress>=3.0",
@@ -30,7 +30,6 @@ nt2gui = "nt2gui.cli:main"
 Repository = "https://github.com/haykh/nt2gui"
 
 [tool.hatch.build]
-# The built client (`npm run build`) is gitignored, so list it explicitly.
 artifacts = ["nt2gui/static/**"]
 
 [tool.hatch.build.targets.wheel]

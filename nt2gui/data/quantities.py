@@ -12,7 +12,7 @@ import numpy as np
 import xarray as xr
 
 from ..errors import UserError
-from .expressions import evaluate
+from .expressions import Variables, evaluate
 
 TIME_DIM = "t"
 COMPONENT_SUFFIXES = ("x", "y", "z")
@@ -60,10 +60,14 @@ def resolve_quantities(requested: Sequence[str], dataset: xr.Dataset) -> list[st
 
 
 def quantity_arrays(
-    requested: Sequence[str], dataset: xr.Dataset
+    requested: Sequence[str],
+    dataset: xr.Dataset,
+    variables: Variables | None = None,
 ) -> list[xr.DataArray]:
     """One array per plotted series: fields and vector components by name,
-    anything else evaluated as an expression."""
+    anything else (a named variable, or an expression that may use them)
+    evaluated as an expression."""
+    variables = variables or {}
     fields = set(map(str, dataset.data_vars))
     vectors = vector_groups(fields)
     arrays: list[xr.DataArray] = []
@@ -73,10 +77,14 @@ def quantity_arrays(
             new = [dataset[quantity]]
         elif quantity in vectors:
             new = [dataset[name] for name in vectors[quantity]]
-        elif quantity.isidentifier() and quantity not in dataset.coords:
+        elif (
+            quantity.isidentifier()
+            and quantity not in dataset.coords
+            and quantity not in variables
+        ):
             raise QuantityError(f"Unknown quantity '{quantity}'")
         else:
-            new = [evaluate(quantity, dataset)]
+            new = [evaluate(quantity, dataset, variables)]
         for array in new:
             if str(array.name) not in seen:
                 seen.add(str(array.name))
@@ -84,9 +92,11 @@ def quantity_arrays(
     return arrays
 
 
-def single_quantity(quantity: str, dataset: xr.Dataset) -> xr.DataArray:
+def single_quantity(
+    quantity: str, dataset: xr.Dataset, variables: Variables | None = None
+) -> xr.DataArray:
     """The one array a quantity stands for (vectors are rejected)."""
-    arrays = quantity_arrays([quantity], dataset)
+    arrays = quantity_arrays([quantity], dataset, variables)
     if len(arrays) != 1:
         raise QuantityError(
             f"'{quantity}' is a vector; plot one component or an expression"
@@ -98,11 +108,13 @@ def spatial_dims(data: xr.DataArray | xr.Dataset) -> list[str]:
     return [str(dim) for dim in data.dims if dim != TIME_DIM]
 
 
-def quantity_dims(quantity: str, dataset: xr.Dataset) -> list[str]:
+def quantity_dims(
+    quantity: str, dataset: xr.Dataset, variables: Variables | None = None
+) -> list[str]:
     """Spatial dims of a quantity, found cheaply on a tiny cut of the data."""
     tiny = dataset.isel({dim: slice(0, 2) for dim in dataset.dims})
     dims: list[str] = []
-    for array in quantity_arrays([quantity], tiny):
+    for array in quantity_arrays([quantity], tiny, variables):
         dims.extend(dim for dim in spatial_dims(array) if dim not in dims)
     return dims
 

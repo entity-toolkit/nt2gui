@@ -90,3 +90,29 @@ def block_mean(values: np.ndarray, factors: tuple[int, int]) -> np.ndarray:
         counts = np.outer(rows, cols)
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(counts > 0, sums / counts, np.nan)
+
+
+def boxcar(values: np.ndarray, axis: int, half: int) -> np.ndarray:
+    """Moving average over 2·`half` + 1 cells along `axis` (a boxcar).
+
+    Missing values (NaN/inf) are left out of each average and stay missing,
+    so holes keep their shape; near the ends the window is cut short. Runs
+    in O(size) with cumulative sums, whatever the window.
+    """
+    data = np.moveaxis(np.asarray(values, dtype=float), axis, -1)
+    if half <= 0 or data.shape[-1] == 0:
+        return np.moveaxis(data.copy(), -1, axis)
+    finite = np.isfinite(data)
+    pad = [(0, 0)] * (data.ndim - 1) + [(1, 0)]
+    sums = np.pad(np.cumsum(np.where(finite, data, 0.0), axis=-1), pad)
+    counts = np.pad(np.cumsum(finite, axis=-1), pad)
+    size = data.shape[-1]
+    index = np.arange(size)
+    lower = np.clip(index - half, 0, size)
+    upper = np.clip(index + half + 1, 0, size)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        smoothed = (sums[..., upper] - sums[..., lower]) / (
+            counts[..., upper] - counts[..., lower]
+        )
+    smoothed[~finite] = np.nan
+    return np.moveaxis(smoothed, -1, axis)

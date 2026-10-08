@@ -5,6 +5,7 @@ import {
   quantityDims,
   withExpressionFields,
   withSlice,
+  withSmoothing,
 } from "./metadata";
 
 const metadata: IFieldMetadata = {
@@ -80,5 +81,21 @@ describe("withExpressionFields", () => {
     expect(
       withExpressionFields(metadata, { Bx: ["x", "y"] }, ["Bx", "pending"]),
     ).toBe(metadata);
+  });
+});
+
+describe("withSmoothing", () => {
+  it("sets, replaces and clears per-dim windows", () => {
+    const config: { field: string; smoothing?: Record<string, number> } = {
+      field: "f",
+    };
+    const one = withSmoothing(config, "x", 0.5);
+    expect(one).toEqual({ field: "f", smoothing: { x: 0.5 } });
+    const two = withSmoothing(one, "y", 2);
+    expect(two.smoothing).toEqual({ x: 0.5, y: 2 });
+    expect(withSmoothing(two, "y", 2)).toBe(two);
+    expect(withSmoothing(two, "x", undefined).smoothing).toEqual({ y: 2 });
+    expect(withSmoothing(one, "x", 0)).toEqual({ field: "f" });
+    expect(withSmoothing(config, "x", -1)).toBe(config);
   });
 });

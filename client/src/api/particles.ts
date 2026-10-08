@@ -3,6 +3,7 @@ import {
   IParticlePhaseConfig,
   IRegion,
 } from "../state/schema";
+import { Variables } from "./fields";
 import { requestJson, simulationUrl } from "./http";
 import { IParticleHistogram, IParticleMetadata, IParticlePhase } from "./types";
 
@@ -12,12 +13,11 @@ export const fetchParticleMetadata = (simulationId: string) =>
 export const checkParticleQuantity = (
   simulationId: string,
   expression: string,
+  variables: Variables = {},
 ) =>
   requestJson<{ expression: string }>(
     simulationUrl(simulationId, "particles/check"),
-    {
-      body: { expression },
-    },
+    { body: { expression, variables } },
   );
 
 /**
@@ -29,6 +29,7 @@ export const renderParticleHistogram = (
   request: {
     config: Pick<IParticleHistogramConfig, "x" | "series">;
     regions: IRegion[];
+    variables: Variables;
   },
   time: number,
   signal?: AbortSignal,
@@ -41,7 +42,11 @@ export const renderParticleHistogram = (
 /** `regions` defines every region the config refers to. */
 export const renderParticlePhase = (
   simulationId: string,
-  request: { config: IParticlePhaseConfig; regions: IRegion[] },
+  request: {
+    config: IParticlePhaseConfig;
+    regions: IRegion[];
+    variables: Variables;
+  },
   time: number,
   signal?: AbortSignal,
 ) =>

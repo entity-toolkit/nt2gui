@@ -6,6 +6,7 @@ import { useSessionFiles } from "../../hooks/useSessionFiles";
 import { useUi } from "../../state/UiContext";
 import Modal, { modalStyles } from "../common/Modal";
 import ServerUrlForm from "../common/ServerUrlForm";
+import FocusToggle from "./FocusToggle";
 import SessionDialog, { SessionDialogMode } from "./SessionDialog";
 import SyncStatusBadge from "./SyncStatusBadge";
 import styles from "./Menubar.module.css";
@@ -84,6 +85,7 @@ const Menubar = () => {
         </button>
         <div className={styles.menuStatus}>
           <SyncStatusBadge status={syncStatus} />
+          <FocusToggle />
         </div>
       </div>
 

@@ -1,0 +1,36 @@
+.toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 8px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-axis-text);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+/* Over the plots, faint until hovered. */
+.floating {
+  position: fixed;
+  top: 6px;
+  right: 6px;
+  margin: 0;
+  z-index: 100;
+  background: var(--color-surface);
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+}
+
+.floating:hover,
+.floating:focus-visible {
+  opacity: 1;
+}

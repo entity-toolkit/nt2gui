@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
+from ..data.expressions import Variables
 from ..data.particles import histogram_2d, species_mask
 from ..data.regions import regions_mask, resolve_regions
 from ..render import shade
@@ -16,6 +17,7 @@ def render_particle_phase(
     particles: xr.Dataset,
     config: ParticlePhaseConfig,
     regions: Mapping[str, Region],
+    variables: Variables | None = None,
 ) -> dict[str, Any]:
     """Bins the selected species (inside any of the chosen regions) uniformly
     in each axis' scaled space; empty bins are transparent.
@@ -26,7 +28,7 @@ def render_particle_phase(
     mask = species_mask(particles, config.species) & regions_mask(
         particles, resolve_regions(config.regions, regions)
     )
-    histogram = histogram_2d(particles, config.x, config.y, mask)
+    histogram = histogram_2d(particles, config.x, config.y, mask, variables)
     counts = np.where(histogram["counts"] > 0, histogram["counts"], np.nan)
     vmin = config.vmin
     if vmin is None and config.color_scale == "linear":

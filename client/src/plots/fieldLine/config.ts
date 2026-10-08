@@ -55,10 +55,16 @@ export const withAxisRange = (
 };
 
 /** The part of a line config the server needs; display-only limits excluded. */
-export const lineRequest = ({ quantities, axis, slices }: ILineConfig) => ({
+export const lineRequest = ({
   quantities,
   axis,
   slices,
+  smoothing,
+}: ILineConfig) => ({
+  quantities,
+  axis,
+  slices,
+  ...(smoothing && Object.keys(smoothing).length ? { smoothing } : {}),
 });
 
 /**

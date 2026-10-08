@@ -1,0 +1,33 @@
+.inline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+}
+
+.inline input {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-subtle);
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.inline input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.hint,
+.error {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.error {
+  color: var(--color-danger);
+}

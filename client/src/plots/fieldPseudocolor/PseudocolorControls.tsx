@@ -14,9 +14,12 @@ import {
   removeExpression,
 } from "../../lib/expressions";
 import { IPseudocolorConfig } from "../../state/schema";
-import { withExpressionFields } from "../fields/metadata";
+import { withExpressionFields, withSmoothing } from "../fields/metadata";
+import SmoothingInputs from "../fields/SmoothingInputs";
 import QuantityList from "../fields/QuantityList";
 import { checkExpression } from "../fields/useFieldMetadata";
+import { useUi } from "../../state/UiContext";
+import { usedVariables } from "../../state/variables";
 import {
   fieldDims,
   isPseudocolorField,
@@ -46,6 +49,7 @@ const PseudocolorControls = ({
   const axesId = useId();
   const colorId = useId();
   const colorMapId = useId();
+  const variables = useUi().uiState.fieldVariables ?? [];
   if (!metadata) {
     return (
       <FormHint>{metadataError ?? "Loading the simulation's fields…"}</FormHint>
@@ -64,7 +68,11 @@ const PseudocolorControls = ({
       onChange(withField(config, expression, metadata));
       return null;
     }
-    const result = await checkExpression(simulationId, expression);
+    const result = await checkExpression(
+      simulationId,
+      expression,
+      usedVariables([expression], variables),
+    );
     if ("error" in result) return result.error;
     if (result.dims.length < 2) {
       return `A 2D plot needs two dimensions; this has ${
@@ -118,6 +126,7 @@ const PseudocolorControls = ({
   return (
     <FormStack>
       <QuantityList
+        simulationId={simulationId}
         metadata={metadata}
         mode="radio"
         selected={config.field ? [config.field] : []}
@@ -134,6 +143,14 @@ const PseudocolorControls = ({
         {axisSelect("x", config.xCoordinate)}
         {axisSelect("y", config.yCoordinate)}
       </FormField>
+
+      <SmoothingInputs
+        dims={[config.xCoordinate, config.yCoordinate].filter((dim) =>
+          dims.includes(dim),
+        )}
+        smoothing={config.smoothing}
+        onChange={(dim, width) => onChange(withSmoothing(config, dim, width))}
+      />
 
       <LimitInputs
         label="min/max"

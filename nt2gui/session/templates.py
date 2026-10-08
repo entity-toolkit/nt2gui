@@ -21,7 +21,7 @@ from pydantic import Field, ValidationError, field_validator
 
 from ..errors import Conflict, NotFound, UserError
 from .files import write_json_atomic
-from .schema import Plotter, PlotType, UiState, _Schema
+from .schema import Plotter, PlotType, UiState, Variable, _Schema
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,9 @@ class Template(_Schema):
     # flexlayout's IJsonModel, as in the UI state.
     layout: dict[str, Any]
     plotters: dict[str, Plotter]
+    # The named variables at the time (plots may use them).
+    field_variables: list[Variable] = []
+    particle_variables: list[Variable] = []
     saved_at: str | None = None
 
     @field_validator("name")
@@ -100,6 +103,8 @@ def template_from_state(state: UiState, name: str) -> Template:
             panel: template_plotter(plotter)
             for panel, plotter in state.plotters.items()
         },
+        field_variables=[v.model_copy() for v in state.field_variables],
+        particle_variables=[v.model_copy() for v in state.particle_variables],
         saved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
 
@@ -108,7 +113,8 @@ def apply_template(
     state: UiState, template: Template, simulation_id: str | None
 ) -> None:
     """Replace the panels in `state` with the template's, showing
-    `simulation_id`; zooms are reset. Regions and the timeline stay."""
+    `simulation_id`; zooms are reset. Its variables are added (replacing
+    ones of the same name). Regions and the timeline stay."""
     state.layout = template.model_copy(deep=True).layout
     plotters: dict[str, Plotter] = {}
     for panel, plotter in template.plotters.items():
@@ -117,8 +123,20 @@ def apply_template(
             plotter.simulation_id = simulation_id
         plotters[panel] = plotter
     state.plotters = plotters
+    state.field_variables = _merged(state.field_variables, template.field_variables)
+    state.particle_variables = _merged(
+        state.particle_variables, template.particle_variables
+    )
     state.global_viewport = None
     state.global_line_viewports = {}
+
+
+def _merged(current: list[Variable], added: list[Variable]) -> list[Variable]:
+    """`current` with `added` defined too (theirs win on equal names)."""
+    names = {variable.name for variable in added}
+    return [v for v in current if v.name not in names] + [
+        v.model_copy() for v in added
+    ]
 
 
 def summary(template: Template) -> dict[str, Any]:

@@ -13,9 +13,12 @@ import {
   removeExpression,
 } from "../../lib/expressions";
 import { ILineConfig } from "../../state/schema";
-import { quantityDims } from "../fields/metadata";
+import { quantityDims, withSmoothing } from "../fields/metadata";
+import SmoothingInputs from "../fields/SmoothingInputs";
 import QuantityList from "../fields/QuantityList";
 import { checkExpression } from "../fields/useFieldMetadata";
+import { useUi } from "../../state/UiContext";
+import { usedVariables } from "../../state/variables";
 import { effectiveAxis, toggleQuantity } from "./config";
 
 interface LineControlsProps {
@@ -39,6 +42,7 @@ const LineControls = ({
 }: LineControlsProps) => {
   const axisId = useId();
   const scaleId = useId();
+  const variables = useUi().uiState.fieldVariables ?? [];
   if (!metadata) {
     return (
       <FormHint>{metadataError ?? "Loading the simulation's fields…"}</FormHint>
@@ -61,7 +65,11 @@ const LineControls = ({
       onChange({ ...config, quantities: select(expression) });
       return null;
     }
-    const result = await checkExpression(simulationId, expression);
+    const result = await checkExpression(
+      simulationId,
+      expression,
+      usedVariables([expression], variables),
+    );
     if ("error" in result) return result.error;
     onChange({
       ...config,
@@ -74,6 +82,7 @@ const LineControls = ({
   return (
     <FormStack>
       <QuantityList
+        simulationId={simulationId}
         metadata={metadata}
         mode="checkbox"
         selected={config.quantities}
@@ -129,6 +138,12 @@ const LineControls = ({
           }
         />
       </FormField>
+
+      <SmoothingInputs
+        dims={axis ? [axis] : []}
+        smoothing={config.smoothing}
+        onChange={(dim, width) => onChange(withSmoothing(config, dim, width))}
+      />
 
       <LimitInputs
         label="min/max"

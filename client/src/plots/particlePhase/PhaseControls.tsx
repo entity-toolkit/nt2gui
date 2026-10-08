@@ -116,6 +116,7 @@ const PhaseControls = ({
 
       <CustomQuantities
         simulationId={simulationId}
+        metadata={metadata}
         expressions={expressions}
         onAdd={(expression) =>
           onChange({

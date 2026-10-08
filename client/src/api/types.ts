@@ -84,6 +84,8 @@ export interface ILineRender {
   /** Coordinates actually used for each sliced dimension (nearest grid point). */
   slices: Record<string, number>;
   timestamp: number | null;
+  /** Boxcar width used per smoothed coordinate, in cells. */
+  smoothing?: Record<string, number>;
   /**
    * Grid points in the plotted range. Long cuts are downsampled on the server
    * (≤ ~3000 points, keeping each bucket's extremes); zoom in for more detail.
@@ -114,6 +116,8 @@ export interface IPseudocolorRender extends IImageRender {
   slices: Record<string, number>;
   /** Cells averaged into one pixel along each axis (1: full resolution). */
   sampling?: { x: number; y: number };
+  /** Boxcar width used per smoothed coordinate, in cells. */
+  smoothing?: Record<string, number>;
 }
 
 export interface IParticlePhase extends IImageRender {

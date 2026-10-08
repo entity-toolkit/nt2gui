@@ -32,7 +32,11 @@ const SlicedFigure = ({
   <div className={styles.slicedFigure}>
     <div className={styles.figureArea}>{children}</div>
     {sliceDims.length > 0 && (
-      <aside className={styles.sliders} aria-label="Slice positions">
+      <aside
+        className={styles.sliders}
+        aria-label="Slice positions"
+        data-ui-chrome
+      >
         {sliceDims.map((dim) => {
           const values = coords[dim] ?? [];
           const current =

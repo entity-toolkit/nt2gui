@@ -6,6 +6,7 @@ import {
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
 import { useSimulationVersion } from "../../state/simulationData";
+import { useUi } from "../../state/UiContext";
 import { ChartRegion, ChartSelection } from "../../state/regions";
 import { IParticlePhaseConfig, IRegion, IZoomWindow } from "../../state/schema";
 import { hasRange, phaseRequest } from "../particles/config";
@@ -40,7 +41,11 @@ const PhaseFigure = ({
   onSelect,
   overlays,
 }: PhaseFigureProps) => {
-  const request = phaseRequest(config, savedRegions);
+  const request = phaseRequest(
+    config,
+    savedRegions,
+    useUi().uiState.particleVariables,
+  );
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(

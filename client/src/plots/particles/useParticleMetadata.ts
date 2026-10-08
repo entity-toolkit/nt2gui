@@ -18,12 +18,16 @@ export const useParticleMetadata = (simulationId: string | null) => {
   return { metadata: data, error };
 };
 
-/** Validates a particle expression; resolves to an error message or null. */
+/**
+ * Validates a particle expression (which may use the named `variables`);
+ * resolves to an error message or null.
+ */
 export const checkParticleExpression = (
   simulationId: string,
   expression: string,
+  variables: Record<string, string> = {},
 ) =>
-  checkParticleQuantity(simulationId, expression).then(
+  checkParticleQuantity(simulationId, expression, variables).then(
     () => null,
     (error: unknown) => serverErrorMessage(error),
   );

@@ -534,6 +534,103 @@ describe("App", () => {
     expect(screen.queryByRole("dialog", { name: "Templates" })).toBeNull();
   });
 
+  it("hides every control in focus mode, keeping the plots", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container } = render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Hide controls (plots only)" }),
+    );
+    expect(container.querySelector(".app-shell.focus-mode")).toBeTruthy();
+    // The floating toggle (the menubar's own is hidden with the menubar).
+    const [show] = await screen.findAllByRole("button", {
+      name: "Show controls",
+    });
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)?.focusMode).toBe(true);
+    fireEvent.click(show);
+    expect(container.querySelector(".focus-mode")).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("defines, renames and names variables shared by every plot", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const saved = snapshot();
+    saved.state.plotters["panel-1"] = {
+      dataType: DataType.Fields,
+      plotType: PlotType.Line,
+      simulationId: "sim1",
+      lineConfig: {
+        quantities: [],
+        axis: "",
+        slices: {},
+        expressions: ["Bx*2"],
+      },
+    };
+    const checks: { expression: string; variables: unknown }[] = [];
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "api/state" && init?.method !== "PUT") return json(saved);
+      if (url.endsWith("/quantities/check")) {
+        const body = JSON.parse(String(init?.body));
+        checks.push(body);
+        return json({ expression: body.expression, dims: ["x"] });
+      }
+      if (url.endsWith("/render/line")) {
+        return json({ error: "not in this test" }, 400);
+      }
+      return fake(url, init);
+    });
+    render(<App />);
+    fireEvent.contextMenu(await screen.findByText("Nothing selected"));
+
+    // `name = expression` defines a variable and selects it.
+    const input = await screen.findByLabelText("Custom quantity expression");
+    fireEvent.change(input, { target: { value: "bb = Bx * Bx" } });
+    fireEvent.click(screen.getByRole("button", { name: "add" }));
+    await vi.waitFor(() =>
+      expect(checks).toContainEqual({
+        expression: "bb",
+        variables: { bb: "Bx * Bx" },
+      }),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await vi.waitFor(() =>
+      expect(puts.at(-1)?.fieldVariables).toEqual([
+        { name: "bb", expression: "Bx * Bx" },
+      ]),
+    );
+    expect(puts.at(-1)?.plotters["panel-1"].lineConfig?.quantities).toEqual([
+      "bb",
+    ]);
+
+    // Renaming updates the plot that uses it.
+    fireEvent.click(await screen.findByRole("button", { name: "Rename bb" }));
+    const name = screen.getByLabelText("Variable name");
+    fireEvent.change(name, { target: { value: "b2" } });
+    fireEvent.keyDown(name, { key: "Enter" });
+    await vi.waitFor(() =>
+      expect(screen.getByRole("button", { name: "Rename b2" })).toBeTruthy(),
+    );
+
+    // A plot's own expression becomes a variable when named.
+    fireEvent.click(screen.getByRole("button", { name: "Name Bx*2" }));
+    const label = screen.getByLabelText("Name for Bx*2");
+    fireEvent.change(label, { target: { value: "twice" } });
+    fireEvent.keyDown(label, { key: "Enter" });
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await vi.waitFor(() =>
+      expect(puts.at(-1)?.fieldVariables).toEqual([
+        { name: "b2", expression: "Bx * Bx" },
+        { name: "twice", expression: "Bx*2" },
+      ]),
+    );
+    const line = puts.at(-1)?.plotters["panel-1"].lineConfig;
+    expect(line?.quantities).toEqual(["b2"]);
+    expect(line?.expressions).toEqual([]);
+    vi.useRealTimers();
+  });
+
   it("offers to point the UI at another server when this one can't be reached", async () => {
     vi.stubGlobal(
       "fetch",

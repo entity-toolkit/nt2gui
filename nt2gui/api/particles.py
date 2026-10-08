@@ -13,6 +13,7 @@ from .common import (
     json_object,
     parse,
     particles_at,
+    request_variables,
     require_text,
     require_time,
     simulation,
@@ -40,11 +41,16 @@ def get_particles(simulation_id: str):
 @bp.post("/particles/check")
 def check_particle_quantity(simulation_id: str):
     source = simulation(simulation_id)
-    expression = require_text(json_object(), "expression", "An expression is required")
+    payload = json_object()
+    expression = require_text(payload, "expression", "An expression is required")
     if not source.species:
         raise UserError("This simulation has no particle output")
     # Validity doesn't depend on the values: check on zeros, read nothing.
-    quantity_values(expression, sample_dataset(source.particle_columns))
+    quantity_values(
+        expression,
+        sample_dataset(source.particle_columns),
+        request_variables(payload),
+    )
     return jsonify({"expression": expression})
 
 
@@ -55,13 +61,14 @@ def histogram_plot(simulation_id: str):
     time = require_time(payload)
     config = parse(ParticleHistogramConfig, payload.get("config"), "histogram request")
     regions = request_regions(payload)
+    variables = request_variables(payload)
     used = resolve_regions((n for s in config.series for n in s.regions), regions)
     particles, timestamp = particles_at(
-        source, time, [config.x.quantity, *region_coordinates(used)]
+        source, time, [config.x.quantity, *region_coordinates(used)], variables
     )
     return jsonify(
         {
-            **render_particle_histogram(particles, config, regions),
+            **render_particle_histogram(particles, config, regions, variables),
             "timestamp": timestamp,
         }
     )
@@ -74,12 +81,17 @@ def phase_plot(simulation_id: str):
     time = require_time(payload)
     config = parse(ParticlePhaseConfig, payload.get("config"), "phase-space request")
     regions = request_regions(payload)
+    variables = request_variables(payload)
     used = resolve_regions(config.regions, regions)
     particles, timestamp = particles_at(
         source,
         time,
         [config.x.quantity, config.y.quantity, *region_coordinates(used)],
+        variables,
     )
     return jsonify(
-        {**render_particle_phase(particles, config, regions), "timestamp": timestamp}
+        {
+            **render_particle_phase(particles, config, regions, variables),
+            "timestamp": timestamp,
+        }
     )

@@ -8,6 +8,8 @@ import {
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
 import { useSimulationVersion } from "../../state/simulationData";
+import { useUi } from "../../state/UiContext";
+import { usedVariables } from "../../state/variables";
 import { ChartRegion, ChartSelection } from "../../state/regions";
 import { IPseudocolorConfig, IZoomWindow } from "../../state/schema";
 import { withSlice } from "../fields/metadata";
@@ -18,7 +20,7 @@ import { pseudocolorSliceDims } from "./config";
 /** Says when the image averages blocks of cells (large slices). */
 const SamplingNote = ({ sampling }: { sampling?: { x: number; y: number } }) =>
   sampling && (sampling.x > 1 || sampling.y > 1) ? (
-    <p className={figureStyles.note}>
+    <p className={figureStyles.note} data-ui-chrome>
       Each pixel averages {sampling.x}×{sampling.y} cells — zoom in for full
       resolution
     </p>
@@ -58,14 +60,32 @@ const PseudocolorFigure = ({
   regions,
 }: PseudocolorFigureProps) => {
   const { expressions: _expressions, ...request } = config;
+  const variables = usedVariables(
+    [config.field],
+    useUi().uiState.fieldVariables ?? [],
+  );
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(
     config.field
-      ? JSON.stringify([simulationId, version, request, time, viewport])
+      ? JSON.stringify([
+          simulationId,
+          version,
+          request,
+          variables,
+          time,
+          viewport,
+        ])
       : null,
     (signal) =>
-      renderPseudocolor(simulationId, request, time, viewport, signal),
+      renderPseudocolor(
+        simulationId,
+        request,
+        time,
+        viewport,
+        variables,
+        signal,
+      ),
   );
 
   const figure = !config.field ? (

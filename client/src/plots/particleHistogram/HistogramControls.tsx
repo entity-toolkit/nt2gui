@@ -143,6 +143,7 @@ const HistogramControls = ({
 
       <CustomQuantities
         simulationId={simulationId}
+        metadata={metadata}
         expressions={expressions}
         onAdd={(expression) =>
           onChange({

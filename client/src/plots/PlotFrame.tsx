@@ -150,13 +150,7 @@ const PlotFrame = ({
   return (
     <div className={styles.plot}>
       <div className={styles.plotBody}>
-        {/* Which simulation, when there is a choice. */}
-        {simulation && simulations.length > 1 && (
-          <h3 className={styles.plotTitle} title={simulation.path}>
-            {simulationName(simulation)}
-          </h3>
-        )}
-        <div className={styles.plotToolbar}>
+        <div className={styles.plotToolbar} data-ui-chrome>
           <div className={styles.toolbarGroup} role="group" aria-label="Zoom">
             <button
               type="button"
@@ -253,6 +247,13 @@ const PlotFrame = ({
               )}
             </div>
           )}
+
+          {/* Which simulation, when there is a choice. */}
+          {simulation && simulations.length > 1 && (
+            <h3 className={styles.plotTitle} title={simulation.path}>
+              {simulationName(simulation)}
+            </h3>
+          )}
         </div>
 
         <div className={styles.plotFigure} onContextMenu={openMenu}>
@@ -269,7 +270,12 @@ const PlotFrame = ({
           )}
         </div>
 
-        <div className={styles.timeBar} role="group" aria-label="Time">
+        <div
+          className={styles.timeBar}
+          role="group"
+          aria-label="Time"
+          data-ui-chrome
+        >
           {syncTimeToggle}
           {!syncTime && (
             <div className={styles.plotTimeline} aria-label="Panel timeline">

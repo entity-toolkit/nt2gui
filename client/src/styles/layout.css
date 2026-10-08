@@ -44,3 +44,14 @@
   width: min(520px, calc(100vw - 32px));
   text-align: center;
 }
+
+.app-sidebar {
+  display: flex;
+  min-height: 0;
+}
+
+/* Focus mode: only the plots. */
+.focus-mode [data-ui-chrome],
+.focus-mode .flexlayout__tabset_tabbar_outer {
+  display: none !important;
+}

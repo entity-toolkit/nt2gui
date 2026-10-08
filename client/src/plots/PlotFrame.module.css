@@ -115,8 +115,10 @@
   position: relative;
 }
 
+/* At the end of the toolbar row. */
 .plotTitle {
-  margin: 0;
+  margin: 0 0 0 auto;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-soft);

@@ -7,7 +7,7 @@ drift surfaces as a 400 instead of silently dropping state.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
@@ -69,6 +69,10 @@ class ZoomWindow(_Schema):
     y_max: float
 
 
+# Boxcar width per coordinate, in that coordinate's units (unset: no smoothing).
+Smoothing = dict[str, Annotated[float, Field(gt=0)]]
+
+
 class PseudocolorConfig(_Schema):
     field: str
     x_coordinate: str = "x"
@@ -81,6 +85,7 @@ class PseudocolorConfig(_Schema):
     color_power: float = Field(0.5, gt=0)
     # Coordinate value at which each dim beyond x/y is sliced (3D fields).
     slices: dict[str, float] = {}
+    smoothing: Smoothing = {}
     # Custom quantities (e.g. "f + g") offered alongside the fields.
     expressions: list[str] = []
 
@@ -125,6 +130,21 @@ class Region(_Schema):
         return self
 
 
+class Variable(_Schema):
+    """A named custom quantity (`edotb = Ex*Bx + ...`), usable by name in any
+    plot and in other variables."""
+
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
+    expression: str = Field(min_length=1, max_length=500)
+
+
+def _unique_names(variables: list[Variable]) -> list[Variable]:
+    names = [variable.name for variable in variables]
+    if len(set(names)) != len(names):
+        raise ValueError("variable names must be unique")
+    return variables
+
+
 class LineConfig(_Schema):
     # Field names ("Ex") or vector names ("E", expands to its components).
     quantities: list[str]
@@ -132,6 +152,8 @@ class LineConfig(_Schema):
     axis: str
     # Coordinate value at which every other spatial dimension is sliced.
     slices: dict[str, float] = {}
+    # Applied along the plotted axis.
+    smoothing: Smoothing = {}
     # Fixed value-axis limits (display only); unset means automatic.
     y_min: float | None = None
     y_max: float | None = None
@@ -222,8 +244,18 @@ class UiState(_Schema):
     # Whether the global timeline is folded down to its play button.
     timeline_collapsed: bool = False
     playback_fps: float | None = Field(None, gt=0, le=MAX_PLAYBACK_FPS)
+    # Distraction-free view: only the plots (menus, tabs, tools, timeline hidden).
+    focus_mode: bool = False
     # Spatial selections (region-01, ...) particle plots can filter by.
     regions: list[Region] = []
+    # Named custom quantities shared by every plot (fields and particles apart).
+    field_variables: list[Variable] = []
+    particle_variables: list[Variable] = []
+
+    @field_validator("field_variables", "particle_variables")
+    @classmethod
+    def _check_variables(cls, variables: list[Variable]) -> list[Variable]:
+        return _unique_names(variables)
 
     @field_validator("regions")
     @classmethod

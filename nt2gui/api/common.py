@@ -11,6 +11,7 @@ import xarray as xr
 from flask import current_app, request
 from pydantic import BaseModel, ValidationError
 
+from ..data.expressions import Variables, variable_definitions
 from ..data.particles import particle_dataset, required_columns
 from ..errors import UserError
 from ..sources import SimulationSource
@@ -62,12 +63,22 @@ def parse(model: type[Model], value: Any, what: str) -> Model:
         ) from error
 
 
+def request_variables(payload: dict[str, Any]) -> dict[str, str]:
+    """The named variables (`{name: expression}`) sent with a request. Like
+    regions, the client sends the ones a request uses rather than the server
+    reading its session, so a render never races the state sync."""
+    return variable_definitions(payload.get("variables"))
+
+
 def particles_at(
-    source: SimulationSource, time: float, quantities: list[str]
+    source: SimulationSource,
+    time: float,
+    quantities: list[str],
+    variables: Variables | None = None,
 ) -> tuple[xr.Dataset, float]:
     """The particles of the output nearest to `time` (only the columns
     `quantities` need), and that output's time."""
     if not source.species:
         raise UserError("This simulation has no particle output")
-    columns = required_columns(quantities, source.particle_columns)
+    columns = required_columns(quantities, source.particle_columns, variables)
     return particle_dataset(source.particles(time, columns)), source.particle_time(time)

@@ -83,9 +83,26 @@ export interface IPseudocolorConfig {
   colorPower?: number;
   /** Coordinate value at which each dim beyond x/y is sliced (3D fields). */
   slices?: Record<string, number>;
+  /** Applied along x and/or y. */
+  smoothing?: ISmoothing;
   /** Custom quantities (e.g. "f + g") offered alongside the fields. */
   expressions?: string[];
 }
+
+/** Boxcar width per coordinate, in that coordinate's units (absent: no smoothing). */
+export type ISmoothing = Record<string, number>;
+
+/**
+ * A named custom quantity (`edotb = Ex*Bx + …`), usable by name in every plot
+ * (of its kind) and in other variables.
+ */
+export interface IVariable {
+  name: string;
+  expression: string;
+}
+
+/** Which data a variable is defined over. */
+export type VariableKind = "fields" | "particles";
 
 export interface ILineConfig {
   /** Field names ("Ex"), vector names ("E": all its components), or expressions. */
@@ -94,6 +111,8 @@ export interface ILineConfig {
   axis: string;
   /** Coordinate value at which each other spatial dimension is sliced. */
   slices: Record<string, number>;
+  /** Applied along the plotted axis. */
+  smoothing?: ISmoothing;
   /** Fixed value-axis limits; either may be left unset (auto). */
   yMin?: number;
   yMax?: number;
@@ -189,8 +208,13 @@ export interface IUiState {
   timelineCollapsed?: boolean;
   /** Global playback speed limit in frames per second (≤ MAX_PLAYBACK_FPS on the server). */
   playbackFps?: number;
+  /** Distraction-free view: only the plots (menus, tabs, tools, timeline hidden). */
+  focusMode?: boolean;
   /** Spatial selections particle plots can filter by. Names are unique. */
   regions?: IRegion[];
+  /** Named custom quantities shared by every plot of fields / of particles. */
+  fieldVariables?: IVariable[];
+  particleVariables?: IVariable[];
 }
 
 export interface ISimulation {

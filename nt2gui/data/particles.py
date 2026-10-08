@@ -21,7 +21,6 @@ Bin edges are reported back in data units, so the client can label axes with
 real values.
 """
 
-import ast
 from collections.abc import Iterable, Sequence
 from typing import Any
 
@@ -31,7 +30,7 @@ import xarray as xr
 
 from ..errors import UserError
 from ..session.schema import MAX_PARTICLE_BINS, ParticleAxis, ScaleKind
-from .expressions import evaluate
+from .expressions import Variables, evaluate, expanded_names
 
 PARTICLE_DIM = "particle"
 # Cartesian and spherical runs name their columns differently.
@@ -78,9 +77,14 @@ def derived_velocity(columns: Iterable[str]) -> tuple[str, ...] | None:
     return next((v for v in VELOCITY_SETS if set(v) <= available), None)
 
 
-def required_columns(quantities: Iterable[str], columns: Sequence[str]) -> list[str]:
+def required_columns(
+    quantities: Iterable[str],
+    columns: Sequence[str],
+    variables: Variables | None = None,
+) -> list[str]:
     """The columns needed to compute `quantities` (columns, gamma/energy, or
-    expressions over them) and weight the result: what a plot must load."""
+    expressions over them, possibly through named variables) and weight the
+    result: what a plot must load."""
     available = set(columns)
     needed: list[str] = []
 
@@ -91,17 +95,15 @@ def required_columns(quantities: Iterable[str], columns: Sequence[str]) -> list[
             for component in derived_velocity(available) or ():
                 need(component)
 
+    def known(name: str) -> bool:
+        return name in available or name in DERIVED
+
     for quantity in quantities:
-        if quantity in available or quantity in DERIVED:
+        if known(quantity):
             need(quantity)
             continue
-        try:
-            tree = ast.parse(quantity, mode="eval")
-        except SyntaxError:
-            continue  # evaluating it reports the error
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Name):
-                need(node.id)
+        for name in sorted(expanded_names(quantity, variables or {}, known)):
+            need(name)
     need(WEIGHT_COLUMN)
     return needed
 
@@ -118,9 +120,12 @@ def default_scale(quantity: str) -> ScaleKind:
     return "log" if quantity in DERIVED else "linear"
 
 
-def quantity_values(quantity: str, ds: xr.Dataset) -> np.ndarray:
-    """Per-particle values of a column, derived quantity, or expression."""
-    array = ds[quantity] if quantity in ds else evaluate(quantity, ds)
+def quantity_values(
+    quantity: str, ds: xr.Dataset, variables: Variables | None = None
+) -> np.ndarray:
+    """Per-particle values of a column, derived quantity, named variable, or
+    expression."""
+    array = ds[quantity] if quantity in ds else evaluate(quantity, ds, variables)
     if array.dims != (PARTICLE_DIM,):
         raise UserError(f"'{quantity}' must give one value per particle")
     return np.asarray(array.values, dtype=np.float64)
@@ -200,7 +205,10 @@ def species_mask(ds: xr.Dataset, species: Sequence[int]) -> np.ndarray:
 
 
 def histogram_1d(
-    ds: xr.Dataset, axis: ParticleAxis, selections: Sequence[np.ndarray]
+    ds: xr.Dataset,
+    axis: ParticleAxis,
+    selections: Sequence[np.ndarray],
+    variables: Variables | None = None,
 ) -> dict[str, Any]:
     """Weighted counts along `axis` for each particle selection (boolean
     masks, e.g. species and regions), all on the same bins (the range covers
@@ -208,7 +216,9 @@ def histogram_1d(
     if not selections:
         raise UserError("Add at least one line to plot")
     weights = ds[WEIGHT_COLUMN].values
-    scaled = to_scaled(quantity_values(axis.quantity, ds), axis.scale, axis.power)
+    scaled = to_scaled(
+        quantity_values(axis.quantity, ds, variables), axis.scale, axis.power
+    )
     in_any = np.logical_or.reduce(selections)
     edges = bin_edges(
         scaled[in_any], axis.bins, axis.scale, axis.power, axis.min, axis.max
@@ -231,13 +241,17 @@ def histogram_1d(
 
 
 def histogram_2d(
-    ds: xr.Dataset, x: ParticleAxis, y: ParticleAxis, mask: np.ndarray
+    ds: xr.Dataset,
+    x: ParticleAxis,
+    y: ParticleAxis,
+    mask: np.ndarray,
+    variables: Variables | None = None,
 ) -> dict[str, Any]:
     """Weighted 2D histogram of the selected particles (a boolean mask);
     counts are indexed [y, x] and edges are in data units."""
     weights = ds[WEIGHT_COLUMN].values
-    x_scaled = to_scaled(quantity_values(x.quantity, ds), x.scale, x.power)
-    y_scaled = to_scaled(quantity_values(y.quantity, ds), y.scale, y.power)
+    x_scaled = to_scaled(quantity_values(x.quantity, ds, variables), x.scale, x.power)
+    y_scaled = to_scaled(quantity_values(y.quantity, ds, variables), y.scale, y.power)
     valid = mask & np.isfinite(x_scaled) & np.isfinite(y_scaled)
     edges = [
         bin_edges(values[valid], axis.bins, axis.scale, axis.power, axis.min, axis.max)

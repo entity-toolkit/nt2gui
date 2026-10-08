@@ -5,6 +5,8 @@ from typing import Any
 import xarray as xr
 
 from ..data.arrays import block_factor, block_mean
+from ..data.expressions import Variables
+from ..data.smoothing import smooth
 from ..data.quantities import (
     QuantityError,
     cell_edges,
@@ -28,6 +30,7 @@ def render_pseudocolor(
     time: float,
     viewport: ZoomWindow | None = None,
     max_size: int = MAX_IMAGE_SIZE,
+    variables: Variables | None = None,
 ) -> dict[str, Any]:
     """Shade one field (or expression) over (x, y) at `time`.
 
@@ -44,7 +47,7 @@ def render_pseudocolor(
         raise UserError("x and y must be different coordinates")
 
     snapshot, timestamp = snapshot_at(fields, time)
-    data = single_quantity(config.field, snapshot)
+    data = single_quantity(config.field, snapshot, variables)
     for coordinate in (x, y):
         if coordinate not in data.dims:
             raise QuantityError(f"'{config.field}' does not depend on '{coordinate}'")
@@ -52,13 +55,26 @@ def render_pseudocolor(
     # Rows are y and columns x, so the image has y pointing up.
     data = data.transpose(y, x)
 
-    if viewport is not None:
+    windows = {dim: w for dim, w in config.smoothing.items() if dim in (x, y)}
+    zoom = (
+        {
+            x: sorted((viewport.x_min, viewport.x_max)),
+            y: sorted((viewport.y_min, viewport.y_max)),
+        }
+        if viewport is not None
+        else None
+    )
+    if zoom is not None and windows:
+        # Smooth only around the zoom window, with a window's margin.
         data = data.sel(
             {
-                x: slice(*sorted((viewport.x_min, viewport.x_max))),
-                y: slice(*sorted((viewport.y_min, viewport.y_max))),
+                dim: slice(lo - windows.get(dim, 0), hi + windows.get(dim, 0))
+                for dim, (lo, hi) in zoom.items()
             }
         )
+    data, smoothed = smooth(data, windows)
+    if zoom is not None:
+        data = data.sel({dim: slice(lo, hi) for dim, (lo, hi) in zoom.items()})
         if data.sizes[x] == 0 or data.sizes[y] == 0:
             raise UserError("Selected zoom window is empty")
 
@@ -81,6 +97,7 @@ def render_pseudocolor(
         "timestamp": timestamp if timestamp is not None else float(time),
         "slices": used_slices,
         "sampling": sampling,
+        "smoothing": smoothed,
         "extent": {
             "xMin": float(x_edges[0]),
             "xMax": float(x_edges[-1]),

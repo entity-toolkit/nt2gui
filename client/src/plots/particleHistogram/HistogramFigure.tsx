@@ -7,6 +7,7 @@ import {
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
 import { useSimulationVersion } from "../../state/simulationData";
+import { useUi } from "../../state/UiContext";
 import { ChartRegion } from "../../state/regions";
 import { IParticleHistogramConfig, IRange, IRegion } from "../../state/schema";
 import {
@@ -47,7 +48,11 @@ const HistogramFigure = ({
   onSelect,
   overlays,
 }: HistogramFigureProps) => {
-  const request = histogramRequest(config, savedRegions);
+  const request = histogramRequest(
+    config,
+    savedRegions,
+    useUi().uiState.particleVariables,
+  );
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(

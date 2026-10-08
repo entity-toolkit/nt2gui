@@ -115,6 +115,7 @@ describe("requests", () => {
     expect(histogramRequest(config)).toEqual({
       config: { x: config.x, series: config.series },
       regions: [],
+      variables: {},
     });
   });
 
@@ -133,6 +134,7 @@ describe("requests", () => {
         series: [{ species: [], regions: ["region-01"] }, { species: [1] }],
       },
       regions: [region],
+      variables: {},
     });
     const phase = {
       x: { quantity: "x", scale: "linear" as const },
@@ -142,6 +144,7 @@ describe("requests", () => {
     expect(phaseRequest(phase, [region])).toEqual({
       config: { ...phase, regions: ["region-01"] },
       regions: [region],
+      variables: {},
     });
   });
 
@@ -155,6 +158,23 @@ describe("requests", () => {
     expect(phaseRequest(config)).toEqual({
       config: { x: config.x, y: config.y, colorScale: "linear" },
       regions: [],
+      variables: {},
+    });
+  });
+
+  it("sends the named variables the axes use, and only those", () => {
+    const variables = [
+      { name: "uperp", expression: "sqrt(uy**2 + uz**2)" },
+      { name: "ratio", expression: "uperp / gamma" },
+      { name: "other", expression: "w" },
+    ];
+    const config = {
+      x: { quantity: "ratio", scale: "linear" as const },
+      series: [{ species: [] }],
+    };
+    expect(histogramRequest(config, [], variables).variables).toEqual({
+      ratio: "uperp / gamma",
+      uperp: "sqrt(uy**2 + uz**2)",
     });
   });
 });

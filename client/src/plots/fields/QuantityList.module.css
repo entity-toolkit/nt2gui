@@ -56,6 +56,11 @@
   margin-left: auto;
   color: var(--color-muted);
   font-size: 12px;
+  /* Long definitions (variables) are cut; the row's tooltip has them whole. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .empty {
@@ -89,6 +94,9 @@
 }
 
 .remove {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
   background: none;
   border: none;
   color: var(--color-muted);

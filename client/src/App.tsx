@@ -9,6 +9,7 @@ import {
 import "flexlayout-react/style/dark.css";
 
 import AddTabButton from "./components/layout/AddTabButton";
+import FocusToggle from "./components/layout/FocusToggle";
 import Menubar from "./components/layout/Menubar";
 import SimulationSidebar from "./components/layout/SimulationSidebar";
 import TimelineBar from "./components/layout/TimelineBar";
@@ -18,7 +19,8 @@ import Panel from "./plots/Panel";
 import { UiProvider, useUi, useUiActions } from "./state/UiContext";
 
 const Workspace = () => {
-  const { model, simulations } = useUi();
+  const { model, simulations, uiState } = useUi();
+  const focus = uiState.focusMode ?? false;
   const { handleModelChange } = useUiActions();
 
   const factory = (node: TabNode) =>
@@ -53,10 +55,17 @@ const Workspace = () => {
   };
 
   return (
-    <div className="app-shell">
-      <Menubar />
+    // Focus mode hides the controls with CSS (`data-ui-chrome`), keeping them
+    // mounted so playback and dialogs carry on.
+    <div className={`app-shell${focus ? " focus-mode" : ""}`}>
+      {focus && <FocusToggle floating />}
+      <div data-ui-chrome>
+        <Menubar />
+      </div>
       <div className="app-main">
-        <SimulationSidebar />
+        <div className="app-sidebar" data-ui-chrome>
+          <SimulationSidebar />
+        </div>
         <div className="layout-container">
           <Layout
             model={model}
@@ -68,7 +77,11 @@ const Workspace = () => {
           />
         </div>
       </div>
-      {simulations.length > 0 && <TimelineBar />}
+      {simulations.length > 0 && (
+        <div data-ui-chrome>
+          <TimelineBar />
+        </div>
+      )}
     </div>
   );
 };

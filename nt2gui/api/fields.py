@@ -7,7 +7,14 @@ from ..data.quantities import quantity_dims
 from ..plots.line import render_line
 from ..plots.pseudocolor import render_pseudocolor
 from ..session.schema import LineConfig, PseudocolorConfig, Range, ZoomWindow
-from .common import json_object, parse, require_text, require_time, simulation
+from .common import (
+    json_object,
+    parse,
+    request_variables,
+    require_text,
+    require_time,
+    simulation,
+)
 
 bp = Blueprint("fields", __name__, url_prefix="/simulations/<simulation_id>")
 
@@ -21,8 +28,9 @@ def get_fields(simulation_id: str):
 def check_quantity(simulation_id: str):
     """Validate a field name or expression and report its spatial dims."""
     source = simulation(simulation_id)
-    expression = require_text(json_object(), "expression", "An expression is required")
-    dims = quantity_dims(expression, source.fields)
+    payload = json_object()
+    expression = require_text(payload, "expression", "An expression is required")
+    dims = quantity_dims(expression, source.fields, request_variables(payload))
     return jsonify({"expression": expression, "dims": dims})
 
 
@@ -40,7 +48,14 @@ def line_plot(simulation_id: str):
     fields = source.fields
     return jsonify(
         render_line(
-            fields, config.quantities, config.axis, config.slices, time, value_range
+            fields,
+            config.quantities,
+            config.axis,
+            config.slices,
+            time,
+            value_range,
+            smoothing=config.smoothing,
+            variables=request_variables(payload),
         )
     )
 
@@ -56,4 +71,12 @@ def pseudocolor_plot(simulation_id: str):
         if payload.get("viewport") is not None
         else None
     )
-    return jsonify(render_pseudocolor(source.fields, config, time, viewport))
+    return jsonify(
+        render_pseudocolor(
+            source.fields,
+            config,
+            time,
+            viewport,
+            variables=request_variables(payload),
+        )
+    )

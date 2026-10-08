@@ -7,6 +7,8 @@ import {
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
 import { useSimulationVersion } from "../../state/simulationData";
+import { useUi } from "../../state/UiContext";
+import { usedVariables } from "../../state/variables";
 import { ChartRegion } from "../../state/regions";
 import { ILineConfig, IRange } from "../../state/schema";
 import { quantityDims, withSlice } from "../fields/metadata";
@@ -49,13 +51,18 @@ const LineFigure = ({
   const dims = quantityDims(metadata, config.quantities);
   const axis = effectiveAxis(config.axis, dims);
   const request = { ...lineRequest(config), axis };
+  const variables = usedVariables(
+    config.quantities,
+    useUi().uiState.fieldVariables ?? [],
+  );
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(
     config.quantities.length && axis
-      ? JSON.stringify([simulationId, version, request, time, range])
+      ? JSON.stringify([simulationId, version, request, variables, time, range])
       : null,
-    (signal) => renderLine(simulationId, request, time, range, signal),
+    (signal) =>
+      renderLine(simulationId, request, time, range, variables, signal),
   );
 
   const figure = !config.quantities.length ? (

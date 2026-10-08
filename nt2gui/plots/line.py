@@ -7,7 +7,9 @@ import numpy as np
 import xarray as xr
 
 from ..data.arrays import finite_list, minmax_indices
+from ..data.expressions import Variables
 from ..data.quantities import QuantityError, cut, quantity_arrays, snapshot_at
+from ..data.smoothing import smooth
 from ..errors import UserError
 
 # A line never needs more points than a screen has pixels: longer cuts are
@@ -24,6 +26,8 @@ def render_line(
     time: float,
     value_range: Mapping[str, float] | None = None,
     max_points: int = MAX_LINE_POINTS,
+    smoothing: Mapping[str, float] | None = None,
+    variables: Variables | None = None,
 ) -> dict[str, Any]:
     """Cut every requested quantity along `axis` at time `time`.
 
@@ -31,7 +35,9 @@ def render_line(
     (the middle when unspecified); the coordinates actually used are returned
     so the client can show them. `value_range` ({min, max}) crops the result
     along `axis` (see `_range_window`). At most about `max_points` points
-    are returned (see `minmax_indices`).
+    are returned (see `minmax_indices`). `smoothing[axis]`, if set, is a
+    boxcar width (axis units) applied to the whole cut before cropping, so a
+    zoomed view is smoothed like the full one.
     """
     if not quantities:
         raise UserError("Select at least one quantity to plot")
@@ -45,11 +51,14 @@ def render_line(
     names: list[str] = []
     lines: list[np.ndarray] = []
     used_slices: dict[str, float] = {}
-    for data in quantity_arrays(quantities, dataset):
+    windows = {axis: smoothing[axis]} if smoothing and axis in smoothing else {}
+    smoothed: dict[str, int] = {}
+    for data in quantity_arrays(quantities, dataset, variables):
         if axis not in data.dims:
             raise QuantityError(f"'{data.name}' does not depend on '{axis}'")
         data, used = cut(data, [axis], slices)
         used_slices |= used
+        data, smoothed = smooth(data, windows)
         names.append(str(data.name))
         lines.append(np.asarray(data.transpose(axis).values, dtype=float)[window])
 
@@ -63,6 +72,8 @@ def render_line(
             for name, line in zip(names, lines)
         ],
         "slices": used_slices,
+        # Boxcar width actually used, in cells, per smoothed dim.
+        "smoothing": smoothed,
         "timestamp": timestamp,
         # Grid points in the plotted range, before downsampling.
         "totalPoints": len(shown),

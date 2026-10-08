@@ -5,12 +5,14 @@ import {
   IParticleMetadata,
 } from "../../api/types";
 import { existingRegionNames, pickRegions } from "../../state/regions";
+import { usedVariables } from "../../state/variables";
 import {
   IParticleAxis,
   IParticleHistogramConfig,
   IParticlePhaseConfig,
   IParticleSeries,
   IRegion,
+  IVariable,
   ParticleScale,
 } from "../../state/schema";
 
@@ -157,6 +159,7 @@ const savedOnly = (names: string[] | undefined, saved: IRegion[] | undefined) =>
 export const histogramRequest = (
   { x, series }: IParticleHistogramConfig,
   saved?: IRegion[],
+  variables: IVariable[] = [],
 ) => {
   const lines = series.map((line) =>
     line.regions ? { ...line, regions: savedOnly(line.regions, saved) } : line,
@@ -167,17 +170,23 @@ export const histogramRequest = (
       lines.flatMap((line) => line.regions ?? []),
       saved,
     ),
+    variables: usedVariables([x.quantity], variables),
   };
 };
 
 export const phaseRequest = (
   { expressions: _expressions, ...rest }: IParticlePhaseConfig,
   saved?: IRegion[],
+  variables: IVariable[] = [],
 ) => {
   const config = rest.regions
     ? { ...rest, regions: savedOnly(rest.regions, saved) }
     : rest;
-  return { config, regions: pickRegions(config.regions, saved) };
+  return {
+    config,
+    regions: pickRegions(config.regions, saved),
+    variables: usedVariables([config.x.quantity, config.y.quantity], variables),
+  };
 };
 
 /**

@@ -51,6 +51,26 @@ export const withSlice = <T extends { slices?: Record<string, number> }>(
     : { ...config, slices: { ...config.slices, [dim]: value } };
 
 /**
+ * Sets (or, for an empty/non-positive width, clears) the smoothing window
+ * along `dim`; no smoothing left drops the setting.
+ */
+export const withSmoothing = <T extends { smoothing?: Record<string, number> }>(
+  config: T,
+  dim: string,
+  width: number | undefined,
+): T => {
+  const valid = width !== undefined && Number.isFinite(width) && width > 0;
+  if ((config.smoothing?.[dim] ?? undefined) === (valid ? width : undefined)) {
+    return config;
+  }
+  const smoothing = { ...config.smoothing };
+  if (valid) smoothing[dim] = width;
+  else delete smoothing[dim];
+  const { smoothing: _old, ...rest } = config;
+  return (Object.keys(smoothing).length ? { ...rest, smoothing } : rest) as T;
+};
+
+/**
  * Metadata with the plot's custom expressions added as fields, so the axis,
  * slice and dimension helpers treat them like any other field. Expressions
  * whose dims are unknown (invalid, or still loading) are left out.

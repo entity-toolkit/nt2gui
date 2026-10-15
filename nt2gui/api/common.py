@@ -14,7 +14,7 @@ from pydantic import BaseModel, ValidationError
 
 from ..data.expressions import Variables, variable_definitions
 from ..data.particles import particle_dataset, required_columns
-from ..data.transforms import IDENTITY, Frame, transform_definitions
+from ..data.transforms import IDENTITY, PRIMED, TIME, Frame, transform_definitions
 from ..errors import UserError
 from ..sources import SimulationSource
 from ..workspace import Workspace
@@ -72,16 +72,25 @@ def request_variables(payload: dict[str, Any]) -> dict[str, str]:
     return variable_definitions(payload.get("variables"))
 
 
-def frame_for(source: SimulationSource, transforms: Any) -> Frame:
-    """The session's coordinate transforms (as sent) for this simulation."""
+def frame_for(
+    source: SimulationSource, transforms: Any, time_axis: Any = None
+) -> Frame:
+    """The session's coordinate transforms (as sent) for this simulation, with
+    the timeline in `time_axis` ("t", the default, or "tp")."""
     definitions = transform_definitions(transforms)
-    return Frame(definitions, source.attrs) if definitions else IDENTITY
+    axis = TIME if time_axis is None else time_axis
+    if axis not in (TIME, PRIMED[TIME]):
+        raise UserError("timeAxis must be 't' or 'tp'")
+    if not definitions and axis == TIME:
+        return IDENTITY
+    return Frame(definitions, source.attrs, axis)
 
 
 def request_frame(source: SimulationSource, payload: dict[str, Any]) -> Frame:
-    """The coordinate transforms sent with a request (like variables, sent
-    rather than read from the session so renders never race the sync)."""
-    return frame_for(source, payload.get("transforms"))
+    """The coordinate transforms and time axis sent with a request (like
+    variables, sent rather than read from the session so renders never race
+    the sync)."""
+    return frame_for(source, payload.get("transforms"), payload.get("timeAxis"))
 
 
 def particles_at(
@@ -92,14 +101,16 @@ def particles_at(
     frame: Frame = IDENTITY,
 ) -> tuple[xr.Dataset, float]:
     """The particles of the output nearest to `time` (only the columns
-    `quantities` need) with transformed positions, and that output's time
-    (times in the frame's units)."""
+    `quantities` need) with the transformed positions added (`xp`), and that
+    output's time (times on the frame's time axis)."""
     if not source.species:
         raise UserError("This simulation has no particle output")
     raw = np.asarray(source.particle_times, dtype=float)
     raw_time = float(raw[frame.nearest(raw, time)])
-    columns = required_columns(quantities, source.particle_columns, variables)
+    columns = required_columns(
+        quantities, source.particle_columns, variables, frame.spatial
+    )
     particles = frame.positions(
         particle_dataset(source.particles(raw_time, columns)), raw_time
     )
-    return particles, float(frame.times([raw_time])[0])
+    return particles, frame.time_of(raw_time)

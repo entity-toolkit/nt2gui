@@ -5,6 +5,7 @@ import {
   IParticleMetadata,
 } from "../../api/types";
 import { existingRegionNames, pickRegions } from "../../state/regions";
+import { TIME, primed, withPrimed } from "../../state/transforms";
 import { usedVariables } from "../../state/variables";
 import {
   IParticleAxis,
@@ -13,6 +14,7 @@ import {
   IParticleSeries,
   IRegion,
   IVariable,
+  TimeAxis,
   ParticleScale,
 } from "../../state/schema";
 
@@ -89,6 +91,21 @@ export const defaultScaleFor = (
   metadata?.quantities.find((q) => q.name === quantity)?.defaultScale ??
   "linear";
 
+/**
+ * The built-in quantities, each position followed by its transformed version
+ * (x′, named xp) when the session transforms it.
+ */
+export const particleQuantities = (
+  metadata: IParticleMetadata,
+  transforms: Record<string, string> | undefined,
+): string[] =>
+  withPrimed(
+    metadata.quantities.map((q) => q.name),
+    Object.keys(transforms ?? {})
+      .filter((name) => name !== TIME)
+      .map(primed),
+  );
+
 /** Switching quantity resets the scale to its default and the range. */
 export const withAxisQuantity = (
   axis: IParticleAxis,
@@ -161,6 +178,7 @@ export const histogramRequest = (
   saved?: IRegion[],
   variables: IVariable[] = [],
   transforms: Record<string, string> = {},
+  timeAxis: TimeAxis = "t",
 ) => {
   const lines = series.map((line) =>
     line.regions ? { ...line, regions: savedOnly(line.regions, saved) } : line,
@@ -173,6 +191,7 @@ export const histogramRequest = (
     ),
     variables: usedVariables([x.quantity], variables),
     transforms,
+    timeAxis,
   };
 };
 
@@ -181,6 +200,7 @@ export const phaseRequest = (
   saved?: IRegion[],
   variables: IVariable[] = [],
   transforms: Record<string, string> = {},
+  timeAxis: TimeAxis = "t",
 ) => {
   const config = rest.regions
     ? { ...rest, regions: savedOnly(rest.regions, saved) }
@@ -190,6 +210,7 @@ export const phaseRequest = (
     regions: pickRegions(config.regions, saved),
     variables: usedVariables([config.x.quantity, config.y.quantity], variables),
     transforms,
+    timeAxis,
   };
 };
 

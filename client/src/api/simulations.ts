@@ -1,5 +1,5 @@
 import { apiUrl, requestJson, simulationUrl } from "./http";
-import { ITimeline } from "../state/schema";
+import { ITimeline, TimeAxis } from "../state/schema";
 import {
   AttributeValue,
   IServerSnapshot,
@@ -43,14 +43,19 @@ export const checkTransforms = (
   });
 
 /**
- * This simulation's timeline under `transforms`, at the output nearest to
- * `previous.time` under `previous.transforms`.
+ * This simulation's timeline under `transforms` on `timeAxis`, at the output
+ * nearest to `previous.time` under the previous transforms and axis.
  */
 export const fetchTimeline = (
   id: string,
   transforms: Record<string, string>,
-  previous: { transforms: Record<string, string>; time: number },
+  timeAxis: TimeAxis,
+  previous: {
+    transforms: Record<string, string>;
+    timeAxis: TimeAxis;
+    time: number;
+  },
 ) =>
   requestJson<ITimeline>(simulationUrl(id, "timeline"), {
-    body: { transforms, previous },
+    body: { transforms, timeAxis, previous },
   });

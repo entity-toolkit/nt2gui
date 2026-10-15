@@ -110,10 +110,20 @@ def spatial_dims(data: xr.DataArray | xr.Dataset) -> list[str]:
 
 
 def quantity_dims(
-    quantity: str, dataset: xr.Dataset, variables: Variables | None = None
+    quantity: str,
+    dataset: xr.Dataset,
+    variables: Variables | None = None,
+    frame: Frame = IDENTITY,
 ) -> list[str]:
-    """Spatial dims of a quantity, found cheaply on a tiny cut of the data."""
+    """Spatial dims of a quantity, found cheaply on a tiny cut of the data
+    (with the frame's coordinates, which expressions may use)."""
     tiny = dataset.isel({dim: slice(0, 2) for dim in dataset.dims})
+    if TIME_DIM in tiny.dims:
+        tiny = tiny.isel({TIME_DIM: 0})
+    tiny = frame.grid(
+        tiny,
+        float(tiny.coords[TIME_DIM].item()) if TIME_DIM in tiny.coords else 0.0,
+    )
     dims: list[str] = []
     for array in quantity_arrays([quantity], tiny, variables):
         dims.extend(dim for dim in spatial_dims(array) if dim not in dims)
@@ -124,8 +134,8 @@ def snapshot_at(
     dataset: xr.Dataset, time: float, frame: Frame = IDENTITY
 ) -> tuple[xr.Dataset, float | None]:
     """The output nearest to `time` and its time (None for static data), with
-    the frame's transforms applied: `time` and the result's coordinates and
-    time are in transformed units.
+    the frame's transformed coordinates added (`xp` next to `x`); `time` and
+    the returned time are on the frame's time axis.
 
     Picking the time first means expressions are evaluated on one snapshot.
     """
@@ -134,7 +144,7 @@ def snapshot_at(
     raw = dataset.coords[TIME_DIM].values
     index = frame.nearest(raw, time)
     snapshot = frame.grid(dataset.isel({TIME_DIM: index}), float(raw[index]))
-    return snapshot, float(snapshot.coords[TIME_DIM].item())
+    return snapshot, frame.time_of(float(raw[index]))
 
 
 def cut(

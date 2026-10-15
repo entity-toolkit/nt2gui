@@ -2,7 +2,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   height: 100%;
   min-height: 0;
 }
@@ -10,7 +10,7 @@
 .plotBody {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   flex: 1;
   min-height: 0;
 }
@@ -19,7 +19,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 14px;
+  gap: 6px 10px;
 }
 
 /* Zoom tools, region tools: each a group, separated by a rule. */
@@ -31,7 +31,7 @@
 }
 
 .toolbarGroup + .toolbarGroup {
-  padding-left: 14px;
+  padding-left: 10px;
   border-left: 1px solid var(--color-border);
 }
 
@@ -115,9 +115,17 @@
   position: relative;
 }
 
-/* At the end of the toolbar row. */
+/* The right end of the toolbar: the simulation's name and "Sync time". */
+.toolbarEnd {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  min-width: 0;
+}
+
 .plotTitle {
-  margin: 0 0 0 auto;
+  margin: 0;
   min-width: 0;
   font-size: 13px;
   font-weight: 600;
@@ -130,7 +138,7 @@
 .plotTimeline {
   flex: 1;
   min-width: 0;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);

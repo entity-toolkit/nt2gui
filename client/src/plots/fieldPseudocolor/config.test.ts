@@ -165,3 +165,30 @@ describe("zoom", () => {
     expect(withViewport(state, "nope", window)).toBe(state);
   });
 });
+
+describe("transformed axes", () => {
+  const metadata = {
+    fields: [{ name: "f", dims: ["x", "y", "z"] }],
+    vectors: [],
+    coords: { x: [0, 1], xp: [0, 2], y: [0, 1], z: [0, 1] },
+  };
+  it("offers x′ next to x and keeps the two axes on different dims", () => {
+    expect(fieldDims(metadata, "f")).toEqual(["x", "xp", "y", "z"]);
+    expect(validAxes(["x", "xp", "y"], "x", "xp")).toEqual({
+      xCoordinate: "x",
+      yCoordinate: "y",
+    });
+    const config = { ...defaultPseudocolorConfig, field: "f" };
+    // Picking y's dim for x swaps; x′ replaces x.
+    expect(withCoordinate(config, "x", "xp")).toMatchObject({
+      xCoordinate: "xp",
+      yCoordinate: "y",
+    });
+    expect(
+      withCoordinate({ ...config, xCoordinate: "xp" }, "y", "x"),
+    ).toMatchObject({ xCoordinate: "y", yCoordinate: "x" });
+    expect(
+      pseudocolorSliceDims(metadata, { ...config, xCoordinate: "xp" }),
+    ).toEqual(["z"]);
+  });
+});

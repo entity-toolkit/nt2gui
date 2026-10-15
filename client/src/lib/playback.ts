@@ -62,3 +62,19 @@ export const indexOfTime = (timeline: ITimeline, time: number): number => {
   const index = Math.round((time - timeline.min) / timeline.step);
   return Math.min(Math.max(index, 0), count - 1);
 };
+
+/**
+ * The grid time `delta` steps from the current one (-1: previous, 1: next),
+ * or null when that's past either end.
+ */
+export const steppedTime = (
+  timeline: ITimeline,
+  delta: number,
+): number | null => {
+  const index = indexOfTime(timeline, timeline.current) + delta;
+  if (index < 0 || index > stepCount(timeline)) return null;
+  return timeAtIndex(timeline, index);
+};
+
+/** Holding a step button: the first repeat waits a little longer. */
+export const HOLD_DELAY_MS = 350;

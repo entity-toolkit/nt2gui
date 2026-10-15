@@ -1,5 +1,8 @@
 /** Settings helpers for 1D cuts through fields. */
+import { IFieldMetadata } from "../../api/types";
 import { ILineConfig, IPlotter, IRange, IUiState } from "../../state/schema";
+import { baseOf, withPrimed } from "../../state/transforms";
+import { quantityDims } from "../fields/metadata";
 
 export const defaultLineConfig: ILineConfig = {
   quantities: [],
@@ -11,9 +14,16 @@ export const defaultLineConfig: ILineConfig = {
 export const effectiveAxis = (axis: string, dims: string[]): string =>
   dims.includes(axis) ? axis : (dims[0] ?? "");
 
-/** Dimensions that need a slice position (all but the plotted axis). */
+/**
+ * Coordinates the quantities can be plotted along: their dims, each followed
+ * by its transformed version (x′) when there is one.
+ */
+export const lineAxes = (metadata: IFieldMetadata, quantities: string[]) =>
+  withPrimed(quantityDims(metadata, quantities), Object.keys(metadata.coords));
+
+/** Dimensions that need a slice position (all but the plotted axis's). */
 export const sliceDims = (dims: string[], axis: string) =>
-  dims.filter((dim) => dim !== axis);
+  dims.filter((dim) => dim !== baseOf(axis));
 
 export const toggleQuantity = (quantities: string[], quantity: string) =>
   quantities.includes(quantity)

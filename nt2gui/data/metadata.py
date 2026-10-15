@@ -20,16 +20,26 @@ from .transforms import IDENTITY, Frame
 def field_metadata(
     dataset: xr.Dataset, frame: Frame = IDENTITY, time: float | None = None
 ) -> dict[str, Any]:
-    """Fields with their spatial dims, vector groups, and coordinate values
-    (transformed by `frame` at the output nearest to `time`, else the first:
-    a moving frame's coordinates depend on time)."""
-    if frame.transforms:
+    """Fields with their spatial dims, vector groups, and coordinate values,
+    plus each transformed coordinate's values (`xp`, ascending) at the output
+    nearest to `time`, else the first: a moving frame's depend on time."""
+    primed: dict[str, list[float | None]] = {}
+    if frame.spatial:
         if TIME_DIM in dataset.dims:
             raw = dataset.coords[TIME_DIM].values
             index = 0 if time is None else frame.nearest(raw, time)
-            dataset = frame.grid(dataset.isel({TIME_DIM: index}), float(raw[index]))
+            snapshot = frame.grid(dataset.isel({TIME_DIM: index}), float(raw[index]))
         else:
-            dataset = frame.grid(dataset, 0.0)
+            snapshot = frame.grid(dataset, 0.0)
+        primed = {
+            name: finite_list(
+                even_sample(
+                    np.sort(snapshot.coords[name].values), MAX_COORDINATE_VALUES
+                )
+            )
+            for name in frame.spatial
+            if name in snapshot.coords
+        }
     fields = [
         {"name": str(name), "dims": spatial_dims(dataset[name])}
         for name in sorted(map(str, dataset.data_vars))
@@ -47,7 +57,7 @@ def field_metadata(
             )
             for dim in sorted(used_dims)
             if dim in dataset.coords
-        },
+        } | primed,
     }
 
 

@@ -1,5 +1,5 @@
 .footer {
-  padding: 14px 20px;
+  padding: 8px 14px;
   border-top: 1px solid var(--color-border-strong);
   background: var(--color-surface);
   width: 100%;
@@ -30,4 +30,30 @@
 .collapse:hover {
   background: var(--color-hover);
   color: var(--color-text-soft);
+}
+
+/* t | t′: which time the timeline runs in. */
+.axes {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.axes button {
+  padding: 3px 9px;
+  border: none;
+  background: none;
+  color: var(--color-axis-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.axes button + button {
+  border-left: 1px solid var(--color-border);
+}
+
+.axes button[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
 }

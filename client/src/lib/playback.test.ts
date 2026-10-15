@@ -5,6 +5,7 @@ import {
   nextTime,
   panelTime,
   stepCount,
+  steppedTime,
   timeAtIndex,
 } from "./playback";
 
@@ -88,5 +89,18 @@ describe("grid indices", () => {
     expect(stepCount(grid)).toBe(0);
     expect(timeAtIndex(grid, 0)).toBe(0);
     expect(indexOfTime(grid, 0)).toBe(0);
+  });
+});
+
+describe("steppedTime", () => {
+  it("moves one grid point either way, stopping at the ends", () => {
+    const timeline = { current: 0.5, min: 0, max: 1, step: 0.25 };
+    expect(steppedTime(timeline, 1)).toBe(0.75);
+    expect(steppedTime(timeline, -1)).toBe(0.25);
+    expect(steppedTime({ ...timeline, current: 0 }, -1)).toBeNull();
+    expect(steppedTime({ ...timeline, current: 1 }, 1)).toBeNull();
+    expect(steppedTime({ ...timeline, current: 0.75 }, 1)).toBe(1);
+    // Off-grid times step from the nearest grid point.
+    expect(steppedTime({ ...timeline, current: 0.3 }, 1)).toBe(0.5);
   });
 });

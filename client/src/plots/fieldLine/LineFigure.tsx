@@ -13,7 +13,7 @@ import { ChartRegion } from "../../state/regions";
 import { ILineConfig, IRange } from "../../state/schema";
 import { quantityDims, withSlice } from "../fields/metadata";
 import SlicedFigure from "../fields/SlicedFigure";
-import { effectiveAxis, lineRequest, sliceDims } from "./config";
+import { effectiveAxis, lineAxes, lineRequest, sliceDims } from "./config";
 
 interface LineFigureProps {
   simulationId: string;
@@ -49,11 +49,15 @@ const LineFigure = ({
   regions,
 }: LineFigureProps) => {
   const dims = quantityDims(metadata, config.quantities);
-  const axis = effectiveAxis(config.axis, dims);
+  const axis = effectiveAxis(
+    config.axis,
+    lineAxes(metadata, config.quantities),
+  );
   const request = { ...lineRequest(config), axis };
   const { uiState } = useUi();
   const context = {
     transforms: uiState.coordinateTransforms ?? {},
+    timeAxis: uiState.timeAxis ?? "t",
     variables: usedVariables(config.quantities, uiState.fieldVariables ?? []),
   };
   // Renders again when the simulation is reloaded from disk.

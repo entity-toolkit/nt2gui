@@ -8,7 +8,12 @@ import { IPlotter, IRange, IRegion, IUiState } from "./schema";
  * Coordinates that are positions, shared by fields and particles (cartesian
  * and spherical runs). Matches `POSITION_COLUMNS` in nt2gui/data/particles.py.
  */
-export const SPATIAL_COORDINATES = ["x", "y", "z", "r", "th", "ph"];
+const POSITIONS = ["x", "y", "z", "r", "th", "ph"];
+// With their transformed versions (xp, …; see state/transforms.ts).
+export const SPATIAL_COORDINATES = [
+  ...POSITIONS,
+  ...POSITIONS.map((name) => `${name}p`),
+];
 
 export const isSpatial = (name: string | null | undefined): name is string =>
   !!name && SPATIAL_COORDINATES.includes(name);

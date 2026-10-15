@@ -16,6 +16,7 @@ import {
   withZoomWindow,
   withPanWindow,
   hasRange,
+  particleQuantities,
 } from "./config";
 
 const metadata: IParticleMetadata = {
@@ -117,6 +118,7 @@ describe("requests", () => {
       regions: [],
       variables: {},
       transforms: {},
+      timeAxis: "t",
     });
   });
 
@@ -137,6 +139,7 @@ describe("requests", () => {
       regions: [region],
       variables: {},
       transforms: {},
+      timeAxis: "t",
     });
     const phase = {
       x: { quantity: "x", scale: "linear" as const },
@@ -148,6 +151,7 @@ describe("requests", () => {
       regions: [region],
       variables: {},
       transforms: {},
+      timeAxis: "t",
     });
   });
 
@@ -163,6 +167,7 @@ describe("requests", () => {
       regions: [],
       variables: {},
       transforms: {},
+      timeAxis: "t",
     });
   });
 
@@ -257,5 +262,23 @@ describe("withPanWindow", () => {
     const next = withPanWindow(config, { xMin: 2, xMax: 3, yMin: -5, yMax: 5 });
     expect(next.x).toEqual({ quantity: "x", scale: "linear", min: 2, max: 3 });
     expect(next.y).toBe(config.y);
+  });
+});
+
+describe("particleQuantities", () => {
+  it("lists transformed positions next to their columns", () => {
+    const metadata = {
+      species: [],
+      quantities: [
+        { name: "x", defaultScale: "linear" as const },
+        { name: "ux", defaultScale: "linear" as const },
+      ],
+    };
+    expect(particleQuantities(metadata, { x: "x/2", t: "t*2" })).toEqual([
+      "x",
+      "xp",
+      "ux",
+    ]);
+    expect(particleQuantities(metadata, undefined)).toEqual(["x", "ux"]);
   });
 });

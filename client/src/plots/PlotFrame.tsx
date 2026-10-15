@@ -127,7 +127,10 @@ const PlotFrame = ({
   };
 
   const syncTimeToggle = (
-    <label className={styles.toolbarToggle}>
+    <label
+      className={styles.toolbarToggle}
+      title="Follow the global timeline; off gives this panel its own"
+    >
       <input
         type="checkbox"
         checked={syncTime}
@@ -248,12 +251,15 @@ const PlotFrame = ({
             </div>
           )}
 
-          {/* Which simulation, when there is a choice. */}
-          {simulation && simulations.length > 1 && (
-            <h3 className={styles.plotTitle} title={simulation.path}>
-              {simulationName(simulation)}
-            </h3>
-          )}
+          {/* At the right end: which simulation (when there is a choice), and time. */}
+          <div className={styles.toolbarEnd}>
+            {simulation && simulations.length > 1 && (
+              <h3 className={styles.plotTitle} title={simulation.path}>
+                {simulationName(simulation)}
+              </h3>
+            )}
+            {syncTimeToggle}
+          </div>
         </div>
 
         <div className={styles.plotFigure} onContextMenu={openMenu}>
@@ -270,14 +276,13 @@ const PlotFrame = ({
           )}
         </div>
 
-        <div
-          className={styles.timeBar}
-          role="group"
-          aria-label="Time"
-          data-ui-chrome
-        >
-          {syncTimeToggle}
-          {!syncTime && (
+        {!syncTime && (
+          <div
+            className={styles.timeBar}
+            role="group"
+            aria-label="Time"
+            data-ui-chrome
+          >
             <div className={styles.plotTimeline} aria-label="Panel timeline">
               <TimeControls
                 variant="compact"
@@ -295,8 +300,8 @@ const PlotFrame = ({
                 waiting={ownRenderPending}
               />
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {menuPosition && (

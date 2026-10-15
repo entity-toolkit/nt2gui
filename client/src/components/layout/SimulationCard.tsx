@@ -1,12 +1,10 @@
 import { ReactNode, useState } from "react";
 import { TbListDetails, TbRefresh } from "react-icons/tb";
 import { serverErrorMessage } from "../../api/http";
-import { fetchSimulationSummary } from "../../api/simulations";
 import { IGridSummary } from "../../api/types";
 import EditableName from "../common/EditableName";
-import { cachedLoader, useCachedResource } from "../../hooks/useCachedResource";
+import { useSimulationSummary } from "../../hooks/useSimulationSummary";
 import { ISimulation } from "../../state/schema";
-import { useSimulationVersion } from "../../state/simulationData";
 import {
   formatAxes,
   formatCount,
@@ -18,9 +16,6 @@ import {
 import { simulationName } from "../../lib/simulations";
 import AttributesModal from "./AttributesModal";
 import styles from "./SimulationSidebar.module.css";
-
-// Cached until the simulation is reloaded (see state/simulationData.ts).
-const getSummary = cachedLoader(fetchSimulationSummary);
 
 interface SimulationCardProps {
   simulation: ISimulation;
@@ -80,11 +75,7 @@ const SimulationCard = ({
   onRename,
   onReload,
 }: SimulationCardProps) => {
-  const { data: summary, error } = useCachedResource(
-    simulation.id,
-    getSummary,
-    useSimulationVersion(simulation.id),
-  );
+  const { data: summary, error } = useSimulationSummary(simulation.id);
   const name = simulationName(simulation);
   const [reloading, setReloading] = useState(false);
   const [reloadError, setReloadError] = useState<string | null>(null);

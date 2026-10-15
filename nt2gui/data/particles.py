@@ -21,7 +21,7 @@ Bin edges are reported back in data units, so the client can label axes with
 real values.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -81,22 +81,27 @@ def required_columns(
     quantities: Iterable[str],
     columns: Sequence[str],
     variables: Variables | None = None,
+    derived: Mapping[str, str] | None = None,
 ) -> list[str]:
-    """The columns needed to compute `quantities` (columns, gamma/energy, or
-    expressions over them, possibly through named variables) and weight the
-    result: what a plot must load."""
+    """The columns needed to compute `quantities` (columns, gamma/energy,
+    columns `derived` from another (name -> source, e.g. transformed `xp` from
+    `x`), or expressions over them, possibly through named variables) and
+    weight the result: what a plot must load."""
     available = set(columns)
+    derived = derived or {}
     needed: list[str] = []
 
     def need(name: str) -> None:
-        if name in available and name not in needed:
+        if name in derived:
+            need(derived[name])
+        elif name in available and name not in needed:
             needed.append(name)
         elif name in DERIVED:
             for component in derived_velocity(available) or ():
                 need(component)
 
     def known(name: str) -> bool:
-        return name in available or name in DERIVED
+        return name in available or name in DERIVED or name in derived
 
     for quantity in quantities:
         if known(quantity):

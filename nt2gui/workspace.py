@@ -188,8 +188,12 @@ class Workspace:
 def _timeline(simulation: SimulationSource, session: Session) -> dict[str, float]:
     """The simulation's timeline in the session's transformed time; its own
     if the transforms don't work for it (the plots will say why)."""
-    transforms = session.state.coordinate_transforms
-    frame = Frame(transforms, simulation.attrs) if transforms else IDENTITY
+    state = session.state
+    frame = (
+        Frame(state.coordinate_transforms, simulation.attrs, state.time_axis)
+        if state.coordinate_transforms
+        else IDENTITY
+    )
     try:
         return frame_timeline(simulation, frame)
     except TransformError as error:

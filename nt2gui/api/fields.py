@@ -26,8 +26,8 @@ bp = Blueprint("fields", __name__, url_prefix="/simulations/<simulation_id>")
 
 @bp.get("/fields")
 def get_fields(simulation_id: str):
-    """Field metadata; `?transforms=<json>&time=<t>` gives coordinates in the
-    session's transformed units (at that time, for a moving frame)."""
+    """Field metadata; `?transforms=<json>&timeAxis=<t|tp>&time=<t>` adds the
+    transformed coordinates (at that time, for a moving frame)."""
     source = simulation(simulation_id)
     try:
         transforms = json.loads(request.args.get("transforms", "null"))
@@ -35,7 +35,8 @@ def get_fields(simulation_id: str):
         time = float(time) if time is not None else None
     except ValueError as error:
         raise UserError("transforms must be JSON and time a number") from error
-    return jsonify(field_metadata(source.fields, frame_for(source, transforms), time))
+    frame = frame_for(source, transforms, request.args.get("timeAxis"))
+    return jsonify(field_metadata(source.fields, frame, time))
 
 
 @bp.post("/quantities/check")
@@ -44,7 +45,12 @@ def check_quantity(simulation_id: str):
     source = simulation(simulation_id)
     payload = json_object()
     expression = require_text(payload, "expression", "An expression is required")
-    dims = quantity_dims(expression, source.fields, request_variables(payload))
+    dims = quantity_dims(
+        expression,
+        source.fields,
+        request_variables(payload),
+        request_frame(source, payload),
+    )
     return jsonify({"expression": expression, "dims": dims})
 
 

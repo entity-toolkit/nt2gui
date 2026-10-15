@@ -1,18 +1,20 @@
 import { FormEvent, useId, useState } from "react";
 import { serverErrorMessage } from "../../api/http";
-import { checkTransforms, fetchTimeline } from "../../api/simulations";
+import { checkTransforms } from "../../api/simulations";
 import { ITransformCheck } from "../../api/types";
 import { formatRange } from "../../lib/format";
 import { simulationName } from "../../lib/simulations";
+import { usePresentCoordinates } from "../../hooks/useSimulationSummary";
+import { useTransforms } from "../../hooks/useTransforms";
 import {
   TIME,
   TRANSFORMABLE,
   Transforms,
   cleanTransforms,
-  timeChanged,
-  withTransforms,
+  coordinateLabel,
+  primed,
 } from "../../state/transforms";
-import { useUi, useUiActions } from "../../state/UiContext";
+import { useUi } from "../../state/UiContext";
 import styles from "./TransformEditor.module.css";
 
 const sameTransforms = (a: Transforms, b: Transforms) =>
@@ -25,9 +27,10 @@ const sameTransforms = (a: Transforms, b: Transforms) =>
  * simulation before they apply.
  */
 const TransformEditor = () => {
-  const { uiState, simulations } = useUi();
-  const { updateUiState } = useUiActions();
-  const saved = uiState.coordinateTransforms ?? {};
+  const { simulations } = useUi();
+  const { transforms: saved, apply: applyTransforms } = useTransforms();
+  // Only coordinates some loaded simulation has (and time).
+  const available = usePresentCoordinates(simulations, TRANSFORMABLE, [TIME]);
   const [draft, setDraft] = useState<Transforms>(saved);
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,7 +51,7 @@ const TransformEditor = () => {
   }
 
   const used = TRANSFORMABLE.filter((name) => name in draft);
-  const free = TRANSFORMABLE.filter((name) => !(name in draft));
+  const free = available.filter((name) => !(name in draft));
 
   const apply = async (event: FormEvent) => {
     event.preventDefault();
@@ -76,16 +79,7 @@ const TransformEditor = () => {
       setProblems(found);
       setRanges(checks[0]?.check.ranges ?? {});
       if (Object.keys(found).length) return;
-      // The timeline follows the last loaded simulation (as when loading).
-      const reference = simulations[simulations.length - 1];
-      const timeline =
-        reference && timeChanged(saved, next)
-          ? await fetchTimeline(reference.id, next, {
-              transforms: saved,
-              time: uiState.timeline.current,
-            })
-          : undefined;
-      updateUiState((prev) => withTransforms(prev, next, timeline));
+      await applyTransforms(next);
       setDraft(next);
     } catch (err) {
       setError(serverErrorMessage(err));
@@ -110,8 +104,12 @@ const TransformEditor = () => {
             {used.map((name) => (
               <li key={name} className={styles.row}>
                 <div className={styles.line}>
-                  <label className={styles.name} htmlFor={`${addId}-${name}`}>
-                    {name}′ =
+                  <label
+                    className={styles.name}
+                    htmlFor={`${addId}-${name}`}
+                    title={`Written ${primed(name)} in expressions`}
+                  >
+                    {coordinateLabel(primed(name))} =
                   </label>
                   <input
                     id={`${addId}-${name}`}
@@ -198,11 +196,13 @@ const TransformEditor = () => {
           </p>
         )}
         <p className={styles.detail}>
-          For every simulation: field grids, particle positions and time. Use
-          the coordinate, the original <code>t</code> and run attributes, e.g.{" "}
+          Each transform adds a primed coordinate next to the original (x′,
+          written <code>xp</code> in expressions), for every simulation: field
+          grids, particle positions and time. Plots can use either; the timeline
+          switches between t and t′. Use the coordinate, the original{" "}
+          <code>t</code> and run attributes, e.g.{" "}
           <code>(x - grid.extent[0]) / setup.skin</code>, <code>x - 0.5*t</code>
-          , <code>t * setup.omega</code>. Changing positions resets zooms; saved
-          regions keep their numbers.
+          , <code>t * setup.omega</code>.
         </p>
       </form>
     </section>

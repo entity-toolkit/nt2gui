@@ -1,14 +1,41 @@
 /**
  * Session-wide coordinate transforms (`x -> (x - grid.extent[0]) / 20`,
- * `t -> t * setup.omega`): which coordinates can be transformed, what a
- * request sends, and what changes in the state when they change. Pure.
+ * `t -> t * setup.omega`). A transform adds a primed coordinate next to the
+ * original (`x` -> `xp`, shown as x′), so plots can use either; the timeline
+ * runs in `t` or `tp` (`timeAxis`). Which coordinates can be transformed,
+ * names and labels, what a request sends, and what changes in the state when
+ * transforms change. Pure.
  */
-import { IPlotter, ITimeline, IUiState } from "./schema";
+import { IPlotter, ITimeline, IUiState, TimeAxis } from "./schema";
 
 /** Matches `TRANSFORMABLE` in nt2gui/session/schema.py. */
 export const TRANSFORMABLE = ["x", "y", "z", "r", "th", "ph", "t"];
 export const TIME = "t";
+export const PRIMED_TIME = "tp";
 export type Transforms = Record<string, string>;
+
+/** The coordinate a transform adds: x -> xp (matches `PRIMED` on the server). */
+export const primed = (name: string) => `${name}p`;
+
+const BASES = new Map(TRANSFORMABLE.map((name) => [primed(name), name]));
+
+/** The original coordinate a (possibly primed) coordinate lives on. */
+export const baseOf = (name: string) => BASES.get(name) ?? name;
+
+export const isPrimed = (name: string) => BASES.has(name);
+
+/** How a coordinate is shown: xp -> x′, others as they are. */
+export const coordinateLabel = (name: string) =>
+  isPrimed(name) ? `${baseOf(name)}′` : name;
+
+/**
+ * Each of `dims` followed by its transformed coordinate, for those that
+ * have one in `available` (e.g. a field metadata's coords).
+ */
+export const withPrimed = (dims: string[], available: string[]) =>
+  dims.flatMap((dim) =>
+    available.includes(primed(dim)) ? [dim, primed(dim)] : [dim],
+  );
 
 const NAME_TOKEN = /[A-Za-z_][A-Za-z0-9_.]*/g;
 
@@ -37,10 +64,11 @@ export const isMovingFrame = (transforms: Transforms | undefined) =>
 export const metadataFrame = (
   transforms: Transforms | undefined,
   time: number | undefined,
-): { transforms: Transforms; time?: number } | null => {
+  timeAxis: TimeAxis = TIME,
+): { transforms: Transforms; time?: number; timeAxis?: TimeAxis } | null => {
   if (!transforms || !Object.keys(transforms).length) return null;
   return isMovingFrame(transforms) && time !== undefined
-    ? { transforms, time }
+    ? { transforms, time, ...(timeAxis !== TIME && { timeAxis }) }
     : { transforms };
 };
 
@@ -56,15 +84,40 @@ const unzoomed = (plotter: IPlotter): IPlotter => ({
 });
 
 /**
- * The state with new transforms. Zooms are in the old coordinates, so they
- * are reset when a spatial transform changes; `timeline` (from the server,
- * see `api/simulations.ts:fetchTimeline`) replaces the timeline when time's
- * transform changes.
+ * The time axis the timeline should use with `transforms`: t′ only while
+ * time is transformed.
+ */
+export const timeAxisFor = (
+  transforms: Transforms,
+  axis: TimeAxis | undefined,
+): TimeAxis => (axis === PRIMED_TIME && transforms[TIME] ? PRIMED_TIME : TIME);
+
+/**
+ * Whether going from `previous` to `next` transforms (and time axes) moves
+ * the timeline's values, so it must be fetched again (`fetchTimeline`).
+ */
+export const timelineMoves = (
+  previous: Transforms | undefined,
+  previousAxis: TimeAxis | undefined,
+  next: Transforms,
+  nextAxis: TimeAxis,
+) => {
+  const before = timeAxisFor(previous ?? {}, previousAxis);
+  if (before !== nextAxis) return true;
+  return nextAxis === PRIMED_TIME && timeChanged(previous, next);
+};
+
+/**
+ * The state with new transforms (and time axis). Zooms may be on primed
+ * coordinates, so they are reset when a spatial transform changes;
+ * `timeline` (from the server, see `api/simulations.ts:fetchTimeline`)
+ * replaces the timeline when its values move (`timelineMoves`).
  */
 export const withTransforms = (
   state: IUiState,
   transforms: Transforms,
   timeline?: ITimeline,
+  timeAxis?: TimeAxis,
 ): IUiState => {
   const previous = state.coordinateTransforms ?? {};
   const next = cleanTransforms(transforms);
@@ -72,6 +125,7 @@ export const withTransforms = (
   return {
     ...state,
     coordinateTransforms: next,
+    timeAxis: timeAxisFor(next, timeAxis ?? state.timeAxis),
     ...(timeline && { timeline }),
     ...(!spatialSame && {
       globalViewport: null,

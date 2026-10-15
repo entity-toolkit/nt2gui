@@ -9,6 +9,7 @@ import { parseOptionalNumber } from "../../components/common/LimitInputs";
 import ScaleSelect from "../../components/common/ScaleSelect";
 import { normalizeExpression } from "../../lib/expressions";
 import { describeRegion, regionColor } from "../../state/regions";
+import { baseOf, coordinateLabel, isPrimed } from "../../state/transforms";
 import {
   MAX_VARIABLE_NAME,
   parseDefinition,
@@ -19,6 +20,7 @@ import { formatValue } from "../../lib/format";
 import { DEFAULT_PARTICLE_BINS, IParticleAxis } from "../../state/schema";
 import listStyles from "../fields/QuantityList.module.css";
 import {
+  particleQuantities,
   isSpeciesSelected,
   toggleSpecies,
   withAxisQuantity,
@@ -147,9 +149,11 @@ export const AxisControls = ({
   onChange: (axis: IParticleAxis) => void;
 }) => {
   const id = useId();
-  const variables = useUi().uiState.particleVariables ?? [];
+  const { uiState } = useUi();
+  const variables = uiState.particleVariables ?? [];
+  const quantities = particleQuantities(metadata, uiState.coordinateTransforms);
   const known =
-    metadata.quantities.some((q) => q.name === axis.quantity) ||
+    quantities.includes(axis.quantity) ||
     variables.some((v) => v.name === axis.quantity) ||
     expressions.includes(axis.quantity);
   return (
@@ -167,10 +171,14 @@ export const AxisControls = ({
         >
           {!known && <option value={axis.quantity}>{axis.quantity}</option>}
           <optgroup label="quantities">
-            {metadata.quantities.map(({ name }) => (
+            {quantities.map((name) => (
               <option key={name} value={name}>
-                {name}
-                {QUANTITY_HINTS[name] ? ` — ${QUANTITY_HINTS[name]}` : ""}
+                {coordinateLabel(name)}
+                {isPrimed(name)
+                  ? ` — transformed ${baseOf(name)}`
+                  : QUANTITY_HINTS[name]
+                    ? ` — ${QUANTITY_HINTS[name]}`
+                    : ""}
               </option>
             ))}
           </optgroup>
@@ -272,6 +280,7 @@ export const CustomQuantities = ({
     simulationId,
     metadata.quantities.map((q) => q.name),
   );
+  const transforms = useUi().uiState.coordinateTransforms ?? {};
   // The row being (re)named: a variable's name or a custom expression.
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -404,6 +413,7 @@ export const CustomQuantities = ({
             simulationId,
             expression,
             usedVariables([expression], variables),
+            transforms,
           );
           if (!problem) onAdd(expression);
           return problem;

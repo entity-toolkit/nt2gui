@@ -14,6 +14,7 @@ import {
   removeExpression,
 } from "../../lib/expressions";
 import { IPseudocolorConfig } from "../../state/schema";
+import { coordinateLabel } from "../../state/transforms";
 import { withExpressionFields, withSmoothing } from "../fields/metadata";
 import SmoothingInputs from "../fields/SmoothingInputs";
 import QuantityList from "../fields/QuantityList";
@@ -49,7 +50,9 @@ const PseudocolorControls = ({
   const axesId = useId();
   const colorId = useId();
   const colorMapId = useId();
-  const variables = useUi().uiState.fieldVariables ?? [];
+  const { uiState } = useUi();
+  const variables = uiState.fieldVariables ?? [];
+  const transforms = uiState.coordinateTransforms ?? {};
   if (!metadata) {
     return (
       <FormHint>{metadataError ?? "Loading the simulation's fields…"}</FormHint>
@@ -72,6 +75,7 @@ const PseudocolorControls = ({
       simulationId,
       expression,
       usedVariables([expression], variables),
+      transforms,
     );
     if ("error" in result) return result.error;
     if (result.dims.length < 2) {
@@ -114,10 +118,12 @@ const PseudocolorControls = ({
       }
     >
       {/* Keep an unknown saved value visible rather than silently changing it. */}
-      {!dims.includes(value) && <option value={value}>{value || "–"}</option>}
+      {!dims.includes(value) && (
+        <option value={value}>{coordinateLabel(value) || "–"}</option>
+      )}
       {dims.map((dim) => (
         <option key={dim} value={dim}>
-          {dim}
+          {coordinateLabel(dim)}
         </option>
       ))}
     </select>

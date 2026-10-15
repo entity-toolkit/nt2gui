@@ -3,6 +3,7 @@ import { DataType, IPlotter, IUiState, PlotType } from "../../state/schema";
 import {
   activeLineRange,
   effectiveAxis,
+  lineAxes,
   lineRequest,
   sliceDims,
   toggleQuantity,
@@ -123,5 +124,17 @@ describe("withLineRange", () => {
   it("returns the same state when nothing changes", () => {
     expect(withLineRange(state, "synced", "x", null)).toBe(state);
     expect(withLineRange(state, "nope", "x", range)).toBe(state);
+  });
+});
+
+describe("transformed axes", () => {
+  it("offers x′ next to x and slices neither when one is plotted", () => {
+    const metadata = {
+      fields: [{ name: "f", dims: ["x", "y"] }],
+      vectors: [],
+      coords: { x: [0, 1], xp: [0, 2], y: [0, 1] },
+    };
+    expect(lineAxes(metadata, ["f"])).toEqual(["x", "xp", "y"]);
+    expect(sliceDims(["x", "y"], "xp")).toEqual(["y"]);
   });
 });

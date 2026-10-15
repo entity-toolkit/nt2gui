@@ -6,6 +6,7 @@ import {
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
 import { useSimulationVersion } from "../../state/simulationData";
+import { coordinateLabel } from "../../state/transforms";
 import { useUi } from "../../state/UiContext";
 import { ChartRegion, ChartSelection } from "../../state/regions";
 import { IParticlePhaseConfig, IRegion, IZoomWindow } from "../../state/schema";
@@ -47,6 +48,7 @@ const PhaseFigure = ({
     savedRegions,
     uiState.particleVariables,
     uiState.coordinateTransforms,
+    uiState.timeAxis,
   );
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);
@@ -67,12 +69,12 @@ const PhaseFigure = ({
       <ImageChart
         data={data}
         xAxis={{
-          title: config.x.quantity,
+          title: coordinateLabel(config.x.quantity),
           scale: config.x.scale,
           power: config.x.power,
         }}
         yAxis={{
-          title: config.y.quantity,
+          title: coordinateLabel(config.y.quantity),
           scale: config.y.scale,
           power: config.y.power,
         }}

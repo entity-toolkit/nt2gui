@@ -47,11 +47,9 @@ def check_particle_quantity(simulation_id: str):
     if not source.species:
         raise UserError("This simulation has no particle output")
     # Validity doesn't depend on the values: check on zeros, read nothing.
-    quantity_values(
-        expression,
-        sample_dataset(source.particle_columns),
-        request_variables(payload),
-    )
+    frame = request_frame(source, payload)
+    sample = frame.positions(sample_dataset(source.particle_columns), 0.0)
+    quantity_values(expression, sample, request_variables(payload))
     return jsonify({"expression": expression})
 
 

@@ -10,7 +10,7 @@ from ..data.arrays import finite_list, minmax_indices
 from ..data.expressions import Variables
 from ..data.quantities import QuantityError, cut, quantity_arrays, snapshot_at
 from ..data.smoothing import smooth
-from ..data.transforms import IDENTITY, Frame
+from ..data.transforms import IDENTITY, Frame, base_of, on_axes
 from ..errors import UserError
 
 # A line never needs more points than a screen has pixels: longer cuts are
@@ -39,31 +39,36 @@ def render_line(
     along `axis` (see `_range_window`). At most about `max_points` points
     are returned (see `minmax_indices`). `smoothing[axis]`, if set, is a
     boxcar width (axis units) applied to the whole cut before cropping, so a
-    zoomed view is smoothed like the full one.
+    zoomed view is smoothed like the full one. `axis` may be a transformed
+    coordinate (`xp`): the cut runs along its original dimension, in its values.
     """
     if not quantities:
         raise UserError("Select at least one quantity to plot")
-    if axis not in dataset.coords:
+    dim = base_of(axis)
+    if dim not in dataset.coords:
         raise UserError(f"Unknown coordinate '{axis}'")
 
     dataset, timestamp = snapshot_at(dataset, time, frame)
-    coordinates = np.asarray(dataset.coords[axis].values, dtype=float)
-    window = _range_window(coordinates, value_range) if value_range else slice(None)
 
     names: list[str] = []
     lines: list[np.ndarray] = []
+    coordinates = np.empty(0)
     used_slices: dict[str, float] = {}
     windows = {axis: smoothing[axis]} if smoothing and axis in smoothing else {}
     smoothed: dict[str, int] = {}
     for data in quantity_arrays(quantities, dataset, variables):
-        if axis not in data.dims:
-            raise QuantityError(f"'{data.name}' does not depend on '{axis}'")
-        data, used = cut(data, [axis], slices)
+        if dim not in data.dims:
+            raise QuantityError(f"'{data.name}' does not depend on '{dim}'")
+        data, used = cut(data, [dim], slices)
         used_slices |= used
+        data = on_axes(data, [axis])
         data, smoothed = smooth(data, windows)
         names.append(str(data.name))
-        lines.append(np.asarray(data.transpose(axis).values, dtype=float)[window])
+        coordinates = np.asarray(data.coords[axis].values, dtype=float)
+        lines.append(np.asarray(data.transpose(axis).values, dtype=float))
 
+    window = _range_window(coordinates, value_range) if value_range else slice(None)
+    lines = [line[window] for line in lines]
     shown = coordinates[window]
     keep = minmax_indices(lines, max_points)
     return {

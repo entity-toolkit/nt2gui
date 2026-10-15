@@ -211,6 +211,13 @@ describe("App", () => {
     // The global time is untouched.
     expect(puts.at(-1)?.timeline.current).toBe(0);
 
+    // "Sync time" sits in the toolbar, not below the plot.
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Sync time" })
+        .closest("[aria-label='Panel timeline']"),
+    ).toBeNull();
+
     // Syncing again drops the panel's timeline.
     fireEvent.click(screen.getByRole("checkbox", { name: "Sync time" }));
     expect(screen.queryByLabelText("Panel timeline")).toBeNull();
@@ -566,7 +573,11 @@ describe("App", () => {
         expressions: ["Bx*2"],
       },
     };
-    const checks: { expression: string; variables: unknown }[] = [];
+    const checks: {
+      expression: string;
+      variables: unknown;
+      transforms: unknown;
+    }[] = [];
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
     const fake = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
@@ -592,6 +603,7 @@ describe("App", () => {
       expect(checks).toContainEqual({
         expression: "bb",
         variables: { bb: "Bx * Bx" },
+        transforms: {},
       }),
     );
     await act(() => vi.advanceTimersByTimeAsync(1000));
@@ -634,10 +646,28 @@ describe("App", () => {
   it("checks and applies coordinate transforms for every simulation", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const requests: { url: string; body: unknown }[] = [];
+    // Its own simulation id: summaries are cached per simulation.
+    const saved = snapshot();
+    saved.simulations = [{ id: "sim-t", path: "demo:t" }];
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
     const fake = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      if (url === "api/state" && init?.method !== "PUT") return json(saved);
+      if (url.endsWith("/summary")) {
+        return json({
+          fields: {
+            axes: [
+              { name: "x", size: 10 },
+              { name: "y", size: 10 },
+            ],
+            quantities: ["Bx"],
+            times: null,
+          },
+          particles: null,
+          spectra: null,
+        });
+      }
       if (url.endsWith("/transforms/check")) {
         requests.push({ url, body });
         const bad = body.transforms.y?.includes("nope");
@@ -657,11 +687,18 @@ describe("App", () => {
       name: "Coordinate transforms",
     });
     const add = within(editor).getByRole("button", { name: "+ transform" });
+    const coordinate = within(editor).getByLabelText("Coordinate to transform");
+    // Only coordinates the simulation has (and time) are offered.
+    await vi.waitFor(() =>
+      expect(
+        within(coordinate)
+          .getAllByRole("option")
+          .map((option) => option.getAttribute("value")),
+      ).toEqual(["x", "y", "t"]),
+    );
 
     // A transform that doesn't work is shown and not applied.
-    fireEvent.change(within(editor).getByLabelText("Coordinate to transform"), {
-      target: { value: "y" },
-    });
+    fireEvent.change(coordinate, { target: { value: "y" } });
     fireEvent.click(add);
     fireEvent.change(within(editor).getByLabelText("Transform of y"), {
       target: { value: "nope * y" },
@@ -676,32 +713,84 @@ describe("App", () => {
       }),
     );
 
-    // x and time: checked, then the timeline follows time's new units.
+    // x and time: checked and applied; the timeline stays in t.
+    fireEvent.change(coordinate, { target: { value: "x" } });
     fireEvent.click(add);
+    expect(within(editor).getByText("x′ =")).toBeTruthy();
     fireEvent.change(within(editor).getByLabelText("Transform of x"), {
       target: { value: "x / 2" },
     });
-    fireEvent.change(within(editor).getByLabelText("Coordinate to transform"), {
-      target: { value: "t" },
-    });
+    fireEvent.change(coordinate, { target: { value: "t" } });
     fireEvent.click(add);
     fireEvent.change(within(editor).getByLabelText("Transform of t"), {
       target: { value: "t * 100" },
     });
     fireEvent.click(within(editor).getByRole("button", { name: "apply" }));
     expect(await within(editor).findByText("0 – 10 → 0 – 5")).toBeTruthy();
-    expect(requests.at(-1)).toEqual({
-      url: "api/simulations/sim1/timeline",
-      body: {
-        transforms: { x: "x / 2", t: "t * 100" },
-        previous: { transforms: {}, time: 0 },
-      },
-    });
+    expect(requests.some((r) => r.url.endsWith("/timeline"))).toBe(false);
+
+    // The timeline can now run in t′, staying at the same output.
+    const footer = screen.getByRole("contentinfo", { name: "Global timeline" });
+    fireEvent.click(within(footer).getByRole("button", { name: "t′" }));
+    await vi.waitFor(() =>
+      expect(requests.at(-1)).toEqual({
+        url: "api/simulations/sim-t/timeline",
+        body: {
+          transforms: { x: "x / 2", t: "t * 100" },
+          timeAxis: "tp",
+          previous: {
+            transforms: { x: "x / 2", t: "t * 100" },
+            timeAxis: "t",
+            time: 0,
+          },
+        },
+      }),
+    );
     await act(() => vi.advanceTimersByTimeAsync(1000));
-    expect(puts.at(-1)).toMatchObject({
-      coordinateTransforms: { x: "x / 2", t: "t * 100" },
-      timeline: { current: 50, max: 100 },
+    await vi.waitFor(() =>
+      expect(puts.at(-1)).toMatchObject({
+        coordinateTransforms: { x: "x / 2", t: "t * 100" },
+        timeAxis: "tp",
+        timeline: { current: 50, max: 100 },
+      }),
+    );
+    expect(within(footer).getByText(/Time \(t′\): 50/)).toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it("steps through time with the arrows, repeating while held", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<App />);
+    const footer = await screen.findByRole("contentinfo", {
+      name: "Global timeline",
     });
+    const time = () => within(footer).getByText(/Time:/).textContent;
+    const previous = within(footer).getByRole("button", {
+      name: "Previous output",
+    });
+    const next = within(footer).getByRole("button", { name: "Next output" });
+    expect((previous as HTMLButtonElement).disabled).toBe(true);
+
+    // A press steps once.
+    fireEvent.pointerDown(next, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(next, { pointerId: 1 });
+    expect(time()).toMatch(/0\.1\b/);
+
+    // Holding keeps stepping (after a short delay), until released.
+    fireEvent.pointerDown(next, { button: 0, pointerId: 1 });
+    // Small steps, so React renders between repeats.
+    for (let i = 0; i < 10; i++) {
+      await act(() => vi.advanceTimersByTimeAsync(100));
+    }
+    fireEvent.pointerUp(next, { pointerId: 1 });
+    const held = Number(time()?.match(/[\d.]+/)?.[0]);
+    expect(held).toBeGreaterThan(0.3);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(Number(time()?.match(/[\d.]+/)?.[0])).toBe(held);
+
+    // Keyboard presses step too.
+    fireEvent.click(previous, { detail: 0 });
+    expect(Number(time()?.match(/[\d.]+/)?.[0])).toBeCloseTo(held - 0.1);
     vi.useRealTimers();
   });
 

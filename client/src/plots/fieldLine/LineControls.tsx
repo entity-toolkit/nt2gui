@@ -13,13 +13,14 @@ import {
   removeExpression,
 } from "../../lib/expressions";
 import { ILineConfig } from "../../state/schema";
-import { quantityDims, withSmoothing } from "../fields/metadata";
+import { withSmoothing } from "../fields/metadata";
 import SmoothingInputs from "../fields/SmoothingInputs";
 import QuantityList from "../fields/QuantityList";
 import { checkExpression } from "../fields/useFieldMetadata";
 import { useUi } from "../../state/UiContext";
 import { usedVariables } from "../../state/variables";
-import { effectiveAxis, toggleQuantity } from "./config";
+import { effectiveAxis, lineAxes, toggleQuantity } from "./config";
+import { coordinateLabel } from "../../state/transforms";
 
 interface LineControlsProps {
   simulationId: string;
@@ -42,14 +43,16 @@ const LineControls = ({
 }: LineControlsProps) => {
   const axisId = useId();
   const scaleId = useId();
-  const variables = useUi().uiState.fieldVariables ?? [];
+  const { uiState } = useUi();
+  const variables = uiState.fieldVariables ?? [];
+  const transforms = uiState.coordinateTransforms ?? {};
   if (!metadata) {
     return (
       <FormHint>{metadataError ?? "Loading the simulation's fields…"}</FormHint>
     );
   }
 
-  const dims = quantityDims(metadata, config.quantities);
+  const dims = lineAxes(metadata, config.quantities);
   const axis = effectiveAxis(config.axis, dims);
   const select = (quantity: string) =>
     config.quantities.includes(quantity)
@@ -69,6 +72,7 @@ const LineControls = ({
       simulationId,
       expression,
       usedVariables([expression], variables),
+      transforms,
     );
     if ("error" in result) return result.error;
     onChange({
@@ -116,7 +120,7 @@ const LineControls = ({
         >
           {dims.map((dim) => (
             <option key={dim} value={dim}>
-              {dim}
+              {coordinateLabel(dim)}
             </option>
           ))}
         </select>

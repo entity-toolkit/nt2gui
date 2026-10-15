@@ -1,11 +1,25 @@
-import { ReactNode, useEffect, useEffectEvent, useId, useState } from "react";
-import { formatNumber } from "../../lib/format";
-import { TbPlayerPauseFilled, TbPlayerPlayFilled } from "react-icons/tb";
 import {
+  PointerEvent,
+  ReactNode,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useState,
+} from "react";
+import { formatNumber } from "../../lib/format";
+import {
+  TbChevronLeft,
+  TbChevronRight,
+  TbPlayerPauseFilled,
+  TbPlayerPlayFilled,
+} from "react-icons/tb";
+import {
+  HOLD_DELAY_MS,
   PLAYBACK_SPEEDS,
   indexOfTime,
   nextTime,
   stepCount,
+  steppedTime,
   timeAtIndex,
 } from "../../lib/playback";
 import { ITimeline } from "../../state/schema";
@@ -26,12 +40,15 @@ interface TimeControlsProps {
   variant?: "full" | "compact" | "minimal";
   /** Extra controls at the end of the row. */
   trailing?: ReactNode;
+  /** What the time is called (default "Time"), e.g. for transformed time. */
+  label?: string;
 }
 
 /**
- * A time slider with playback. Dragging only moves the label; the time is
- * applied (and plots re-render) when the slider is released. Playback moves
- * to the next output once `waiting` clears, at most `fps` frames per second.
+ * A time slider with playback and step buttons. Dragging only moves the
+ * label; the time is applied (and plots re-render) when the slider is
+ * released. Playback moves to the next output once `waiting` clears, at most
+ * `fps` frames per second; holding a step button repeats the same way.
  */
 const TimeControls = ({
   timeline,
@@ -41,6 +58,7 @@ const TimeControls = ({
   waiting,
   variant = "full",
   trailing,
+  label = "Time",
 }: TimeControlsProps) => {
   const [draft, setDraft] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -60,6 +78,62 @@ const TimeControls = ({
     return () => clearTimeout(timer);
   }, [current, fps, gridStep, max, min, playing, waiting]);
 
+  // A held step button: its direction, and how often it has repeated.
+  const [held, setHeld] = useState<{ delta: number; repeats: number } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!held || waiting) return;
+    const timer = setTimeout(
+      () => {
+        const next = steppedTime(
+          { current, min, max, step: gridStep },
+          held.delta,
+        );
+        if (next === null) return setHeld(null);
+        step(next);
+        setHeld({ ...held, repeats: held.repeats + 1 });
+      },
+      held.repeats === 0 ? HOLD_DELAY_MS : 1000 / Math.max(fps, 5),
+    );
+    return () => clearTimeout(timer);
+  }, [current, fps, gridStep, held, max, min, waiting]);
+
+  const moveBy = (delta: number) => {
+    const next = steppedTime(timeline, delta);
+    if (next === null) return;
+    setPlaying(false);
+    setDraft(null);
+    onTimeChange(next);
+  };
+
+  const stepButton = (delta: -1 | 1) => {
+    const back = delta < 0;
+    const label = back ? "Previous output" : "Next output";
+    return (
+      <button
+        type="button"
+        className={styles.step}
+        aria-label={label}
+        title={`${label} (hold to keep going)`}
+        disabled={steppedTime(timeline, delta) === null}
+        onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
+          if (event.button > 0) return; // only the main button
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          moveBy(delta);
+          setHeld({ delta, repeats: 0 });
+        }}
+        onPointerUp={() => setHeld(null)}
+        onPointerCancel={() => setHeld(null)}
+        onLostPointerCapture={() => setHeld(null)}
+        // Keyboard presses (Enter/Space) click without a pointer.
+        onClick={(event) => event.detail === 0 && moveBy(delta)}
+      >
+        {back ? <TbChevronLeft aria-hidden /> : <TbChevronRight aria-hidden />}
+      </button>
+    );
+  };
+
   const togglePlay = () => {
     // At the end: start over.
     if (!playing && nextTime(timeline) === null) onTimeChange(timeline.min);
@@ -72,7 +146,9 @@ const TimeControls = ({
   };
 
   const timeLabel = (
-    <span className={styles.title}>Time: {formatNumber(value)}</span>
+    <span className={styles.title}>
+      {label}: {formatNumber(value)}
+    </span>
   );
   // Keep a saved speed that isn't one of the presets selectable.
   const speeds = PLAYBACK_SPEEDS.includes(fps as never)
@@ -82,6 +158,7 @@ const TimeControls = ({
   return (
     <div className={styles.controls} data-variant={variant}>
       <div className={styles.row}>
+        {stepButton(-1)}
         <button
           type="button"
           className={styles.play}
@@ -96,6 +173,7 @@ const TimeControls = ({
             <TbPlayerPlayFilled aria-hidden />
           )}
         </button>
+        {stepButton(1)}
         {variant !== "minimal" && (
           <input
             className={styles.slider}

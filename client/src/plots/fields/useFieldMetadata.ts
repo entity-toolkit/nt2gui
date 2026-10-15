@@ -18,22 +18,27 @@ const getFieldMetadata = cachedLoader((key) => {
   return fetchFieldMetadata(simulationId, frame ? JSON.parse(frame) : null);
 });
 const getQuantityDims = cachedLoader(async (key) => {
-  const [simulationId, variables, expression] = key.split(SEPARATOR);
-  return (await checkQuantity(simulationId, expression, JSON.parse(variables)))
+  const [simulationId, context, expression] = key.split(SEPARATOR);
+  const { variables, transforms } = JSON.parse(context);
+  return (await checkQuantity(simulationId, expression, variables, transforms))
     .dims;
 });
 
 /**
- * Validates an expression (which may use the named `variables`); resolves to
- * its dims or the server's reason.
+ * Validates an expression (which may use the named `variables` and the
+ * coordinates `transforms` add, like xp); resolves to its dims or the
+ * server's reason.
  */
 export const checkExpression = (
   simulationId: string,
   expression: string,
   variables: Variables = {},
+  transforms: Record<string, string> = {},
 ): Promise<{ dims: string[] } | { error: string }> =>
   getQuantityDims(
-    [simulationId, JSON.stringify(variables), expression].join(SEPARATOR),
+    [simulationId, JSON.stringify({ variables, transforms }), expression].join(
+      SEPARATOR,
+    ),
   ).then(
     (dims) => ({ dims }),
     (error: unknown) => ({ error: serverErrorMessage(error) }),
@@ -44,10 +49,15 @@ const useExpressionDims = (
   simulationId: string | null,
   expressions: string[],
   variables: IVariable[],
+  transforms: Record<string, string>,
   version: number,
 ) => {
   const key = simulationId
-    ? [simulationId, JSON.stringify(variables), ...expressions].join(SEPARATOR)
+    ? [
+        simulationId,
+        JSON.stringify({ variables, transforms }),
+        ...expressions,
+      ].join(SEPARATOR)
     : null;
   const [state, setState] = useState<{
     key: string | null;
@@ -58,11 +68,19 @@ const useExpressionDims = (
   useEffect(() => {
     if (key === null) return;
     const [id, json, ...list] = key.split(SEPARATOR);
-    const all: IVariable[] = JSON.parse(json);
+    const context: {
+      variables: IVariable[];
+      transforms: Record<string, string>;
+    } = JSON.parse(json);
     let cancelled = false;
     Promise.all(
       list.map((expression) =>
-        checkExpression(id, expression, usedVariables([expression], all)),
+        checkExpression(
+          id,
+          expression,
+          usedVariables([expression], context.variables),
+          context.transforms,
+        ),
       ),
     ).then((results) => {
       if (cancelled) return;
@@ -98,7 +116,8 @@ export const useFieldMetadata = (
 ) => {
   const { uiState } = useUi();
   const variables = uiState.fieldVariables;
-  const frame = metadataFrame(uiState.coordinateTransforms, time);
+  const transforms = uiState.coordinateTransforms ?? NO_TRANSFORMS;
+  const frame = metadataFrame(transforms, time, uiState.timeAxis);
   const key =
     simulationId && frame
       ? `${simulationId}${SEPARATOR}${JSON.stringify(frame)}`
@@ -123,6 +142,7 @@ export const useFieldMetadata = (
     simulationId,
     list,
     variables ?? NO_VARIABLES,
+    transforms,
     version,
   );
   const metadata = useMemo(
@@ -141,3 +161,4 @@ export const useFieldMetadata = (
 };
 
 const NO_VARIABLES: IVariable[] = [];
+const NO_TRANSFORMS: Record<string, string> = {};

@@ -7,7 +7,7 @@ import xarray as xr
 from ..data.arrays import block_factor, block_mean
 from ..data.expressions import Variables
 from ..data.smoothing import smooth
-from ..data.transforms import IDENTITY, Frame
+from ..data.transforms import IDENTITY, Frame, base_of, on_axes
 from ..data.quantities import (
     QuantityError,
     cell_edges,
@@ -51,9 +51,11 @@ def render_pseudocolor(
     snapshot, timestamp = snapshot_at(fields, time, frame)
     data = single_quantity(config.field, snapshot, variables)
     for coordinate in (x, y):
-        if coordinate not in data.dims:
+        if base_of(coordinate) not in data.dims:
             raise QuantityError(f"'{config.field}' does not depend on '{coordinate}'")
-    data, used_slices = cut(data, [x, y], config.slices)
+    data, used_slices = cut(data, [base_of(x), base_of(y)], config.slices)
+    # Transformed axes (`xp`) take the place of their dimensions.
+    data = on_axes(data, [x, y])
     # Rows are y and columns x, so the image has y pointing up.
     data = data.transpose(y, x)
 

@@ -23,6 +23,7 @@ import { RefreshingBadge } from "../components/common/FigureMessage";
 import { formatValue } from "../lib/format";
 import { ChartRegion } from "../state/regions";
 import { IRange, ScaleKind } from "../state/schema";
+import { coordinateLabel } from "../state/transforms";
 import { drawAxis, drawGrid } from "./axis";
 import { seriesColor } from "./colors";
 import { useElementSize } from "./useElementSize";
@@ -314,7 +315,7 @@ const LineChart = ({
             y={height - 6}
             textAnchor="middle"
           >
-            {data.axis}
+            {coordinateLabel(data.axis)}
           </text>
 
           <g clipPath={`url(#${clipId})`}>
@@ -412,7 +413,7 @@ const LineChart = ({
       >
         {hoverCoordinate !== null && hoverCoordinate !== undefined && (
           <li className={styles.legendCoordinate}>
-            {data.axis} = {formatValue(hoverCoordinate)}
+            {coordinateLabel(data.axis)} = {formatValue(hoverCoordinate)}
           </li>
         )}
         {data.series.map((series, index) => (

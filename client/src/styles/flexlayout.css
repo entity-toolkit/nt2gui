@@ -33,17 +33,18 @@
 
 .flexlayout__tabset_tabbar_outer {
   background: var(--color-subtle);
-  padding: 4px 0px 0px 4px;
+  padding: 2px 0px 0px 4px;
   border-bottom: 1px solid var(--color-border);
 }
 
 .flexlayout__tabset_tabbar_inner {
-  gap: 8px;
+  gap: 4px;
   align-items: center;
 }
 
 .flexlayout__tab_button {
-  padding: 8px 12px;
+  padding: 3px 10px;
+  font-size: 13px;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   border: 1px solid transparent;
   border-bottom: none;

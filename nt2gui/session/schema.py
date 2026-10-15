@@ -255,6 +255,8 @@ class UiState(_Schema):
     # Coordinate -> expression showing it in other units or frame, for every
     # simulation (they may use the run's attributes); see data/transforms.py.
     coordinate_transforms: dict[str, str] = {}
+    # Which time the timeline runs in: the run's own (t) or transformed (tp).
+    time_axis: Literal["t", "tp"] = "t"
     # Named custom quantities shared by every plot (fields and particles apart).
     field_variables: list[Variable] = []
     particle_variables: list[Variable] = []

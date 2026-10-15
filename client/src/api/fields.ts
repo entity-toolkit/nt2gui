@@ -3,6 +3,7 @@ import {
   IPseudocolorConfig,
   IRange,
   IZoomWindow,
+  TimeAxis,
 } from "../state/schema";
 import { requestJson, simulationUrl } from "./http";
 import { IFieldMetadata, ILineRender, IPseudocolorRender } from "./types";
@@ -17,6 +18,8 @@ export type Variables = Record<string, string>;
 export interface RenderContext {
   variables: Variables;
   transforms: Record<string, string>;
+  /** The timeline's time ("t" or "tp"); request and response times are in it. */
+  timeAxis: TimeAxis;
 }
 
 /**
@@ -25,12 +28,17 @@ export interface RenderContext {
  */
 export const fetchFieldMetadata = (
   simulationId: string,
-  frame?: { transforms: Record<string, string>; time?: number } | null,
+  frame?: {
+    transforms: Record<string, string>;
+    time?: number;
+    timeAxis?: TimeAxis;
+  } | null,
 ) => {
   const query = new URLSearchParams();
   if (frame) {
     query.set("transforms", JSON.stringify(frame.transforms));
     if (frame.time !== undefined) query.set("time", String(frame.time));
+    if (frame.timeAxis) query.set("timeAxis", frame.timeAxis);
   }
   const suffix = query.size ? `?${query}` : "";
   return requestJson<IFieldMetadata>(
@@ -46,10 +54,11 @@ export const checkQuantity = (
   simulationId: string,
   expression: string,
   variables: Variables = {},
+  transforms: Record<string, string> = {},
 ) =>
   requestJson<{ expression: string; dims: string[] }>(
     simulationUrl(simulationId, "quantities/check"),
-    { body: { expression, variables } },
+    { body: { expression, variables, transforms } },
   );
 
 export const renderLine = (

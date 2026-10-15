@@ -54,6 +54,7 @@ const HistogramFigure = ({
     savedRegions,
     uiState.particleVariables,
     uiState.coordinateTransforms,
+    uiState.timeAxis,
   );
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);

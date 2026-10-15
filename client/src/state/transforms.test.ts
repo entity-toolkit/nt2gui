@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DataType, IUiState, PlotType } from "./schema";
 import {
+  baseOf,
+  coordinateLabel,
+  timeAxisFor,
+  timelineMoves,
+  withPrimed,
   cleanTransforms,
   isMovingFrame,
   metadataFrame,
@@ -60,5 +65,32 @@ describe("transforms", () => {
     expect(moved.timeline).toEqual(state().timeline);
     expect(timeChanged({ t: "t*2" }, { t: " t*2 " })).toBe(false);
     expect(timeChanged(undefined, { t: "t*2" })).toBe(true);
+  });
+});
+
+describe("primed coordinates", () => {
+  it("names, labels and lists them next to their originals", () => {
+    expect(baseOf("xp")).toBe("x");
+    expect(baseOf("thp")).toBe("th");
+    expect(baseOf("Bx")).toBe("Bx");
+    expect(coordinateLabel("tp")).toBe("t′");
+    expect(coordinateLabel("x")).toBe("x");
+    expect(withPrimed(["x", "y"], ["x", "xp", "y"])).toEqual(["x", "xp", "y"]);
+  });
+
+  it("runs the timeline in t′ only while time is transformed", () => {
+    expect(timeAxisFor({ t: "t*2" }, "tp")).toBe("tp");
+    expect(timeAxisFor({}, "tp")).toBe("t");
+    expect(timeAxisFor({ t: "t*2" }, undefined)).toBe("t");
+    // Switching axis, or changing t's transform while in t′, moves it.
+    expect(timelineMoves({ t: "t*2" }, "t", { t: "t*2" }, "tp")).toBe(true);
+    expect(timelineMoves({ t: "t*2" }, "t", { t: "t*3" }, "t")).toBe(false);
+    expect(timelineMoves({ t: "t*2" }, "tp", { t: "t*3" }, "tp")).toBe(true);
+    expect(timelineMoves({ t: "t*2" }, "tp", {}, "t")).toBe(true);
+  });
+
+  it("drops t′ when time's transform is removed", () => {
+    const next = withTransforms({ ...state(), timeAxis: "tp" }, { x: "x / 2" });
+    expect(next.timeAxis).toBe("t");
   });
 });

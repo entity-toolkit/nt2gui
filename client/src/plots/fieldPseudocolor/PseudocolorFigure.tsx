@@ -8,6 +8,7 @@ import {
 } from "../../components/common/FigureMessage";
 import { useServerRender } from "../../hooks/useServerRender";
 import { useSimulationVersion } from "../../state/simulationData";
+import { coordinateLabel } from "../../state/transforms";
 import { useUi } from "../../state/UiContext";
 import { usedVariables } from "../../state/variables";
 import { ChartRegion, ChartSelection } from "../../state/regions";
@@ -63,6 +64,7 @@ const PseudocolorFigure = ({
   const { uiState } = useUi();
   const context = {
     transforms: uiState.coordinateTransforms ?? {},
+    timeAxis: uiState.timeAxis ?? "t",
     variables: usedVariables([config.field], uiState.fieldVariables ?? []),
   };
   // Renders again when the simulation is reloaded from disk.
@@ -92,8 +94,8 @@ const PseudocolorFigure = ({
     <div className={figureStyles.figure}>
       <ImageChart
         data={data}
-        xAxis={{ title: config.xCoordinate }}
-        yAxis={{ title: config.yCoordinate }}
+        xAxis={{ title: coordinateLabel(config.xCoordinate) }}
+        yAxis={{ title: coordinateLabel(config.yCoordinate) }}
         colorbarTitle={config.field}
         preserveAspect
         zoomEnabled={zoomEnabled}

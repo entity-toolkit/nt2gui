@@ -6,7 +6,6 @@ import {
 import { isSpatial, regionsOnAxes, regionsShown } from "../../state/regions";
 import { ILineConfig, IRange } from "../../state/schema";
 import { useUi, useUiActions } from "../../state/UiContext";
-import { quantityDims } from "../fields/metadata";
 import { useFieldMetadata } from "../fields/useFieldMetadata";
 import PlotFrame from "../PlotFrame";
 import { useRegions } from "../useRegions";
@@ -15,6 +14,7 @@ import {
   activeLineRange,
   defaultLineConfig,
   effectiveAxis,
+  lineAxes,
   withLineRange,
 } from "./config";
 import LineControls from "./LineControls";
@@ -38,7 +38,7 @@ const FieldLinePlot = ({
   );
 
   const axis = metadata
-    ? effectiveAxis(config.axis, quantityDims(metadata, config.quantities))
+    ? effectiveAxis(config.axis, lineAxes(metadata, config.quantities))
     : "";
   const range = activeLineRange(plotter, uiState.globalLineViewports, axis);
   const setConfig = (lineConfig: ILineConfig) =>

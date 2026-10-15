@@ -26,8 +26,9 @@ export const checkParticleExpression = (
   simulationId: string,
   expression: string,
   variables: Record<string, string> = {},
+  transforms: Record<string, string> = {},
 ) =>
-  checkParticleQuantity(simulationId, expression, variables).then(
+  checkParticleQuantity(simulationId, expression, variables, transforms).then(
     () => null,
     (error: unknown) => serverErrorMessage(error),
   );

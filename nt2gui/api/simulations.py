@@ -60,8 +60,9 @@ def check_simulation_transforms(simulation_id: str):
 
 @bp.post("/simulations/<simulation_id>/timeline")
 def transformed_timeline(simulation_id: str):
-    """This simulation's timeline under `transforms`, staying at the output
-    nearest to `previous.time` under `previous.transforms`."""
+    """This simulation's timeline under `transforms` and `timeAxis`, staying
+    at the output nearest to `previous.time` under `previous.transforms` and
+    `previous.timeAxis`."""
     source = simulation(simulation_id)
     payload = json_object()
     previous = payload.get("previous") or {}
@@ -71,7 +72,7 @@ def transformed_timeline(simulation_id: str):
         retimed(
             source,
             request_frame(source, payload),
-            frame_for(source, previous.get("transforms")),
+            frame_for(source, previous.get("transforms"), previous.get("timeAxis")),
             require_time(previous) if "time" in previous else float("-inf"),
         )
     )

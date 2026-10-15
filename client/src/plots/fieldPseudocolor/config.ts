@@ -6,6 +6,7 @@ import {
   IUiState,
   IZoomWindow,
 } from "../../state/schema";
+import { baseOf, withPrimed } from "../../state/transforms";
 import { quantityDims } from "../fields/metadata";
 
 export const defaultPseudocolorConfig: IPseudocolorConfig = {
@@ -19,16 +20,22 @@ export const defaultPseudocolorConfig: IPseudocolorConfig = {
 export const isPseudocolorField = (field: IFieldMetadata["fields"][number]) =>
   field.dims.length >= 2;
 
-/** Dimensions offered for the axes: the field's own, or all if none is chosen. */
+/**
+ * Coordinates offered for the axes: the field's own dims (or all if none is
+ * chosen), each followed by its transformed version (x′) when there is one.
+ */
 export const fieldDims = (metadata: IFieldMetadata, field: string): string[] =>
-  quantityDims(
-    metadata,
-    metadata.fields.some((f) => f.name === field) ? [field] : [],
+  withPrimed(
+    quantityDims(
+      metadata,
+      metadata.fields.some((f) => f.name === field) ? [field] : [],
+    ),
+    Object.keys(metadata.coords),
   );
 
 /**
- * A valid (x, y) pair of distinct dims, keeping the current choice wherever
- * it is still valid.
+ * A valid (x, y) pair on two different dims (x and x′ share one), keeping
+ * the current choice wherever it is still valid.
  */
 export const validAxes = (
   dims: string[],
@@ -36,10 +43,9 @@ export const validAxes = (
   y: string,
 ): { xCoordinate: string; yCoordinate: string } => {
   const xCoordinate = dims.includes(x) ? x : (dims[0] ?? x);
+  const differs = (dim: string) => baseOf(dim) !== baseOf(xCoordinate);
   const yCoordinate =
-    dims.includes(y) && y !== xCoordinate
-      ? y
-      : (dims.find((dim) => dim !== xCoordinate) ?? y);
+    dims.includes(y) && differs(y) ? y : (dims.find(differs) ?? y);
   return { xCoordinate, yCoordinate };
 };
 
@@ -53,9 +59,8 @@ export const pseudocolorSliceDims = (
 ): string[] => {
   const field = metadata.fields.find((f) => f.name === config.field);
   if (!field) return [];
-  return field.dims.filter(
-    (dim) => dim !== config.xCoordinate && dim !== config.yCoordinate,
-  );
+  const plotted = [config.xCoordinate, config.yCoordinate].map(baseOf);
+  return field.dims.filter((dim) => !plotted.includes(dim));
 };
 
 /** Selects a field and adjusts the axes to dims it actually has. */
@@ -73,7 +78,7 @@ export const withField = (
   ),
 });
 
-/** Sets one axis; picking the other axis's dim swaps the two. */
+/** Sets one axis; picking the other axis's dim (or its x′) swaps the two. */
 export const withCoordinate = (
   config: IPseudocolorConfig,
   axis: "x" | "y",
@@ -87,7 +92,7 @@ export const withCoordinate = (
   return {
     ...config,
     [own]: dim,
-    ...(config[other] === dim ? { [other]: config[own] } : {}),
+    ...(baseOf(config[other]) === baseOf(dim) ? { [other]: config[own] } : {}),
   };
 };
 

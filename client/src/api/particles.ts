@@ -2,6 +2,7 @@ import {
   IParticleHistogramConfig,
   IParticlePhaseConfig,
   IRegion,
+  TimeAxis,
 } from "../state/schema";
 import { Variables } from "./fields";
 import { requestJson, simulationUrl } from "./http";
@@ -14,10 +15,11 @@ export const checkParticleQuantity = (
   simulationId: string,
   expression: string,
   variables: Variables = {},
+  transforms: Record<string, string> = {},
 ) =>
   requestJson<{ expression: string }>(
     simulationUrl(simulationId, "particles/check"),
-    { body: { expression, variables } },
+    { body: { expression, variables, transforms } },
   );
 
 /**
@@ -30,8 +32,9 @@ export const renderParticleHistogram = (
     config: Pick<IParticleHistogramConfig, "x" | "series">;
     regions: IRegion[];
     variables: Variables;
-    /** The session's coordinate transforms. */
+    /** The session's coordinate transforms, and the timeline's time. */
     transforms: Record<string, string>;
+    timeAxis: TimeAxis;
   },
   time: number,
   signal?: AbortSignal,
@@ -48,8 +51,9 @@ export const renderParticlePhase = (
     config: IParticlePhaseConfig;
     regions: IRegion[];
     variables: Variables;
-    /** The session's coordinate transforms. */
+    /** The session's coordinate transforms, and the timeline's time. */
     transforms: Record<string, string>;
+    timeAxis: TimeAxis;
   },
   time: number,
   signal?: AbortSignal,

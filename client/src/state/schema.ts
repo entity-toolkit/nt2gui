@@ -101,6 +101,9 @@ export interface IVariable {
   expression: string;
 }
 
+/** The timeline's time: the run's own (`t`) or transformed (`tp`). */
+export type TimeAxis = "t" | "tp";
+
 /** Which data a variable is defined over. */
 export type VariableKind = "fields" | "particles";
 
@@ -218,6 +221,8 @@ export interface IUiState {
    * `(x - grid.extent[0]) / setup.skin`); see nt2gui/data/transforms.py.
    */
   coordinateTransforms?: Record<string, string>;
+  /** Which time the timeline runs in: the run's own (t, default) or t′ (tp). */
+  timeAxis?: TimeAxis;
   /** Named custom quantities shared by every plot of fields / of particles. */
   fieldVariables?: IVariable[];
   particleVariables?: IVariable[];

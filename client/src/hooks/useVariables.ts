@@ -26,15 +26,21 @@ export const useVariables = (
   const { uiState } = useUi();
   const { updateUiState } = useUiActions();
   const variables = variablesOf(uiState, kind);
+  const transforms = uiState.coordinateTransforms ?? {};
 
   /** Whether `name` evaluates with the definitions `next`. */
   const check = async (name: string, next: IVariable[]) => {
     const used = usedVariables([name], next);
     if (kind === "fields") {
-      const result = await checkExpression(simulationId, name, used);
+      const result = await checkExpression(
+        simulationId,
+        name,
+        used,
+        transforms,
+      );
       return "error" in result ? result.error : null;
     }
-    return checkParticleExpression(simulationId, name, used);
+    return checkParticleExpression(simulationId, name, used, transforms);
   };
 
   return {

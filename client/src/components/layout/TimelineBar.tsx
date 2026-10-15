@@ -68,6 +68,7 @@ const TimelineBar = () => {
         waiting={waiting}
         variant={collapsed ? "minimal" : "full"}
         label={timeAxis === PRIMED_TIME ? "Time (t′)" : "Time"}
+        keyboard
         trailing={
           <>
             {axisToggle}

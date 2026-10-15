@@ -1,18 +1,6 @@
-import {
-  PointerEvent,
-  ReactNode,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useState,
-} from "react";
+import { ReactNode, useEffect, useEffectEvent, useId, useState } from "react";
 import { formatNumber } from "../../lib/format";
-import {
-  TbChevronLeft,
-  TbChevronRight,
-  TbPlayerPauseFilled,
-  TbPlayerPlayFilled,
-} from "react-icons/tb";
+import { TbPlayerPauseFilled, TbPlayerPlayFilled } from "react-icons/tb";
 import {
   HOLD_DELAY_MS,
   PLAYBACK_SPEEDS,
@@ -42,13 +30,33 @@ interface TimeControlsProps {
   trailing?: ReactNode;
   /** What the time is called (default "Time"), e.g. for transformed time. */
   label?: string;
+  /**
+   * Step with the < and > keys (also , and .) anywhere on the page outside
+   * text inputs; holding one keeps stepping. For the one global timeline.
+   */
+  keyboard?: boolean;
 }
 
+/** -1 / 1 for a step key, or null (with modifiers, or not a step key). */
+const stepKey = (event: KeyboardEvent): -1 | 1 | null => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  if (event.key === "<" || event.key === ",") return -1;
+  if (event.key === ">" || event.key === ".") return 1;
+  return null;
+};
+
+/** Typing in a text box or menu must not step time. */
+const isTyping = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
 /**
- * A time slider with playback and step buttons. Dragging only moves the
- * label; the time is applied (and plots re-render) when the slider is
- * released. Playback moves to the next output once `waiting` clears, at most
- * `fps` frames per second; holding a step button repeats the same way.
+ * A time slider with playback. Dragging only moves the label; the time is
+ * applied (and plots re-render) when the slider is released. Playback moves
+ * to the next output once `waiting` clears, at most `fps` frames per second;
+ * with `keyboard`, < and > step one output, and holding one repeats the same
+ * way (after a short pause).
  */
 const TimeControls = ({
   timeline,
@@ -59,6 +67,7 @@ const TimeControls = ({
   variant = "full",
   trailing,
   label = "Time",
+  keyboard = false,
 }: TimeControlsProps) => {
   const [draft, setDraft] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -78,7 +87,7 @@ const TimeControls = ({
     return () => clearTimeout(timer);
   }, [current, fps, gridStep, max, min, playing, waiting]);
 
-  // A held step button: its direction, and how often it has repeated.
+  // A held step key: its direction, and how often it has repeated.
   const [held, setHeld] = useState<{ delta: number; repeats: number } | null>(
     null,
   );
@@ -107,32 +116,31 @@ const TimeControls = ({
     onTimeChange(next);
   };
 
-  const stepButton = (delta: -1 | 1) => {
-    const back = delta < 0;
-    const label = back ? "Previous output" : "Next output";
-    return (
-      <button
-        type="button"
-        className={styles.step}
-        aria-label={label}
-        title={`${label} (hold to keep going)`}
-        disabled={steppedTime(timeline, delta) === null}
-        onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
-          if (event.button > 0) return; // only the main button
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-          moveBy(delta);
-          setHeld({ delta, repeats: 0 });
-        }}
-        onPointerUp={() => setHeld(null)}
-        onPointerCancel={() => setHeld(null)}
-        onLostPointerCapture={() => setHeld(null)}
-        // Keyboard presses (Enter/Space) click without a pointer.
-        onClick={(event) => event.detail === 0 && moveBy(delta)}
-      >
-        {back ? <TbChevronLeft aria-hidden /> : <TbChevronRight aria-hidden />}
-      </button>
-    );
-  };
+  const keyStep = useEffectEvent((event: KeyboardEvent) => {
+    const delta = stepKey(event);
+    if (delta === null || isTyping(event.target)) return;
+    event.preventDefault();
+    // The key's own auto-repeat is ignored: holding steps at playback pace.
+    if (event.repeat) return;
+    moveBy(delta);
+    setHeld({ delta, repeats: 0 });
+  });
+
+  useEffect(() => {
+    if (!keyboard) return;
+    const release = () => setHeld(null);
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (stepKey(event) !== null || event.key === "Shift") release();
+    };
+    window.addEventListener("keydown", keyStep);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("keydown", keyStep);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", release);
+    };
+  }, [keyboard]);
 
   const togglePlay = () => {
     // At the end: start over.
@@ -158,14 +166,19 @@ const TimeControls = ({
   return (
     <div className={styles.controls} data-variant={variant}>
       <div className={styles.row}>
-        {stepButton(-1)}
         <button
           type="button"
           className={styles.play}
           onClick={togglePlay}
           aria-label={playing ? "Pause" : "Play"}
           aria-pressed={playing}
-          title={playing ? "Pause" : "Play through time"}
+          title={
+            playing
+              ? "Pause"
+              : keyboard
+                ? "Play through time (< and > step)"
+                : "Play through time"
+          }
         >
           {playing ? (
             <TbPlayerPauseFilled aria-hidden />
@@ -173,7 +186,6 @@ const TimeControls = ({
             <TbPlayerPlayFilled aria-hidden />
           )}
         </button>
-        {stepButton(1)}
         {variant !== "minimal" && (
           <input
             className={styles.slider}

@@ -758,39 +758,51 @@ describe("App", () => {
     vi.useRealTimers();
   });
 
-  it("steps through time with the arrows, repeating while held", async () => {
+  it("steps through time with the < and > keys, repeating while held", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<App />);
     const footer = await screen.findByRole("contentinfo", {
       name: "Global timeline",
     });
-    const time = () => within(footer).getByText(/Time:/).textContent;
-    const previous = within(footer).getByRole("button", {
-      name: "Previous output",
-    });
-    const next = within(footer).getByRole("button", { name: "Next output" });
-    expect((previous as HTMLButtonElement).disabled).toBe(true);
+    const time = () =>
+      Number(
+        within(footer)
+          .getByText(/Time:/)
+          .textContent?.match(/[\d.]+/),
+      );
 
-    // A press steps once.
-    fireEvent.pointerDown(next, { button: 0, pointerId: 1 });
-    fireEvent.pointerUp(next, { pointerId: 1 });
-    expect(time()).toMatch(/0\.1\b/);
+    // A press steps once; nothing before the start.
+    fireEvent.keyDown(window, { key: "<" });
+    fireEvent.keyUp(window, { key: "<" });
+    expect(time()).toBe(0);
+    fireEvent.keyDown(window, { key: ">" });
+    fireEvent.keyUp(window, { key: ">" });
+    expect(time()).toBeCloseTo(0.1);
 
-    // Holding keeps stepping (after a short delay), until released.
-    fireEvent.pointerDown(next, { button: 0, pointerId: 1 });
-    // Small steps, so React renders between repeats.
+    // Holding keeps stepping (after a short pause) until released; the
+    // key's own auto-repeat doesn't add steps.
+    fireEvent.keyDown(window, { key: "." });
     for (let i = 0; i < 10; i++) {
+      fireEvent.keyDown(window, { key: ".", repeat: true });
+      // Small steps, so React renders between repeats.
       await act(() => vi.advanceTimersByTimeAsync(100));
     }
-    fireEvent.pointerUp(next, { pointerId: 1 });
-    const held = Number(time()?.match(/[\d.]+/)?.[0]);
+    fireEvent.keyUp(window, { key: "." });
+    const held = time();
     expect(held).toBeGreaterThan(0.3);
+    expect(held).toBeLessThan(1);
     await act(() => vi.advanceTimersByTimeAsync(1000));
-    expect(Number(time()?.match(/[\d.]+/)?.[0])).toBe(held);
+    expect(time()).toBe(held);
 
-    // Keyboard presses step too.
-    fireEvent.click(previous, { detail: 0 });
-    expect(Number(time()?.match(/[\d.]+/)?.[0])).toBeCloseTo(held - 0.1);
+    // Typing in a text box doesn't step.
+    const path = screen.getByLabelText("Simulation path");
+    fireEvent.keyDown(path, { key: "<" });
+    expect(time()).toBe(held);
+    fireEvent.keyDown(window, { key: ",", ctrlKey: true });
+    expect(time()).toBe(held);
+    fireEvent.keyDown(window, { key: "," });
+    fireEvent.keyUp(window, { key: "," });
+    expect(time()).toBeCloseTo(held - 0.1);
     vi.useRealTimers();
   });
 

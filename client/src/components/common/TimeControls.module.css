@@ -61,34 +61,6 @@
   font-size: 13px;
 }
 
-.step {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: none;
-  color: var(--color-text-soft);
-  font-size: 15px;
-  cursor: pointer;
-  touch-action: none;
-  user-select: none;
-}
-
-.step:hover:enabled {
-  background: var(--color-hover);
-  border-color: var(--color-axis-line);
-}
-
-.step:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
 .play:hover,
 .play[aria-pressed="true"] {
   background: var(--color-accent);

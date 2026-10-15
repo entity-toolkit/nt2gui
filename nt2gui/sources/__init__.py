@@ -97,6 +97,14 @@ def combined_timeline(*time_arrays: Any) -> dict[str, float]:
     }
 
 
+def output_times(simulation: SimulationSource) -> np.ndarray:
+    """Every output time (fields and particles), ascending, without repeats."""
+    arrays = [np.asarray(simulation.particle_times, dtype=float)]
+    if "t" in simulation.fields.coords:
+        arrays.append(np.asarray(simulation.fields.coords["t"].values, dtype=float))
+    return np.unique(np.concatenate(arrays))
+
+
 def first_particle_time(simulation: SimulationSource) -> float:
     return float(simulation.particle_times[0])
 

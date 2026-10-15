@@ -41,10 +41,12 @@ const PhaseFigure = ({
   onSelect,
   overlays,
 }: PhaseFigureProps) => {
+  const { uiState } = useUi();
   const request = phaseRequest(
     config,
     savedRegions,
-    useUi().uiState.particleVariables,
+    uiState.particleVariables,
+    uiState.coordinateTransforms,
   );
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);

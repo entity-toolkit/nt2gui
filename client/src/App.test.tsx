@@ -631,6 +631,80 @@ describe("App", () => {
     vi.useRealTimers();
   });
 
+  it("checks and applies coordinate transforms for every simulation", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const requests: { url: string; body: unknown }[] = [];
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      if (url.endsWith("/transforms/check")) {
+        requests.push({ url, body });
+        const bad = body.transforms.y?.includes("nope");
+        return json({
+          errors: bad ? { y: "Transform of 'y': Unknown name 'nope'" } : {},
+          ranges: { x: { from: [0, 10], to: [0, 5] } },
+        });
+      }
+      if (url.endsWith("/timeline")) {
+        requests.push({ url, body });
+        return json({ current: 50, min: 0, max: 100, step: 10 });
+      }
+      return fake(url, init);
+    });
+    render(<App />);
+    const editor = await screen.findByRole("region", {
+      name: "Coordinate transforms",
+    });
+    const add = within(editor).getByRole("button", { name: "+ transform" });
+
+    // A transform that doesn't work is shown and not applied.
+    fireEvent.change(within(editor).getByLabelText("Coordinate to transform"), {
+      target: { value: "y" },
+    });
+    fireEvent.click(add);
+    fireEvent.change(within(editor).getByLabelText("Transform of y"), {
+      target: { value: "nope * y" },
+    });
+    fireEvent.click(within(editor).getByRole("button", { name: "apply" }));
+    expect(
+      await within(editor).findByText("Transform of 'y': Unknown name 'nope'"),
+    ).toBeTruthy();
+    fireEvent.click(
+      within(editor).getByRole("button", {
+        name: "Remove the transform of y",
+      }),
+    );
+
+    // x and time: checked, then the timeline follows time's new units.
+    fireEvent.click(add);
+    fireEvent.change(within(editor).getByLabelText("Transform of x"), {
+      target: { value: "x / 2" },
+    });
+    fireEvent.change(within(editor).getByLabelText("Coordinate to transform"), {
+      target: { value: "t" },
+    });
+    fireEvent.click(add);
+    fireEvent.change(within(editor).getByLabelText("Transform of t"), {
+      target: { value: "t * 100" },
+    });
+    fireEvent.click(within(editor).getByRole("button", { name: "apply" }));
+    expect(await within(editor).findByText("0 – 10 → 0 – 5")).toBeTruthy();
+    expect(requests.at(-1)).toEqual({
+      url: "api/simulations/sim1/timeline",
+      body: {
+        transforms: { x: "x / 2", t: "t * 100" },
+        previous: { transforms: {}, time: 0 },
+      },
+    });
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)).toMatchObject({
+      coordinateTransforms: { x: "x / 2", t: "t * 100" },
+      timeline: { current: 50, max: 100 },
+    });
+    vi.useRealTimers();
+  });
+
   it("offers to point the UI at another server when this one can't be reached", async () => {
     vi.stubGlobal(
       "fetch",

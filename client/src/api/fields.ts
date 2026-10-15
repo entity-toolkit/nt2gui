@@ -7,11 +7,36 @@ import {
 import { requestJson, simulationUrl } from "./http";
 import { IFieldMetadata, ILineRender, IPseudocolorRender } from "./types";
 
-export const fetchFieldMetadata = (simulationId: string) =>
-  requestJson<IFieldMetadata>(simulationUrl(simulationId, "fields"));
-
 /** Named variables a request uses (see state/variables.ts:usedVariables). */
 export type Variables = Record<string, string>;
+
+/**
+ * What every render sends besides its config: the named variables it uses
+ * and the session's coordinate transforms.
+ */
+export interface RenderContext {
+  variables: Variables;
+  transforms: Record<string, string>;
+}
+
+/**
+ * Field names, dims and coordinates; with a `frame`, coordinates are in the
+ * transformed units (at `frame.time` for a moving frame).
+ */
+export const fetchFieldMetadata = (
+  simulationId: string,
+  frame?: { transforms: Record<string, string>; time?: number } | null,
+) => {
+  const query = new URLSearchParams();
+  if (frame) {
+    query.set("transforms", JSON.stringify(frame.transforms));
+    if (frame.time !== undefined) query.set("time", String(frame.time));
+  }
+  const suffix = query.size ? `?${query}` : "";
+  return requestJson<IFieldMetadata>(
+    `${simulationUrl(simulationId, "fields")}${suffix}`,
+  );
+};
 
 /**
  * Validates a field name or expression (which may use `variables`) and
@@ -32,11 +57,11 @@ export const renderLine = (
   config: ILineConfig,
   time: number,
   range: IRange | null,
-  variables: Variables,
+  context: RenderContext,
   signal?: AbortSignal,
 ) =>
   requestJson<ILineRender>(simulationUrl(simulationId, "render/line"), {
-    body: { config, time, range, variables },
+    body: { config, time, range, ...context },
     signal,
   });
 
@@ -45,13 +70,13 @@ export const renderPseudocolor = (
   config: IPseudocolorConfig,
   time: number,
   viewport: IZoomWindow | null,
-  variables: Variables,
+  context: RenderContext,
   signal?: AbortSignal,
 ) =>
   requestJson<IPseudocolorRender>(
     simulationUrl(simulationId, "render/pseudocolor"),
     {
-      body: { config, time, viewport, variables },
+      body: { config, time, viewport, ...context },
       signal,
     },
   );

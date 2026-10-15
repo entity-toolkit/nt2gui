@@ -14,10 +14,22 @@ from .arrays import even_sample, finite_list
 MAX_COORDINATE_VALUES = 2049
 from .particles import builtin_quantities, default_scale
 from .quantities import TIME_DIM, spatial_dims, vector_groups
+from .transforms import IDENTITY, Frame
 
 
-def field_metadata(dataset: xr.Dataset) -> dict[str, Any]:
-    """Fields with their spatial dims, vector groups, and coordinate values."""
+def field_metadata(
+    dataset: xr.Dataset, frame: Frame = IDENTITY, time: float | None = None
+) -> dict[str, Any]:
+    """Fields with their spatial dims, vector groups, and coordinate values
+    (transformed by `frame` at the output nearest to `time`, else the first:
+    a moving frame's coordinates depend on time)."""
+    if frame.transforms:
+        if TIME_DIM in dataset.dims:
+            raw = dataset.coords[TIME_DIM].values
+            index = 0 if time is None else frame.nearest(raw, time)
+            dataset = frame.grid(dataset.isel({TIME_DIM: index}), float(raw[index]))
+        else:
+            dataset = frame.grid(dataset, 0.0)
     fields = [
         {"name": str(name), "dims": spatial_dims(dataset[name])}
         for name in sorted(map(str, dataset.data_vars))

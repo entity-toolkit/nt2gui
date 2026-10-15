@@ -5,6 +5,7 @@ import { useUi, useUiActions } from "../../state/UiContext";
 import RegionList from "./RegionList";
 import SimulationCard from "./SimulationCard";
 import TemplateMenu from "./TemplateMenu";
+import TransformEditor from "./TransformEditor";
 import styles from "./SimulationSidebar.module.css";
 
 /** Collapsible left panel: load simulations, see what each contains, and the saved regions. */
@@ -123,6 +124,7 @@ const SimulationSidebar = () => {
         <p className={styles.empty}>No simulations loaded yet.</p>
       )}
 
+      {simulations.length > 0 && <TransformEditor />}
       {simulations.length > 0 && <RegionList />}
     </aside>
   );

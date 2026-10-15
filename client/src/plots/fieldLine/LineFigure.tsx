@@ -51,18 +51,18 @@ const LineFigure = ({
   const dims = quantityDims(metadata, config.quantities);
   const axis = effectiveAxis(config.axis, dims);
   const request = { ...lineRequest(config), axis };
-  const variables = usedVariables(
-    config.quantities,
-    useUi().uiState.fieldVariables ?? [],
-  );
+  const { uiState } = useUi();
+  const context = {
+    transforms: uiState.coordinateTransforms ?? {},
+    variables: usedVariables(config.quantities, uiState.fieldVariables ?? []),
+  };
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(
     config.quantities.length && axis
-      ? JSON.stringify([simulationId, version, request, variables, time, range])
+      ? JSON.stringify([simulationId, version, request, context, time, range])
       : null,
-    (signal) =>
-      renderLine(simulationId, request, time, range, variables, signal),
+    (signal) => renderLine(simulationId, request, time, range, context, signal),
   );
 
   const figure = !config.quantities.length ? (

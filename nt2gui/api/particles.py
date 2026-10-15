@@ -13,6 +13,7 @@ from .common import (
     json_object,
     parse,
     particles_at,
+    request_frame,
     request_variables,
     require_text,
     require_time,
@@ -64,7 +65,11 @@ def histogram_plot(simulation_id: str):
     variables = request_variables(payload)
     used = resolve_regions((n for s in config.series for n in s.regions), regions)
     particles, timestamp = particles_at(
-        source, time, [config.x.quantity, *region_coordinates(used)], variables
+        source,
+        time,
+        [config.x.quantity, *region_coordinates(used)],
+        variables,
+        request_frame(source, payload),
     )
     return jsonify(
         {
@@ -88,6 +93,7 @@ def phase_plot(simulation_id: str):
         time,
         [config.x.quantity, config.y.quantity, *region_coordinates(used)],
         variables,
+        request_frame(source, payload),
     )
     return jsonify(
         {

@@ -24,6 +24,10 @@ MAX_SIMULATION_NAME = 100
 # Playback speed limit (frames per second; playback also waits for renders).
 MAX_PLAYBACK_FPS = 60
 DEFAULT_COLOR_MAP = "viridis"
+# Coordinates a session can transform: positions shared by field grids and
+# particle columns, and time (see nt2gui/data/transforms.py).
+TRANSFORMABLE = ("x", "y", "z", "r", "th", "ph", "t")
+MAX_TRANSFORM_LENGTH = 500
 
 
 class _Schema(BaseModel):
@@ -248,9 +252,22 @@ class UiState(_Schema):
     focus_mode: bool = False
     # Spatial selections (region-01, ...) particle plots can filter by.
     regions: list[Region] = []
+    # Coordinate -> expression showing it in other units or frame, for every
+    # simulation (they may use the run's attributes); see data/transforms.py.
+    coordinate_transforms: dict[str, str] = {}
     # Named custom quantities shared by every plot (fields and particles apart).
     field_variables: list[Variable] = []
     particle_variables: list[Variable] = []
+
+    @field_validator("coordinate_transforms")
+    @classmethod
+    def _check_transforms(cls, transforms: dict[str, str]) -> dict[str, str]:
+        for name, expression in transforms.items():
+            if name not in TRANSFORMABLE:
+                raise ValueError(f"'{name}' can't be transformed")
+            if len(expression) > MAX_TRANSFORM_LENGTH:
+                raise ValueError(f"the transform of '{name}' is too long")
+        return transforms
 
     @field_validator("field_variables", "particle_variables")
     @classmethod

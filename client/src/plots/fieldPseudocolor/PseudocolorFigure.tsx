@@ -60,10 +60,11 @@ const PseudocolorFigure = ({
   regions,
 }: PseudocolorFigureProps) => {
   const { expressions: _expressions, ...request } = config;
-  const variables = usedVariables(
-    [config.field],
-    useUi().uiState.fieldVariables ?? [],
-  );
+  const { uiState } = useUi();
+  const context = {
+    transforms: uiState.coordinateTransforms ?? {},
+    variables: usedVariables([config.field], uiState.fieldVariables ?? []),
+  };
   // Renders again when the simulation is reloaded from disk.
   const version = useSimulationVersion(simulationId);
   const { data, error, isRendering } = useServerRender(
@@ -72,20 +73,13 @@ const PseudocolorFigure = ({
           simulationId,
           version,
           request,
-          variables,
+          context,
           time,
           viewport,
         ])
       : null,
     (signal) =>
-      renderPseudocolor(
-        simulationId,
-        request,
-        time,
-        viewport,
-        variables,
-        signal,
-      ),
+      renderPseudocolor(simulationId, request, time, viewport, context, signal),
   );
 
   const figure = !config.field ? (

@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { checkQuantity, fetchFieldMetadata, Variables } from "../../api/fields";
 import { serverErrorMessage } from "../../api/http";
 import { cachedLoader, useCachedResource } from "../../hooks/useCachedResource";
+import { IFieldMetadata } from "../../api/types";
 import { IVariable } from "../../state/schema";
+import { metadataFrame } from "../../state/transforms";
 import { useSimulationVersion } from "../../state/simulationData";
 import { useUi } from "../../state/UiContext";
 import { usedVariables } from "../../state/variables";
@@ -10,7 +12,11 @@ import { withExpressionFields } from "./metadata";
 
 const SEPARATOR = "\u0000";
 
-const getFieldMetadata = cachedLoader(fetchFieldMetadata);
+// Keys: the simulation id, then (with transforms) NUL and the frame as JSON.
+const getFieldMetadata = cachedLoader((key) => {
+  const [simulationId, frame] = key.split(SEPARATOR);
+  return fetchFieldMetadata(simulationId, frame ? JSON.parse(frame) : null);
+});
 const getQuantityDims = cachedLoader(async (key) => {
   const [simulationId, variables, expression] = key.split(SEPARATOR);
   return (await checkQuantity(simulationId, expression, JSON.parse(variables)))
@@ -87,15 +93,32 @@ const useExpressionDims = (
 export const useFieldMetadata = (
   simulationId: string | null,
   expressions: string[] | undefined,
+  /** The plot's time: coordinates of a moving frame depend on it. */
+  time?: number,
 ) => {
   const { uiState } = useUi();
   const variables = uiState.fieldVariables;
+  const frame = metadataFrame(uiState.coordinateTransforms, time);
+  const key =
+    simulationId && frame
+      ? `${simulationId}${SEPARATOR}${JSON.stringify(frame)}`
+      : simulationId;
   const list = useMemo(
     () => [...(variables ?? []).map((v) => v.name), ...(expressions ?? [])],
     [expressions, variables],
   );
   const version = useSimulationVersion(simulationId);
-  const base = useCachedResource(simulationId, getFieldMetadata, version);
+  const loaded = useCachedResource(key, getFieldMetadata, version);
+  // While a new frame (e.g. the next time of a moving frame) loads, keep
+  // showing the simulation's previous metadata rather than nothing.
+  const last = useRef<{ simulationId: string | null; data: IFieldMetadata }>(
+    null,
+  );
+  if (loaded.data) last.current = { simulationId, data: loaded.data };
+  const base =
+    !loaded.data && !loaded.error && last.current?.simulationId === simulationId
+      ? { data: last.current.data, error: null }
+      : loaded;
   const checked = useExpressionDims(
     simulationId,
     list,

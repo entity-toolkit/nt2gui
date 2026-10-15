@@ -212,6 +212,12 @@ export interface IUiState {
   focusMode?: boolean;
   /** Spatial selections particle plots can filter by. Names are unique. */
   regions?: IRegion[];
+  /**
+   * Coordinate (x, y, z, r, th, ph, t) -> expression showing it in other units
+   * or frame, for every simulation (may use the run's attributes, e.g.
+   * `(x - grid.extent[0]) / setup.skin`); see nt2gui/data/transforms.py.
+   */
+  coordinateTransforms?: Record<string, string>;
   /** Named custom quantities shared by every plot of fields / of particles. */
   fieldVariables?: IVariable[];
   particleVariables?: IVariable[];

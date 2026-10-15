@@ -6,6 +6,8 @@ are allowed:
 
 - numbers, and the constants `pi`, `e`, `inf`
 - field names and coordinate names (e.g. `x`, `t`) of the dataset
+- run attributes, when given: dotted names such as `setup.vel`, and list
+  elements such as `grid.extent[0]` (Entity's `<block>.<subblock>.<name>`)
 - named variables: user definitions such as `edotb = Ex*Bx + Ey*By + Ez*Bz`,
   which may use each other (`epar = edotb / sqrt(Bx**2 + By**2 + Bz**2)`)
 - arithmetic `+ - * / // % **`, unary `+ -`, comparisons, and `& | ~`
@@ -123,15 +125,21 @@ def _parse(expression: str) -> ast.Expression:
 
 
 def evaluate(
-    expression: str, dataset: xr.Dataset, variables: Variables | None = None
+    expression: str,
+    dataset: xr.Dataset,
+    variables: Variables | None = None,
+    attrs: Mapping[str, Any] | None = None,
 ) -> xr.DataArray:
     """Evaluate `expression` over `dataset`, where `variables` may be used
-    by name (each evaluated at most once); raises ExpressionError."""
+    by name (each evaluated at most once) and `attrs` (a run's flat, dotted
+    attributes) by their dotted names; raises ExpressionError."""
     tree = _parse(expression)
     try:
         # Invalid operations (log(0), 0/0) give inf/nan, shown as gaps.
         with np.errstate(all="ignore"):
-            result = _Evaluator(dataset, variables or {}).visit(tree.body)
+            result = _Evaluator(dataset, variables or {}, attrs or {}).visit(
+                tree.body
+            )
     except RecursionError as error:
         raise ExpressionError("Expression is nested too deeply") from error
     except ExpressionError:
@@ -206,10 +214,36 @@ def expanded_names(
     return names
 
 
+def _dotted(node: ast.expr) -> str | None:
+    """`a.b.c` for a chain of plain attribute accesses, else None."""
+    parts: list[str] = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def _attribute_number(value: Any, name: str) -> np.float64:
+    if isinstance(value, (bool, np.bool_)) or not np.issubdtype(
+        np.asarray(value).dtype, np.number
+    ):
+        raise ExpressionError(f"Attribute '{name}' is not a number")
+    return np.float64(value)
+
+
 class _Evaluator(ast.NodeVisitor):
-    def __init__(self, dataset: xr.Dataset, variables: Variables) -> None:
+    def __init__(
+        self,
+        dataset: xr.Dataset,
+        variables: Variables,
+        attrs: Mapping[str, Any],
+    ) -> None:
         self.dataset = dataset
         self.variables = variables
+        self.attrs = attrs
         self._values: dict[str, Any] = {}
         # Variables being evaluated, innermost last (to report cycles).
         self._stack: list[str] = []
@@ -237,6 +271,45 @@ class _Evaluator(ast.NodeVisitor):
         if name in FUNCTIONS:
             raise ExpressionError(f"'{name}' is a function; call it like {name}(...)")
         raise ExpressionError(f"Unknown name '{name}'")
+
+    def _attribute(self, node: ast.expr) -> tuple[str, Any]:
+        name = _dotted(node)
+        if name is None:
+            raise ExpressionError("Unsupported syntax: Attribute")
+        if name not in self.attrs:
+            raise ExpressionError(f"Unknown attribute '{name}'")
+        return name, self.attrs[name]
+
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        if not self.attrs:  # only where a run's attributes are available
+            return self.generic_visit(node)
+        name, value = self._attribute(node)
+        if np.ndim(value) > 0:
+            raise ExpressionError(
+                f"Attribute '{name}' is a list; pick an element, e.g. {name}[0]"
+            )
+        return _attribute_number(value, name)
+
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        if not self.attrs:
+            return self.generic_visit(node)
+        index = node.slice
+        negative = isinstance(index, ast.UnaryOp) and isinstance(index.op, ast.USub)
+        constant = index.operand if negative else index  # type: ignore[union-attr]
+        if not (
+            isinstance(constant, ast.Constant)
+            and isinstance(constant.value, int)
+            and not isinstance(constant.value, bool)
+        ):
+            raise ExpressionError("Attribute lists are indexed by a whole number")
+        name, value = self._attribute(node.value)
+        items = np.asarray(value).ravel()
+        position = -constant.value if negative else constant.value
+        if not -items.size <= position < items.size:
+            raise ExpressionError(
+                f"'{name}' has {items.size} element(s); index {position} is out of range"
+            )
+        return _attribute_number(items[position], f"{name}[{position}]")
 
     def _variable(self, name: str) -> Any:
         if name in self._values:

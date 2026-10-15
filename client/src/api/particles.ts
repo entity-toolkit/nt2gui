@@ -30,6 +30,8 @@ export const renderParticleHistogram = (
     config: Pick<IParticleHistogramConfig, "x" | "series">;
     regions: IRegion[];
     variables: Variables;
+    /** The session's coordinate transforms. */
+    transforms: Record<string, string>;
   },
   time: number,
   signal?: AbortSignal,
@@ -46,6 +48,8 @@ export const renderParticlePhase = (
     config: IParticlePhaseConfig;
     regions: IRegion[];
     variables: Variables;
+    /** The session's coordinate transforms. */
+    transforms: Record<string, string>;
   },
   time: number,
   signal?: AbortSignal,

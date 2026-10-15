@@ -32,6 +32,7 @@ const FieldPseudocolorPlot = ({
   const { metadata, error, expressionErrors } = useFieldMetadata(
     simulationId,
     config.expressions,
+    time,
   );
 
   const viewport = activeViewport(plotter, uiState.globalViewport);

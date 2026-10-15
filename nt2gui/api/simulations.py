@@ -3,7 +3,17 @@
 from flask import Blueprint, jsonify
 
 from ..data.metadata import simulation_attributes, summarize
-from .common import json_object, require_text, simulation, workspace
+from ..data.transforms import check_transforms, retimed
+from ..errors import UserError
+from .common import (
+    frame_for,
+    json_object,
+    request_frame,
+    require_text,
+    require_time,
+    simulation,
+    workspace,
+)
 
 bp = Blueprint("simulations", __name__)
 
@@ -38,3 +48,30 @@ def get_attributes(simulation_id: str):
 @bp.get("/simulations/<simulation_id>/summary")
 def get_summary(simulation_id: str):
     return jsonify(summarize(simulation(simulation_id)))
+
+
+@bp.post("/simulations/<simulation_id>/transforms/check")
+def check_simulation_transforms(simulation_id: str):
+    """Does each of `transforms` work for this simulation, and what ranges
+    does it give (see `check_transforms`)."""
+    source = simulation(simulation_id)
+    return jsonify(check_transforms(source, request_frame(source, json_object())))
+
+
+@bp.post("/simulations/<simulation_id>/timeline")
+def transformed_timeline(simulation_id: str):
+    """This simulation's timeline under `transforms`, staying at the output
+    nearest to `previous.time` under `previous.transforms`."""
+    source = simulation(simulation_id)
+    payload = json_object()
+    previous = payload.get("previous") or {}
+    if not isinstance(previous, dict):
+        raise UserError("previous must be an object")
+    return jsonify(
+        retimed(
+            source,
+            request_frame(source, payload),
+            frame_for(source, previous.get("transforms")),
+            require_time(previous) if "time" in previous else float("-inf"),
+        )
+    )

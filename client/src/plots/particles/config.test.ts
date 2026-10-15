@@ -116,6 +116,7 @@ describe("requests", () => {
       config: { x: config.x, series: config.series },
       regions: [],
       variables: {},
+      transforms: {},
     });
   });
 
@@ -135,6 +136,7 @@ describe("requests", () => {
       },
       regions: [region],
       variables: {},
+      transforms: {},
     });
     const phase = {
       x: { quantity: "x", scale: "linear" as const },
@@ -145,6 +147,7 @@ describe("requests", () => {
       config: { ...phase, regions: ["region-01"] },
       regions: [region],
       variables: {},
+      transforms: {},
     });
   });
 
@@ -159,6 +162,7 @@ describe("requests", () => {
       config: { x: config.x, y: config.y, colorScale: "linear" },
       regions: [],
       variables: {},
+      transforms: {},
     });
   });
 

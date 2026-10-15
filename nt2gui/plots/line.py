@@ -10,6 +10,7 @@ from ..data.arrays import finite_list, minmax_indices
 from ..data.expressions import Variables
 from ..data.quantities import QuantityError, cut, quantity_arrays, snapshot_at
 from ..data.smoothing import smooth
+from ..data.transforms import IDENTITY, Frame
 from ..errors import UserError
 
 # A line never needs more points than a screen has pixels: longer cuts are
@@ -28,6 +29,7 @@ def render_line(
     max_points: int = MAX_LINE_POINTS,
     smoothing: Mapping[str, float] | None = None,
     variables: Variables | None = None,
+    frame: Frame = IDENTITY,
 ) -> dict[str, Any]:
     """Cut every requested quantity along `axis` at time `time`.
 
@@ -44,7 +46,7 @@ def render_line(
     if axis not in dataset.coords:
         raise UserError(f"Unknown coordinate '{axis}'")
 
-    dataset, timestamp = snapshot_at(dataset, time)
+    dataset, timestamp = snapshot_at(dataset, time, frame)
     coordinates = np.asarray(dataset.coords[axis].values, dtype=float)
     window = _range_window(coordinates, value_range) if value_range else slice(None)
 

@@ -7,6 +7,7 @@ import xarray as xr
 from ..data.arrays import block_factor, block_mean
 from ..data.expressions import Variables
 from ..data.smoothing import smooth
+from ..data.transforms import IDENTITY, Frame
 from ..data.quantities import (
     QuantityError,
     cell_edges,
@@ -31,6 +32,7 @@ def render_pseudocolor(
     viewport: ZoomWindow | None = None,
     max_size: int = MAX_IMAGE_SIZE,
     variables: Variables | None = None,
+    frame: Frame = IDENTITY,
 ) -> dict[str, Any]:
     """Shade one field (or expression) over (x, y) at `time`.
 
@@ -46,7 +48,7 @@ def render_pseudocolor(
     if x == y:
         raise UserError("x and y must be different coordinates")
 
-    snapshot, timestamp = snapshot_at(fields, time)
+    snapshot, timestamp = snapshot_at(fields, time, frame)
     data = single_quantity(config.field, snapshot, variables)
     for coordinate in (x, y):
         if coordinate not in data.dims:

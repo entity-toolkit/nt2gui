@@ -160,6 +160,7 @@ export const histogramRequest = (
   { x, series }: IParticleHistogramConfig,
   saved?: IRegion[],
   variables: IVariable[] = [],
+  transforms: Record<string, string> = {},
 ) => {
   const lines = series.map((line) =>
     line.regions ? { ...line, regions: savedOnly(line.regions, saved) } : line,
@@ -171,6 +172,7 @@ export const histogramRequest = (
       saved,
     ),
     variables: usedVariables([x.quantity], variables),
+    transforms,
   };
 };
 
@@ -178,6 +180,7 @@ export const phaseRequest = (
   { expressions: _expressions, ...rest }: IParticlePhaseConfig,
   saved?: IRegion[],
   variables: IVariable[] = [],
+  transforms: Record<string, string> = {},
 ) => {
   const config = rest.regions
     ? { ...rest, regions: savedOnly(rest.regions, saved) }
@@ -186,6 +189,7 @@ export const phaseRequest = (
     config,
     regions: pickRegions(config.regions, saved),
     variables: usedVariables([config.x.quantity, config.y.quantity], variables),
+    transforms,
   };
 };
 

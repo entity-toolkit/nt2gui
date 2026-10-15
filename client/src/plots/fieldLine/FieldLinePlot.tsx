@@ -34,6 +34,7 @@ const FieldLinePlot = ({
   const { metadata, error, expressionErrors } = useFieldMetadata(
     simulationId,
     config.expressions,
+    time,
   );
 
   const axis = metadata

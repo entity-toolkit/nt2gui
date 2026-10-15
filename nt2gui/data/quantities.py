@@ -13,6 +13,7 @@ import xarray as xr
 
 from ..errors import UserError
 from .expressions import Variables, evaluate
+from .transforms import IDENTITY, Frame
 
 TIME_DIM = "t"
 COMPONENT_SUFFIXES = ("x", "y", "z")
@@ -119,14 +120,20 @@ def quantity_dims(
     return dims
 
 
-def snapshot_at(dataset: xr.Dataset, time: float) -> tuple[xr.Dataset, float | None]:
-    """The output nearest to `time` and its time (None for static data).
+def snapshot_at(
+    dataset: xr.Dataset, time: float, frame: Frame = IDENTITY
+) -> tuple[xr.Dataset, float | None]:
+    """The output nearest to `time` and its time (None for static data), with
+    the frame's transforms applied: `time` and the result's coordinates and
+    time are in transformed units.
 
     Picking the time first means expressions are evaluated on one snapshot.
     """
     if TIME_DIM not in dataset.dims:
-        return dataset, None
-    snapshot = dataset.sel({TIME_DIM: time}, method="nearest")
+        return frame.grid(dataset, 0.0), None
+    raw = dataset.coords[TIME_DIM].values
+    index = frame.nearest(raw, time)
+    snapshot = frame.grid(dataset.isel({TIME_DIM: index}), float(raw[index]))
     return snapshot, float(snapshot.coords[TIME_DIM].item())
 
 

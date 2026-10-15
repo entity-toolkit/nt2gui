@@ -147,3 +147,11 @@ export interface ITemplateSummary {
   /** ISO time it was last saved. */
   savedAt: string | null;
 }
+
+/** `POST /simulations/<id>/transforms/check`. */
+export interface ITransformCheck {
+  /** Coordinate -> why its transform doesn't work for this simulation. */
+  errors: Record<string, string>;
+  /** Coordinate -> original and transformed [min, max] (first output). */
+  ranges: Record<string, { from: [number, number]; to: [number, number] }>;
+}

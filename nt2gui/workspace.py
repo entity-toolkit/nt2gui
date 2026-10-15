@@ -10,6 +10,7 @@ import logging
 import threading
 from typing import Any
 
+from .data.transforms import IDENTITY, Frame, TransformError, frame_timeline
 from .errors import Conflict, NotFound, UserError
 from .session.schema import (
     DEFAULT_TIMELINE,
@@ -77,7 +78,9 @@ class Workspace:
                         name=unique_name(simulation.name, taken),
                     )
                 )
-                session.state.timeline = Timeline.model_validate(simulation.timeline)
+                session.state.timeline = Timeline.model_validate(
+                    _timeline(simulation, session)
+                )
 
             snapshot = self.store.update(mutate)
             self._simulations = {**self._simulations, simulation.id: simulation}
@@ -124,7 +127,7 @@ class Workspace:
 
             def mutate(session: Session) -> None:
                 current = session.state.timeline.current
-                timeline = Timeline.model_validate(simulation.timeline)
+                timeline = Timeline.model_validate(_timeline(simulation, session))
                 timeline.current = min(max(current, timeline.min), timeline.max)
                 session.state.timeline = timeline
 
@@ -180,6 +183,18 @@ class Workspace:
                 for path, error in failed.values()
             ]
             return {**snapshot, "warnings": warnings}
+
+
+def _timeline(simulation: SimulationSource, session: Session) -> dict[str, float]:
+    """The simulation's timeline in the session's transformed time; its own
+    if the transforms don't work for it (the plots will say why)."""
+    transforms = session.state.coordinate_transforms
+    frame = Frame(transforms, simulation.attrs) if transforms else IDENTITY
+    try:
+        return frame_timeline(simulation, frame)
+    except TransformError as error:
+        logger.warning("Untransformed timeline for %s: %s", simulation.path, error)
+        return simulation.timeline
 
 
 def _open_all(

@@ -1,10 +1,9 @@
 [build-system]
-requires = ["hatchling>=1.21"]
+requires = ["hatchling>=1.21", "hatch-vcs>=0.4"]
 build-backend = "hatchling.build"
 
 [project]
 name = "nt2gui"
-version = "0.2"
 description = "Browser UI for visualizing Entity simulation output"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,6 +18,7 @@ dependencies = [
   "matplotlib>=3.8",
   "nt2py[hdf5]>=1.6",
 ]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pyright", "build"]
@@ -28,6 +28,9 @@ nt2gui = "nt2gui.cli:main"
 
 [project.urls]
 Repository = "https://github.com/haykh/nt2gui"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build]
 artifacts = ["nt2gui/static/**"]

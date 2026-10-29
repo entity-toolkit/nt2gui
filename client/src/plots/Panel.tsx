@@ -1,3 +1,6 @@
+import { Actions, TabSetNode } from "flexlayout-react";
+import { useState } from "react";
+import { useKeyShortcut } from "../hooks/useKeyShortcut";
 import { panelTime } from "../lib/playback";
 import { RenderScope } from "../state/renderActivity";
 import { DataType, PlotType } from "../state/schema";
@@ -9,9 +12,22 @@ import styles from "./Panel.module.css";
 
 /**
  * One layout tab: pick the data type, then the plot kind, then show the plot.
+ * P, pressed while the pointer is over it, maximizes its tab set (or
+ * restores it).
  */
 const Panel = ({ nodeId }: { nodeId: string }) => {
-  const { uiState, simulations } = useUi();
+  const { uiState, simulations, model } = useUi();
+  const [hovered, setHovered] = useState(false);
+  useKeyShortcut(
+    "p",
+    () => {
+      const tabset = model.getNodeById(nodeId)?.getParent();
+      if (tabset instanceof TabSetNode) {
+        model.doAction(Actions.maximizeToggle(tabset.getId()));
+      }
+    },
+    hovered,
+  );
   const { setDataType, setPlotType } = useUiActions();
   const plotter = uiState.plotters[nodeId];
 
@@ -62,7 +78,13 @@ const Panel = ({ nodeId }: { nodeId: string }) => {
   // Renders are tracked per panel, so playback waits only for the panels it drives.
   return (
     <RenderScope.Provider value={nodeId}>
-      <div className={styles.panel}>{content}</div>
+      <div
+        className={styles.panel}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {content}
+      </div>
     </RenderScope.Provider>
   );
 };

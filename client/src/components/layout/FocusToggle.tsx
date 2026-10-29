@@ -12,6 +12,7 @@ const FocusToggle = ({ floating = false }: { floating?: boolean }) => {
   const { updateUiState } = useUiActions();
   const focus = uiState.focusMode ?? false;
   const label = focus ? "Show controls" : "Hide controls (plots only)";
+  const title = `${label} (F)`;
   const Icon = focus ? TbArrowsMinimize : TbArrowsMaximize;
   return (
     <button
@@ -19,7 +20,7 @@ const FocusToggle = ({ floating = false }: { floating?: boolean }) => {
       className={`${styles.toggle} ${floating ? styles.floating : ""}`}
       aria-pressed={focus}
       aria-label={label}
-      title={label}
+      title={title}
       onClick={() => updateUiState((prev) => ({ ...prev, focusMode: !focus }))}
     >
       <Icon aria-hidden />

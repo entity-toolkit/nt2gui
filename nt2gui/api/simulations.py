@@ -1,10 +1,18 @@
 """Opening and closing simulations, and what each contains."""
 
-from flask import Blueprint, jsonify
+import json
+
+from flask import Blueprint, jsonify, request
 
 from ..data.metadata import simulation_attributes, summarize
-from ..data.transforms import check_transforms, retimed
+from ..data.transforms import (
+    TransformError,
+    check_transforms,
+    frame_timeline,
+    retimed,
+)
 from ..errors import UserError
+from ..sources import spanning_timeline
 from .common import (
     frame_for,
     json_object,
@@ -58,21 +66,45 @@ def check_simulation_transforms(simulation_id: str):
     return jsonify(check_transforms(source, request_frame(source, json_object())))
 
 
+@bp.get("/simulations/<simulation_id>/span")
+def time_span(simulation_id: str):
+    """The first and last output times of this simulation on the timeline's
+    axis (`?transforms=<json>&timeAxis=<t|tp>`), so plots can tell when the
+    global time is outside it."""
+    source = simulation(simulation_id)
+    try:
+        transforms = json.loads(request.args.get("transforms", "null"))
+    except ValueError as error:
+        raise UserError("transforms must be JSON") from error
+    timeline = frame_timeline(
+        source, frame_for(source, transforms, request.args.get("timeAxis"))
+    )
+    return jsonify({"min": timeline["min"], "max": timeline["max"]})
+
+
 @bp.post("/simulations/<simulation_id>/timeline")
 def transformed_timeline(simulation_id: str):
-    """This simulation's timeline under `transforms` and `timeAxis`, staying
-    at the output nearest to `previous.time` under `previous.transforms` and
-    `previous.timeAxis`."""
+    """The global timeline under `transforms` and `timeAxis`: spanning every
+    loaded simulation, at this simulation's output nearest to `previous.time`
+    under `previous.transforms` and `previous.timeAxis`."""
     source = simulation(simulation_id)
     payload = json_object()
     previous = payload.get("previous") or {}
     if not isinstance(previous, dict):
         raise UserError("previous must be an object")
-    return jsonify(
+    timelines = [
         retimed(
             source,
             request_frame(source, payload),
             frame_for(source, previous.get("transforms"), previous.get("timeAxis")),
             require_time(previous) if "time" in previous else float("-inf"),
         )
-    )
+    ]
+    for other in workspace().all():
+        if other.id == simulation_id:
+            continue
+        try:
+            timelines.append(frame_timeline(other, request_frame(other, payload)))
+        except TransformError:
+            pass  # its plots say why
+    return jsonify(spanning_timeline(timelines))

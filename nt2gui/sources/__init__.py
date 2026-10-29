@@ -97,6 +97,20 @@ def combined_timeline(*time_arrays: Any) -> dict[str, float]:
     }
 
 
+def spanning_timeline(timelines: list[dict[str, float]]) -> dict[str, float]:
+    """One timeline covering several simulations' (assumed in the same time
+    units): from the earliest start to the latest end, stepping by the finest
+    step. It starts at the first timeline's current time."""
+    if not timelines:
+        return dict(EMPTY_TIMELINE)
+    return {
+        "current": timelines[0]["current"],
+        "min": min(timeline["min"] for timeline in timelines),
+        "max": max(timeline["max"] for timeline in timelines),
+        "step": min(timeline["step"] for timeline in timelines),
+    }
+
+
 def output_times(simulation: SimulationSource) -> np.ndarray:
     """Every output time (fields and particles), ascending, without repeats."""
     arrays = [np.asarray(simulation.particle_times, dtype=float)]

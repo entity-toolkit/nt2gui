@@ -559,6 +559,123 @@ describe("App", () => {
     vi.useRealTimers();
   });
 
+  it("toggles focus with F; P maximizes and R unzooms the panel under the pointer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const saved = snapshot();
+    saved.state.plotters["panel-1"] = {
+      dataType: DataType.Fields,
+      plotType: PlotType.Line,
+      simulationId: "sim1",
+      lineConfig: { quantities: ["Bx"], axis: "x", slices: {} },
+      useGlobalViewport: false,
+      lineViewport: { min: 0.2, max: 0.4 },
+    };
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      url === "api/state" && init?.method !== "PUT"
+        ? json(saved)
+        : fake(url, init),
+    );
+    const { container } = render(<App />);
+    const reset = await screen.findByRole("button", { name: "Reset zoom" });
+
+    fireEvent.keyDown(window, { key: "f" });
+    expect(container.querySelector(".app-shell.focus-mode")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "F", shiftKey: true });
+    expect(container.querySelector(".focus-mode")).toBeNull();
+
+    // R and P act on the panel under the pointer only.
+    fireEvent.keyDown(window, { key: "r" });
+    fireEvent.keyDown(window, { key: "p" });
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)?.plotters["panel-1"].lineViewport).toEqual({
+      min: 0.2,
+      max: 0.4,
+    });
+    expect(JSON.stringify(puts.at(-1)?.layout)).not.toContain("maximized");
+
+    fireEvent.mouseEnter(reset);
+    fireEvent.keyDown(window, { key: "r" });
+    fireEvent.keyDown(window, { key: "p" });
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)?.plotters["panel-1"].lineViewport).toBeNull();
+    expect(JSON.stringify(puts.at(-1)?.layout)).toContain("maximized");
+    // Again: restored.
+    fireEvent.keyDown(window, { key: "p" });
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(JSON.stringify(puts.at(-1)?.layout)).not.toContain("maximized");
+    vi.useRealTimers();
+  });
+
+  it("duplicates a panel from its tab's right-click menu", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const saved = snapshot();
+    saved.state.plotters["panel-1"] = {
+      dataType: DataType.Fields,
+      plotType: PlotType.Line,
+      simulationId: "sim1",
+      lineConfig: { quantities: ["Bx"], axis: "x", slices: {} },
+      syncTime: false,
+      localTime: 0.3,
+    };
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      url === "api/state" && init?.method !== "PUT"
+        ? json(saved)
+        : fake(url, init),
+    );
+    render(<App />);
+    const zoom = await screen.findByRole("button", { name: "Reset zoom" });
+
+    // Right-clicking the plot opens its own settings, not the tab's menu.
+    const figure = zoom.closest("[data-ui-chrome]")!.nextElementSibling!;
+    fireEvent.contextMenu(figure);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(await screen.findByLabelText("simulation")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    // flexlayout renders the tab twice (one copy measures overflow).
+    fireEvent.contextMenu(screen.getAllByTitle(/right-click for more/)[0]);
+    const menu = await screen.findByRole("menu", { name: "Panel" });
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Duplicate" }));
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    const state = puts.at(-1)!;
+    const ids = Object.keys(state.plotters);
+    expect(ids).toHaveLength(2);
+    const copy = ids.find((id) => id !== "panel-1")!;
+    expect(state.plotters[copy]).toEqual(saved.state.plotters["panel-1"]);
+    expect(JSON.stringify(state.layout)).toContain("Panel (copy)");
+    vi.useRealTimers();
+  });
+
+  it("says when the time is past the end of a panel's simulation", async () => {
+    const saved = snapshot();
+    saved.state.timeline = { current: 0.8, min: 0, max: 1, step: 0.1 };
+    saved.state.plotters["panel-1"] = {
+      dataType: DataType.Fields,
+      plotType: PlotType.Line,
+      simulationId: "sim1",
+      lineConfig: { quantities: ["Bx"], axis: "x", slices: {} },
+    };
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "api/state" && init?.method !== "PUT") return json(saved);
+      if (url.startsWith("api/simulations/sim1/span?")) {
+        return json({ min: 0, max: 0.5 });
+      }
+      return fake(url, init);
+    });
+    render(<App />);
+    expect(
+      await screen.findByText(/Past the end of this run \(t = 0\.5\)/),
+    ).toBeTruthy();
+  });
+
   it("defines, renames and names variables shared by every plot", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const saved = snapshot();

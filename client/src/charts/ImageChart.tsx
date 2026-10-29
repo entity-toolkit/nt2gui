@@ -20,7 +20,7 @@ import {
 import { IZoomWindow, ParticleScale } from "../state/schema";
 import { drawAxis } from "./axis";
 import { fitToBox } from "./fitToBox";
-import { makeScale, panScale } from "./scales";
+import { makeScale, panScale, scaledLength } from "./scales";
 import { useElementSize } from "./useElementSize";
 import styles from "./ImageChart.module.css";
 
@@ -42,7 +42,10 @@ interface ImageChartProps {
   xAxis: ImageAxis;
   yAxis: ImageAxis;
   colorbarTitle: string;
-  /** Keep the data-unit aspect ratio (spatial plots of fields). */
+  /**
+   * Keep the data-unit aspect ratio (spatial plots of fields, or on request),
+   * measured in each axis' scale.
+   */
   preserveAspect?: boolean;
   /** While on, dragging a box zooms into it. */
   zoomEnabled: boolean;
@@ -149,21 +152,31 @@ const ImageChart = ({
       width: Math.max(width - margin.left - margin.right, 0),
       height: Math.max(height - margin.top - margin.bottom, 0),
     };
-    const size = preserveAspect
-      ? fitToBox(
-          {
-            width: Math.abs(extent.xMax - extent.xMin),
-            height: Math.abs(extent.yMax - extent.yMin),
-          },
-          room,
-        )
-      : room;
+    // Equal lengths in each axis' own scale (log decades, …) look equal.
+    const content = {
+      width: scaledLength(xAxis.scale, xAxis.power, extent.xMin, extent.xMax),
+      height: scaledLength(yAxis.scale, yAxis.power, extent.yMin, extent.yMax),
+    };
+    // Without a measurable extent, all the room.
+    const size =
+      preserveAspect && content.width > 0 && content.height > 0
+        ? fitToBox(content, room)
+        : room;
     return {
       ...size,
       left: margin.left + (room.width - size.width) / 2,
       top: margin.top + (room.height - size.height) / 2,
     };
-  }, [extent, height, preserveAspect, width]);
+  }, [
+    extent,
+    height,
+    preserveAspect,
+    width,
+    xAxis.scale,
+    xAxis.power,
+    yAxis.scale,
+    yAxis.power,
+  ]);
 
   const xScale = useMemo(
     () =>

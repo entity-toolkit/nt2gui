@@ -161,6 +161,8 @@ describe("requests", () => {
       y: { quantity: "ux", scale: "linear" as const },
       colorScale: "linear" as const,
       expressions: ["ux * w"],
+      // Drawn by the client only.
+      equalAspect: true,
     };
     expect(phaseRequest(config)).toEqual({
       config: { x: config.x, y: config.y, colorScale: "linear" },

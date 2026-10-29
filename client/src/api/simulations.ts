@@ -28,6 +28,24 @@ export const reloadSimulation = (id: string) =>
     method: "POST",
   });
 
+/**
+ * A simulation's first and last output times on the timeline's axis (`tp`
+ * needs the transform of `t`).
+ */
+export const fetchTimeSpan = (
+  id: string,
+  transforms: Record<string, string>,
+  timeAxis: TimeAxis,
+) => {
+  const query = new URLSearchParams({
+    transforms: JSON.stringify(transforms),
+    timeAxis,
+  });
+  return requestJson<{ min: number; max: number }>(
+    `${simulationUrl(id, "span")}?${query}`,
+  );
+};
+
 export const fetchSimulationAttributes = (id: string) =>
   requestJson<{ attrs: Record<string, AttributeValue> }>(
     simulationUrl(id, "attrs"),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  scaledLength,
   binIndex,
   logValueDomain,
   makeScale,
@@ -200,5 +201,17 @@ describe("valueBounds", () => {
     expect(valueBounds([3, 1, 2])).toEqual([1, 3]);
     expect(valueBounds([])).toBeUndefined();
     expect(valueBounds(undefined)).toBeUndefined();
+  });
+});
+
+describe("scaledLength", () => {
+  it("measures in the scale's own space", () => {
+    expect(scaledLength("linear", undefined, -2, 3)).toBe(5);
+    expect(scaledLength("log", undefined, 1, 1000)).toBeCloseTo(3);
+    expect(scaledLength("power", 0.5, -4, 9)).toBeCloseTo(5);
+  });
+
+  it("is 0 for ranges a log scale can't show", () => {
+    expect(scaledLength("log", undefined, 0, 10)).toBe(0);
   });
 });

@@ -214,6 +214,8 @@ class ParticlePhaseConfig(_Schema):
     vmax: float | None = None
     color_map: str = DEFAULT_COLOR_MAP
     expressions: list[str] = []
+    # Same length per unit on both axes (in each axis' scale).
+    equal_aspect: bool = False
 
 
 class Plotter(_Schema):

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignSimulations,
   collectPanelIds,
+  duplicatePlotter,
   newPlotter,
   reconcilePlotters,
   setPlotType,
@@ -145,5 +146,29 @@ describe("assignSimulations", () => {
   it("clears the simulation when none is loaded", () => {
     const next = assignSimulations({ a: { ...plot, simulationId: "s1" } }, []);
     expect(next.a.simulationId).toBeUndefined();
+  });
+});
+
+describe("duplicatePlotter", () => {
+  const plotters: IPlotters = {
+    a: {
+      plotType: PlotType.Line,
+      dataType: DataType.Fields,
+      simulationId: "sim",
+      lineConfig: { axis: "x", quantities: ["f"], slices: {} },
+    },
+    b: newPlotter(),
+  };
+
+  it("copies a panel's plot into another (replacing a blank one)", () => {
+    const next = duplicatePlotter(plotters, "a", "b");
+    expect(next.b).toEqual(plotters.a);
+    // A deep copy: editing one doesn't change the other.
+    expect(next.b.lineConfig).not.toBe(plotters.a.lineConfig);
+    expect(next.a).toBe(plotters.a);
+  });
+
+  it("does nothing for an unknown panel", () => {
+    expect(duplicatePlotter(plotters, "nope", "c")).toBe(plotters);
   });
 });

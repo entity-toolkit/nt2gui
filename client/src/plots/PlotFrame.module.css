@@ -174,3 +174,25 @@
   background: var(--color-accent-soft);
   color: var(--color-text-soft);
 }
+
+/* Over the top of the figure (kept in focus mode): the panel's time is
+   outside its simulation's outputs. */
+.outsideNote {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  margin: 0;
+  max-width: calc(100% - 24px);
+  padding: 3px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  border-radius: var(--radius-sm);
+  background: rgba(120, 53, 15, 0.85);
+  color: #fde68a;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}

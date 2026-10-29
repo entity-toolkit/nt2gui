@@ -196,7 +196,12 @@ export const histogramRequest = (
 };
 
 export const phaseRequest = (
-  { expressions: _expressions, ...rest }: IParticlePhaseConfig,
+  // Display only (the aspect) or sent separately (expressions).
+  {
+    expressions: _expressions,
+    equalAspect: _equalAspect,
+    ...rest
+  }: IParticlePhaseConfig,
   saved?: IRegion[],
   variables: IVariable[] = [],
   transforms: Record<string, string> = {},

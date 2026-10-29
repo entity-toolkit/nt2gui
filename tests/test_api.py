@@ -1,8 +1,13 @@
+import json
+
 import numpy as np
 import pytest
 
 from helpers import load_demo, put_state
+from nt2gui import workspace as workspace_module
 from nt2gui.app import create_app
+from nt2gui.sources import open_simulation
+from nt2gui.sources.demo import DemoSimulation
 
 
 def test_state_is_available_without_initialization(client):
@@ -94,6 +99,72 @@ def test_adding_simulation_sets_timeline_and_is_idempotent(client):
     ]
     assert first["state"]["timeline"]["max"] == 1.0
     assert second["revision"] == first["revision"]
+
+
+class _LongerDemo(DemoSimulation):
+    """A demo run that goes on twice as long (t in [0, 2])."""
+
+    def __init__(self, path, simulation_id=None):
+        super().__init__(path, simulation_id)
+        self._t = self._t * 2
+        self._fields = self._fields.assign_coords(t=self._t)
+
+
+@pytest.fixture
+def longer_runs(monkeypatch):
+    """`demo:long…` paths open a run twice as long as the others."""
+
+    def opener(path, simulation_id=None):
+        if path.startswith("demo:long"):
+            return _LongerDemo(path, simulation_id)
+        return open_simulation(path, simulation_id)
+
+    monkeypatch.setattr(workspace_module, "open_simulation", opener)
+
+
+def test_global_timeline_spans_every_simulation(client, longer_runs):
+    load_demo(client, "demo:short")
+    revision = client.get("/api/state").get_json()["revision"]
+    put_state(client, revision, timeline={"current": 0.5, "min": 0, "max": 1, "step": 0.1})
+    long = load_demo(client, "demo:long")
+
+    timeline = client.get("/api/state").get_json()["state"]["timeline"]
+    assert timeline["min"] == 0 and timeline["max"] == 2
+    # The current time stays; the finest step wins.
+    assert timeline["current"] == 0.5
+    assert timeline["step"] == pytest.approx(1 / 49)
+
+    # Back to the shorter run's span (the current time is kept inside it).
+    revision = client.get("/api/state").get_json()["revision"]
+    put_state(client, revision, timeline=timeline | {"current": 1.8})
+    remaining = client.delete(f"/api/simulations/{long}").get_json()
+    assert remaining["state"]["timeline"]["max"] == 1
+    assert remaining["state"]["timeline"]["current"] == 1
+
+
+def test_simulation_span_is_on_the_timeline_axis(client, longer_runs):
+    long = load_demo(client, "demo:long")
+    assert client.get(f"/api/simulations/{long}/span").get_json() == {"min": 0, "max": 2}
+    query = "transforms=" + json.dumps({"t": "t * 10"}) + "&timeAxis=tp"
+    span = client.get(f"/api/simulations/{long}/span?{query}").get_json()
+    assert span == {"min": 0, "max": 20}
+    assert client.get(f"/api/simulations/{long}/span?transforms=x").status_code == 400
+
+
+def test_transformed_timeline_spans_every_simulation(client, longer_runs):
+    short = load_demo(client, "demo:short")
+    load_demo(client, "demo:long")
+    timeline = client.post(
+        f"/api/simulations/{short}/timeline",
+        json={
+            "transforms": {"t": "t * 10"},
+            "timeAxis": "tp",
+            "previous": {"time": 0.5},
+        },
+    ).get_json()
+    assert timeline["max"] == pytest.approx(20)
+    # At the short run's output nearest to 0.5.
+    assert timeline["current"] == pytest.approx(10 * 24 / 49)
 
 
 def test_simulations_are_named_after_their_run_uniquely(client):

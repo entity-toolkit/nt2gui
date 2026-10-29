@@ -8,7 +8,15 @@ import {
 } from "react-icons/tb";
 import { FigureMessage } from "../components/common/FigureMessage";
 import TimeControls from "../components/common/TimeControls";
-import { DEFAULT_PLAYBACK_FPS, isTimeSynced, panelTime } from "../lib/playback";
+import {
+  DEFAULT_PLAYBACK_FPS,
+  isTimeSynced,
+  outsideSpan,
+  panelTime,
+} from "../lib/playback";
+import { formatNumber } from "../lib/format";
+import { useKeyShortcut } from "../hooks/useKeyShortcut";
+import { useTimeSpan } from "../hooks/useTimeSpan";
 import { isSpatial } from "../state/regions";
 import { simulationName } from "../lib/simulations";
 import { useRendersPending } from "../state/renderActivity";
@@ -104,7 +112,19 @@ const PlotFrame = ({
         : "box"
       : null;
   const syncTime = isTimeSynced(plotter);
+  // The global timeline spans every loaded run; this one may end sooner.
+  const span = useTimeSpan(simulation?.id ?? null);
+  const time = panelTime(plotter, uiState.timeline);
+  const outside = span && outsideSpan(time, span);
   const ownRenderPending = useRendersPending((scope) => scope === nodeId);
+  const [hovered, setHovered] = useState(false);
+
+  const resetZoom = () => {
+    zoom.reset();
+    setTool(null);
+  };
+  // R over the plot resets its zoom.
+  useKeyShortcut("r", () => zoom.isZoomed && resetZoom(), hovered);
 
   useEffect(() => {
     if (!menuPosition) return;
@@ -151,7 +171,11 @@ const PlotFrame = ({
   );
 
   return (
-    <div className={styles.plot}>
+    <div
+      className={styles.plot}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div className={styles.plotBody}>
         <div className={styles.plotToolbar} data-ui-chrome>
           <div className={styles.toolbarGroup} role="group" aria-label="Zoom">
@@ -171,11 +195,8 @@ const PlotFrame = ({
               className={styles.iconButton}
               disabled={!zoom.isZoomed}
               aria-label="Reset zoom"
-              title="Reset zoom"
-              onClick={() => {
-                zoom.reset();
-                setTool(null);
-              }}
+              title="Reset zoom (R over the plot)"
+              onClick={resetZoom}
             >
               <TbZoomReset aria-hidden />
             </button>
@@ -263,6 +284,13 @@ const PlotFrame = ({
         </div>
 
         <div className={styles.plotFigure} onContextMenu={openMenu}>
+          {outside && span && (
+            <p className={styles.outsideNote} role="status">
+              {outside === "after"
+                ? `Past the end of this run (t = ${formatNumber(span.max)}): showing its last output`
+                : `Before this run starts (t = ${formatNumber(span.min)}): showing its first output`}
+            </p>
+          )}
           {simulation ? (
             children({
               enabled: zoomMode,

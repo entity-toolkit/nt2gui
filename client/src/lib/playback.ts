@@ -40,6 +40,21 @@ export const panelTime = (
 };
 
 /**
+ * Whether `time` lies before the first or after the last output of a
+ * simulation spanning `span` (the global timeline can cover longer runs);
+ * null inside it. Rounding of the timeline's grid isn't counted.
+ */
+export const outsideSpan = (
+  time: number,
+  span: { min: number; max: number },
+): "before" | "after" | null => {
+  const tolerance = 1e-6 * Math.max(Math.abs(span.max - span.min), 1e-12);
+  if (time < span.min - tolerance) return "before";
+  if (time > span.max + tolerance) return "after";
+  return null;
+};
+
+/**
  * Number of steps on the timeline's grid `min, min + step, …, max` (the last
  * one may be shorter). The slider moves over indices 0…count, so its value is
  * always valid (no browser "select a valid value" hints from float grids).

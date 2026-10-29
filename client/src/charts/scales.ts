@@ -22,6 +22,27 @@ export const makeScale = (
   return scaleLinear();
 };
 
+/**
+ * Length of [a, b] in the scale's own space (log10 for "log",
+ * sign(v)·|v|^p for "power"), so axes of two scales can be drawn with
+ * equal aspect.
+ */
+export const scaledLength = (
+  kind: ParticleScale = "linear",
+  power: number = DEFAULT_PARTICLE_POWER,
+  a: number,
+  b: number,
+): number => {
+  const transform =
+    kind === "log"
+      ? Math.log10
+      : kind === "power"
+        ? (v: number) => Math.sign(v) * Math.abs(v) ** power
+        : (v: number) => v;
+  const length = Math.abs(transform(b) - transform(a));
+  return Number.isFinite(length) ? length : 0;
+};
+
 /** Finite (and, for log scales, positive) [min, max] of the values. */
 export const scaleExtent = (
   values: Iterable<number | null>,

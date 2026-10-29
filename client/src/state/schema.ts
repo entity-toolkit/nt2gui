@@ -175,6 +175,8 @@ export interface IParticlePhaseConfig {
   vmax?: number;
   colorMap?: string;
   expressions?: string[];
+  /** Draw both axes with the same length per unit (in each axis' scale). */
+  equalAspect?: boolean;
 }
 
 export interface IPlotter {

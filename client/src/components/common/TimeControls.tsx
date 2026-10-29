@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useEffectEvent, useId, useState } from "react";
 import { formatNumber } from "../../lib/format";
+import { isPlainKey, isTyping } from "../../lib/keyboard";
 import { TbPlayerPauseFilled, TbPlayerPlayFilled } from "react-icons/tb";
 import {
   HOLD_DELAY_MS,
@@ -39,17 +40,11 @@ interface TimeControlsProps {
 
 /** -1 / 1 for a step key, or null (with modifiers, or not a step key). */
 const stepKey = (event: KeyboardEvent): -1 | 1 | null => {
-  if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  if (!isPlainKey(event)) return null;
   if (event.key === "<" || event.key === ",") return -1;
   if (event.key === ">" || event.key === ".") return 1;
   return null;
 };
-
-/** Typing in a text box or menu must not step time. */
-const isTyping = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 /**
  * A time slider with playback. Dragging only moves the label; the time is

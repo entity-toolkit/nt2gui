@@ -49,6 +49,16 @@ export const reconcilePlotters = (
   return next;
 };
 
+/** A new panel `to` showing exactly what panel `from` shows. */
+export const duplicatePlotter = (
+  plotters: IPlotters,
+  from: string,
+  to: string,
+): IPlotters =>
+  plotters[from]
+    ? { ...plotters, [to]: structuredClone(plotters[from]) }
+    : plotters;
+
 /** Merge `patch` (or `patch(plotter)`) into one plotter. */
 export const updatePlotter = (
   plotters: IPlotters,

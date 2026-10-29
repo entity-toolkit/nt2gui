@@ -8,6 +8,7 @@ swapped in whole rather than edited in place.
 
 import logging
 import threading
+from collections.abc import Iterable
 from typing import Any
 
 from .data.transforms import IDENTITY, Frame, TransformError, frame_timeline
@@ -28,7 +29,7 @@ from .session.templates import (
     check_name,
     template_from_state,
 )
-from .sources import SimulationSource, open_simulation
+from .sources import SimulationSource, open_simulation, spanning_timeline
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,13 @@ class Workspace:
             raise NotFound("Simulation not found")
         return simulation
 
+    def all(self) -> list[SimulationSource]:
+        """The open simulations, in the order they were loaded."""
+        return list(self._simulations.values())
+
     def add(self, path: str) -> dict[str, Any]:
-        """Open `path` (once) and make its timeline the global one."""
+        """Open `path` (once); the global timeline grows to cover it too (the
+        first simulation's starts at its first output)."""
         with self._lock:
             if any(sim.path == path for sim in self._simulations.values()):
                 return self.store.snapshot()
@@ -78,8 +84,11 @@ class Workspace:
                         name=unique_name(simulation.name, taken),
                     )
                 )
-                session.state.timeline = Timeline.model_validate(
-                    _timeline(simulation, session)
+                current = (
+                    session.state.timeline.current if self._simulations else None
+                )
+                session.state.timeline = global_timeline(
+                    session, [*self._simulations.values(), simulation], current
                 )
 
             snapshot = self.store.update(mutate)
@@ -113,7 +122,7 @@ class Workspace:
 
     def reload(self, simulation_id: str) -> dict[str, Any]:
         """Re-open a simulation from disk (same id and name), picking up new
-        outputs; its timeline becomes the global one, keeping the current time
+        outputs; the global timeline is updated, keeping the current time
         where it still fits. Cached data of the old instance is dropped with it."""
         with self._lock:
             old = self.simulation(simulation_id)
@@ -125,14 +134,15 @@ class Workspace:
                     f"Could not reload {old.path}: {_message(error)}"
                 ) from error
 
+            simulations = {**self._simulations, simulation_id: simulation}
+
             def mutate(session: Session) -> None:
-                current = session.state.timeline.current
-                timeline = Timeline.model_validate(_timeline(simulation, session))
-                timeline.current = min(max(current, timeline.min), timeline.max)
-                session.state.timeline = timeline
+                session.state.timeline = global_timeline(
+                    session, simulations.values(), session.state.timeline.current
+                )
 
             snapshot = self.store.update(mutate)
-            self._simulations = {**self._simulations, simulation_id: simulation}
+            self._simulations = simulations
             return snapshot
 
     def save_template(self, name: str, overwrite: bool = False) -> list[dict[str, Any]]:
@@ -153,14 +163,21 @@ class Workspace:
     def remove(self, simulation_id: str) -> dict[str, Any]:
         with self._lock:
             self.simulation(simulation_id)
-            snapshot = self.store.update(
-                lambda session: forget_simulations(session, {simulation_id})
-            )
-            self._simulations = {
+            remaining = {
                 key: sim
                 for key, sim in self._simulations.items()
                 if key != simulation_id
             }
+
+            def mutate(session: Session) -> None:
+                forget_simulations(session, {simulation_id})
+                if remaining:
+                    session.state.timeline = global_timeline(
+                        session, remaining.values(), session.state.timeline.current
+                    )
+
+            snapshot = self.store.update(mutate)
+            self._simulations = remaining
             return snapshot
 
     def apply_document(self, document: SessionDocument) -> dict[str, Any]:
@@ -199,6 +216,19 @@ def _timeline(simulation: SimulationSource, session: Session) -> dict[str, float
     except TransformError as error:
         logger.warning("Untransformed timeline for %s: %s", simulation.path, error)
         return simulation.timeline
+
+
+def global_timeline(
+    session: Session, simulations: Iterable[SimulationSource], current: float | None
+) -> Timeline:
+    """The timeline spanning every simulation's outputs (their times are
+    assumed to share units), at `current` (kept inside it) or its start."""
+    timeline = Timeline.model_validate(
+        spanning_timeline([_timeline(sim, session) for sim in simulations])
+    )
+    if current is not None:
+        timeline.current = min(max(current, timeline.min), timeline.max)
+    return timeline
 
 
 def _open_all(

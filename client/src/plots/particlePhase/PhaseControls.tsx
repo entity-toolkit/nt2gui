@@ -35,6 +35,7 @@ const PhaseControls = ({
   onChange,
 }: PhaseControlsProps) => {
   const colorId = useId();
+  const aspectId = useId();
   if (!metadata) {
     return (
       <FormHint>
@@ -75,6 +76,23 @@ const PhaseControls = ({
         expressions={expressions}
         onChange={(y) => onChange({ ...config, y })}
       />
+
+      <FormField label="aspect" htmlFor={aspectId}>
+        <label
+          className={styles.chip}
+          title="Draw one unit of x as long as one unit of y (in each axis' scale), e.g. for x vs y"
+        >
+          <input
+            id={aspectId}
+            type="checkbox"
+            checked={config.equalAspect ?? false}
+            onChange={(event) =>
+              onChange({ ...config, equalAspect: event.target.checked })
+            }
+          />
+          equal (1:1)
+        </label>
+      </FormField>
 
       <FormField label="color" htmlFor={colorId}>
         <select

@@ -7,6 +7,7 @@ import {
   stepCount,
   steppedTime,
   timeAtIndex,
+  outsideSpan,
 } from "./playback";
 
 const timeline = { current: 0, min: 0, max: 1, step: 0.25 };
@@ -102,5 +103,19 @@ describe("steppedTime", () => {
     expect(steppedTime({ ...timeline, current: 0.75 }, 1)).toBe(1);
     // Off-grid times step from the nearest grid point.
     expect(steppedTime({ ...timeline, current: 0.3 }, 1)).toBe(0.5);
+  });
+});
+
+describe("outsideSpan", () => {
+  const span = { min: 0, max: 1 };
+  it("tells before the first and after the last output", () => {
+    expect(outsideSpan(-0.1, span)).toBe("before");
+    expect(outsideSpan(1.5, span)).toBe("after");
+    expect(outsideSpan(0.5, span)).toBeNull();
+    expect(outsideSpan(1, span)).toBeNull();
+  });
+
+  it("ignores the timeline grid's rounding", () => {
+    expect(outsideSpan(1 + 1e-9, span)).toBeNull();
   });
 });

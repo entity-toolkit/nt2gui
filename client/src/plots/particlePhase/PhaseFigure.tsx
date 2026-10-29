@@ -79,6 +79,7 @@ const PhaseFigure = ({
           power: config.y.power,
         }}
         colorbarTitle="weighted count"
+        preserveAspect={config.equalAspect ?? false}
         zoomEnabled={zoomEnabled}
         onZoom={onZoom}
         pan={

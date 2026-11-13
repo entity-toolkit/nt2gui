@@ -121,12 +121,42 @@ def describe_particles(simulation: SimulationSource) -> dict[str, Any] | None:
     }
 
 
+# The step number of each output (nt2py's field datasets have it along t).
+STEP_COORD = "s"
+
+
+def mixed_runs_warning(grid: xr.Dataset) -> str | None:
+    """Why the outputs look like they come from more than one run: within a
+    run (restarts included) time grows with the step number, so a later step
+    at an earlier time means another run's files are in the directory."""
+    if STEP_COORD not in grid.coords or TIME_DIM not in grid.coords:
+        return None
+    steps = np.asarray(grid.coords[STEP_COORD].values)
+    times = np.asarray(grid.coords[TIME_DIM].values, dtype=float)
+    if steps.ndim != 1 or steps.shape != times.shape:
+        return None
+    order = np.argsort(steps, kind="stable")
+    steps, times = steps[order], times[order]
+    drops = np.flatnonzero(np.diff(times) < 0)
+    if not drops.size:
+        return None
+    i = int(drops[0])
+    return (
+        f"Outputs seem to come from different runs: step {int(steps[i])} is at "
+        f"t = {times[i]:.4g} but the later step {int(steps[i + 1])} at "
+        f"t = {times[i + 1]:.4g}. Files of an earlier run may be left in the "
+        "directory; the timeline shows every output, ordered by time."
+    )
+
+
 def summarize(simulation: SimulationSource) -> dict[str, Any]:
     spectra = simulation.spectra
+    warning = mixed_runs_warning(simulation.fields)
     return {
         "fields": describe_grid(simulation.fields),
         "particles": describe_particles(simulation),
         "spectra": describe_grid(spectra) if spectra is not None else None,
+        "warnings": [warning] if warning else [],
     }
 
 

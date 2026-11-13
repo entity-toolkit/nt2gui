@@ -3,7 +3,12 @@ import pytest
 import xarray as xr
 
 from helpers import load_demo
-from nt2gui.data.metadata import describe_grid, describe_times, summarize
+from nt2gui.data.metadata import (
+    describe_grid,
+    describe_times,
+    mixed_runs_warning,
+    summarize,
+)
 from nt2gui.sources.demo import DemoSimulation
 
 
@@ -60,3 +65,25 @@ def test_summary_endpoint(client):
     body = client.get(f"/api/simulations/{sim_id}/summary").get_json()
     assert body["fields"]["times"]["count"] == 50
     assert client.get("/api/simulations/nope/summary").status_code == 404
+
+
+def _outputs(steps, times):
+    return xr.Dataset(
+        {"Bx": (("t", "x"), np.zeros((len(times), 2)))},
+        coords={"t": times, "s": ("t", steps), "x": [0.0, 1.0]},
+    )
+
+
+def test_outputs_of_one_run_raise_no_warning():
+    # A restart from a checkpoint (3817) after output 3821 was written.
+    one_run = _outputs([1, 383, 3821, 3817, 4199], [0.13, 50.2, 501.3, 500.8, 550.9])
+    assert mixed_runs_warning(one_run) is None
+    assert mixed_runs_warning(_outputs([0, 1], [0.0, 1.0]).drop_vars("s")) is None
+
+
+def test_outputs_of_different_runs_are_flagged():
+    # An old run (dt 0.0026, every 39 steps) under a new one (dt 0.131).
+    mixed = _outputs([1, 40, 79, 383], [0.1312, 0.105, 0.2073, 50.25])
+    warning = mixed_runs_warning(mixed)
+    assert warning is not None
+    assert "step 1 is at t = 0.1312 but the later step 40 at t = 0.105" in warning

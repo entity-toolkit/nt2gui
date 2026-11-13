@@ -73,6 +73,8 @@ export interface ISimulationSummary {
     times: ITimesSummary | null;
   } | null;
   spectra: IGridSummary | null;
+  /** Problems with the outputs, e.g. files of different runs mixed together. */
+  warnings?: string[];
 }
 
 // --- plots ------------------------------------------------------------------

@@ -654,19 +654,21 @@ describe("App", () => {
 
   it("says when the time is past the end of a panel's simulation", async () => {
     const saved = snapshot();
+    // Its own id: output times are cached across tests.
+    saved.simulations = [{ id: "sim-short", path: "demo:short" }];
     saved.state.timeline = { current: 0.8, min: 0, max: 1, step: 0.1 };
     saved.state.plotters["panel-1"] = {
       dataType: DataType.Fields,
       plotType: PlotType.Line,
-      simulationId: "sim1",
+      simulationId: "sim-short",
       lineConfig: { quantities: ["Bx"], axis: "x", slices: {} },
     };
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
     const fake = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       if (url === "api/state" && init?.method !== "PUT") return json(saved);
-      if (url.startsWith("api/simulations/sim1/span?")) {
-        return json({ min: 0, max: 0.5 });
+      if (url.startsWith("api/simulations/sim-short/times?")) {
+        return json({ times: [0, 0.25, 0.5] });
       }
       return fake(url, init);
     });
@@ -674,6 +676,95 @@ describe("App", () => {
     expect(
       await screen.findByText(/Past the end of this run \(t = 0\.5\)/),
     ).toBeTruthy();
+  });
+
+  it("steps from output to output, rendering the output nearest the time", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const saved = snapshot();
+    // Its own id: output times are cached across tests.
+    saved.simulations = [{ id: "sim-steps", path: "demo:steps" }];
+    // The server's grid steps by the closest pair of outputs (0.02 apart).
+    saved.state.timeline = { current: 30, min: 0, max: 100, step: 0.02 };
+    saved.state.plotters["panel-1"] = {
+      dataType: DataType.Fields,
+      plotType: PlotType.Line,
+      simulationId: "sim-steps",
+      lineConfig: { quantities: ["Bx"], axis: "x", slices: {} },
+    };
+    const renderedTimes: number[] = [];
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "api/state" && init?.method !== "PUT") return json(saved);
+      if (url.startsWith("api/simulations/sim-steps/times?")) {
+        return json({ times: [0, 0.1, 0.5, 0.52, 50, 100] });
+      }
+      if (url.endsWith("/render/line")) {
+        renderedTimes.push(JSON.parse(String(init?.body)).time);
+        return json({
+          axis: "x",
+          coordinates: [],
+          series: [],
+          slices: {},
+          timestamp: 0,
+        });
+      }
+      return fake(url, init);
+    });
+    render(<App />);
+    const footer = await screen.findByRole("contentinfo", {
+      name: "Global timeline",
+    });
+    const slider = within(footer).getByRole("slider");
+    // One slider position per output.
+    await vi.waitFor(() => expect(slider.getAttribute("max")).toBe("5"));
+    const time = () =>
+      Number(
+        within(footer)
+          .getByText(/Time:/)
+          .textContent?.match(/[\d.]+/),
+      );
+
+    // The panel asks for the output nearest to t = 30.
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(renderedTimes.at(-1)).toBe(50);
+
+    fireEvent.keyDown(window, { key: ">" });
+    fireEvent.keyUp(window, { key: ">" });
+    expect(time()).toBe(50);
+    fireEvent.keyDown(window, { key: "<" });
+    fireEvent.keyUp(window, { key: "<" });
+    expect(time()).toBe(0.52);
+    fireEvent.keyDown(window, { key: "<" });
+    fireEvent.keyUp(window, { key: "<" });
+    expect(time()).toBe(0.5);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(renderedTimes.at(-1)).toBe(0.5);
+    vi.useRealTimers();
+  });
+
+  it("warns on the card when a directory mixes outputs of different runs", async () => {
+    const saved = snapshot();
+    // Its own id: summaries are cached across tests.
+    saved.simulations = [{ id: "sim-mixed", path: "/data/mixed" }];
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "api/state" && init?.method !== "PUT") return json(saved);
+      if (url.endsWith("sim-mixed/summary")) {
+        return json({
+          fields: null,
+          particles: null,
+          spectra: null,
+          warnings: ["Outputs seem to come from different runs: …"],
+        });
+      }
+      return fake(url, init);
+    });
+    render(<App />);
+    expect((await screen.findByRole("alert")).textContent).toMatch(
+      /different runs/,
+    );
   });
 
   it("defines, renames and names variables shared by every plot", async () => {

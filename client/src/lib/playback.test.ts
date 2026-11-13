@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DataType, PlotType } from "../state/schema";
 import {
   indexOfTime,
+  mergeOutputTimes,
+  nearestOutput,
   nextTime,
   panelTime,
   stepCount,
@@ -117,5 +119,63 @@ describe("outsideSpan", () => {
 
   it("ignores the timeline grid's rounding", () => {
     expect(outsideSpan(1 + 1e-9, span)).toBeNull();
+  });
+});
+
+// Irregular outputs: a regular cadence, then a restart's close pair, then a
+// coarse one (as when a run is restarted with another output interval).
+const outputs = [0, 0.1, 0.2, 0.52, 0.53, 50, 100];
+const range = { current: 0, min: 0, max: 100, step: 0.01 };
+
+describe("stepping through outputs", () => {
+  it("moves output by output, not by the finest gap", () => {
+    expect(nextTime(range, outputs)).toBe(0.1);
+    expect(nextTime({ ...range, current: 0.53 }, outputs)).toBe(50);
+    expect(nextTime({ ...range, current: 100 }, outputs)).toBeNull();
+    expect(steppedTime({ ...range, current: 50 }, -1, outputs)).toBe(0.53);
+    expect(steppedTime({ ...range, current: 0 }, -1, outputs)).toBeNull();
+    expect(steppedTime({ ...range, current: 0.1 }, 2, outputs)).toBe(0.52);
+  });
+
+  it("steps from between outputs to the next or previous one", () => {
+    expect(steppedTime({ ...range, current: 30 }, 1, outputs)).toBe(50);
+    expect(steppedTime({ ...range, current: 30 }, -1, outputs)).toBe(0.53);
+  });
+
+  it("puts one slider index on each output", () => {
+    expect(stepCount(range, outputs)).toBe(6);
+    expect(timeAtIndex(range, 5, outputs)).toBe(50);
+    expect(timeAtIndex(range, 99, outputs)).toBe(100);
+    expect(indexOfTime(range, 0.52, outputs)).toBe(3);
+    expect(indexOfTime(range, 70, outputs)).toBe(5);
+    expect(indexOfTime(range, 80, outputs)).toBe(6);
+  });
+
+  it("falls back to the grid without outputs", () => {
+    expect(stepCount(range, [])).toBe(10000);
+    expect(nextTime(range, null)).toBe(0.01);
+  });
+});
+
+describe("nearestOutput", () => {
+  it("picks the closest output (the earlier one on a tie)", () => {
+    expect(nearestOutput(outputs, 0.14)).toBe(0.1);
+    expect(nearestOutput(outputs, 0.15)).toBe(0.1);
+    expect(nearestOutput(outputs, 0.16)).toBe(0.2);
+    expect(nearestOutput(outputs, -3)).toBe(0);
+    expect(nearestOutput(outputs, 1e9)).toBe(100);
+    expect(nearestOutput(null, 0.14)).toBe(0.14);
+  });
+});
+
+describe("mergeOutputTimes", () => {
+  it("sorts every simulation's outputs into one list, once each", () => {
+    expect(
+      mergeOutputTimes([
+        [0, 1, 2],
+        [0.5, 1 + 1e-12, 3],
+      ]),
+    ).toEqual([0, 0.5, 1, 2, 3]);
+    expect(mergeOutputTimes([])).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TbChevronDown, TbChevronUp } from "react-icons/tb";
+import { useTimelineOutputs } from "../../hooks/useOutputTimes";
 import { useTransforms } from "../../hooks/useTransforms";
 import { PRIMED_TIME, TIME, coordinateLabel } from "../../state/transforms";
 import TimeControls from "../common/TimeControls";
@@ -21,6 +22,8 @@ const TimelineBar = () => {
   const waiting = useRendersPending((scope) => isTimeSynced(plotters[scope]));
   const { transforms, timeAxis, setTimeAxis } = useTransforms();
   const [switching, setSwitching] = useState(false);
+  // Steps go from output to output of any loaded simulation.
+  const outputs = useTimelineOutputs();
   // With time transformed, the timeline can run in either t or t′.
   const axisToggle = transforms[TIME] ? (
     <span className={styles.axes} role="group" aria-label="Timeline time">
@@ -55,6 +58,7 @@ const TimelineBar = () => {
     >
       <TimeControls
         timeline={timeline}
+        outputs={outputs}
         onTimeChange={(current) =>
           updateUiState((prev) => ({
             ...prev,

@@ -16,7 +16,7 @@ import {
 } from "../lib/playback";
 import { formatNumber } from "../lib/format";
 import { useKeyShortcut } from "../hooks/useKeyShortcut";
-import { useTimeSpan } from "../hooks/useTimeSpan";
+import { useOutputTimes } from "../hooks/useOutputTimes";
 import { isSpatial } from "../state/regions";
 import { simulationName } from "../lib/simulations";
 import { useRendersPending } from "../state/renderActivity";
@@ -113,7 +113,10 @@ const PlotFrame = ({
       : null;
   const syncTime = isTimeSynced(plotter);
   // The global timeline spans every loaded run; this one may end sooner.
-  const span = useTimeSpan(simulation?.id ?? null);
+  const outputs = useOutputTimes(simulation?.id ?? null);
+  const span = outputs?.length
+    ? { min: outputs[0], max: outputs[outputs.length - 1] }
+    : null;
   const time = panelTime(plotter, uiState.timeline);
   const outside = span && outsideSpan(time, span);
   const ownRenderPending = useRendersPending((scope) => scope === nodeId);
@@ -314,10 +317,9 @@ const PlotFrame = ({
             <div className={styles.plotTimeline} aria-label="Panel timeline">
               <TimeControls
                 variant="compact"
-                timeline={{
-                  ...uiState.timeline,
-                  current: panelTime(plotter, uiState.timeline),
-                }}
+                timeline={{ ...uiState.timeline, current: time }}
+                // Its own simulation's outputs.
+                outputs={outputs}
                 onTimeChange={(localTime) =>
                   updatePlotter(nodeId, { localTime })
                 }

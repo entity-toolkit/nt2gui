@@ -1,7 +1,8 @@
 import { Actions, TabSetNode } from "flexlayout-react";
 import { useState } from "react";
 import { useKeyShortcut } from "../hooks/useKeyShortcut";
-import { panelTime } from "../lib/playback";
+import { useOutputTimes } from "../hooks/useOutputTimes";
+import { nearestOutput, panelTime } from "../lib/playback";
 import { RenderScope } from "../state/renderActivity";
 import { DataType, PlotType } from "../state/schema";
 import { useUi, useUiActions } from "../state/UiContext";
@@ -43,6 +44,11 @@ const Panel = ({ nodeId }: { nodeId: string }) => {
     pickerSimulation,
     undefined,
   );
+  // The output the plot shows: a time between two of its simulation's
+  // outputs (another run's, on the shared timeline) shows the nearest, so
+  // steps that don't change it don't render again.
+  const outputs = useOutputTimes(plotter?.simulationId ?? null);
+  const time = nearestOutput(outputs, panelTime(plotter, uiState.timeline));
 
   const content = (() => {
     if (!plotter || picking) {
@@ -70,7 +76,7 @@ const Panel = ({ nodeId }: { nodeId: string }) => {
         nodeId={nodeId}
         plotter={plotter}
         simulationId={plotter.simulationId ?? null}
-        time={panelTime(plotter, uiState.timeline)}
+        time={time}
       />
     );
   })();

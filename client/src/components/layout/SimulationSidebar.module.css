@@ -121,6 +121,17 @@
   overflow-wrap: anywhere;
 }
 
+.warning {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #fde68a;
+  background: rgba(120, 53, 15, 0.45);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+
 .cards {
   list-style: none;
   margin: 0;

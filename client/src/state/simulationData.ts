@@ -31,3 +31,9 @@ export const markSimulationReloaded = (id: string) => {
 /** The current data version of a simulation (0 until it's reloaded). */
 export const useSimulationVersion = (id: string | null | undefined) =>
   useSyncExternalStore(subscribe, () => simulationVersion(id));
+
+/** The data versions of several simulations, as one value that changes with any. */
+export const useSimulationVersions = (ids: readonly string[]) =>
+  useSyncExternalStore(subscribe, () =>
+    ids.map((id) => simulationVersion(id)).join(","),
+  );

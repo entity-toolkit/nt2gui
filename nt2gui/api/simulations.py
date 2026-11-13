@@ -12,7 +12,7 @@ from ..data.transforms import (
     retimed,
 )
 from ..errors import UserError
-from ..sources import spanning_timeline
+from ..sources import output_times, spanning_timeline
 from .common import (
     frame_for,
     json_object,
@@ -66,20 +66,19 @@ def check_simulation_transforms(simulation_id: str):
     return jsonify(check_transforms(source, request_frame(source, json_object())))
 
 
-@bp.get("/simulations/<simulation_id>/span")
-def time_span(simulation_id: str):
-    """The first and last output times of this simulation on the timeline's
-    axis (`?transforms=<json>&timeAxis=<t|tp>`), so plots can tell when the
-    global time is outside it."""
+@bp.get("/simulations/<simulation_id>/times")
+def time_outputs(simulation_id: str):
+    """Every output time of this simulation on the timeline's axis
+    (`?transforms=<json>&timeAxis=<t|tp>`), ascending: the timeline steps
+    through them, and plots tell when the global time is outside them."""
     source = simulation(simulation_id)
     try:
         transforms = json.loads(request.args.get("transforms", "null"))
     except ValueError as error:
         raise UserError("transforms must be JSON") from error
-    timeline = frame_timeline(
-        source, frame_for(source, transforms, request.args.get("timeAxis"))
-    )
-    return jsonify({"min": timeline["min"], "max": timeline["max"]})
+    frame = frame_for(source, transforms, request.args.get("timeAxis"))
+    # Exact (not rounded): the client sends them back to pick these outputs.
+    return jsonify({"times": frame.times(output_times(source)).tolist()})
 
 
 @bp.post("/simulations/<simulation_id>/timeline")

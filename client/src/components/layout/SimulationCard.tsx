@@ -156,6 +156,11 @@ const SimulationCard = ({
         <p className={styles.detail}>Reading contents…</p>
       ) : (
         <>
+          {summary.warnings?.map((warning) => (
+            <p key={warning} className={styles.warning} role="alert">
+              {warning}
+            </p>
+          ))}
           {summary.fields && (
             <GridSection title="Fields" grid={summary.fields} />
           )}

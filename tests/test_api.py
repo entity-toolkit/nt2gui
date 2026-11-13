@@ -142,13 +142,16 @@ def test_global_timeline_spans_every_simulation(client, longer_runs):
     assert remaining["state"]["timeline"]["current"] == 1
 
 
-def test_simulation_span_is_on_the_timeline_axis(client, longer_runs):
+def test_output_times_are_on_the_timeline_axis(client, longer_runs):
     long = load_demo(client, "demo:long")
-    assert client.get(f"/api/simulations/{long}/span").get_json() == {"min": 0, "max": 2}
+    times = client.get(f"/api/simulations/{long}/times").get_json()["times"]
+    assert len(times) == 50
+    assert times[0] == 0 and times[-1] == 2
+    assert times == sorted(times)
     query = "transforms=" + json.dumps({"t": "t * 10"}) + "&timeAxis=tp"
-    span = client.get(f"/api/simulations/{long}/span?{query}").get_json()
-    assert span == {"min": 0, "max": 20}
-    assert client.get(f"/api/simulations/{long}/span?transforms=x").status_code == 400
+    scaled = client.get(f"/api/simulations/{long}/times?{query}").get_json()
+    assert scaled["times"] == pytest.approx([10 * t for t in times])
+    assert client.get(f"/api/simulations/{long}/times?transforms=x").status_code == 400
 
 
 def test_transformed_timeline_spans_every_simulation(client, longer_runs):

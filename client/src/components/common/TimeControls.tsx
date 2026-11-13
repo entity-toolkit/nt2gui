@@ -4,6 +4,7 @@ import { isPlainKey, isTyping } from "../../lib/keyboard";
 import { TbPlayerPauseFilled, TbPlayerPlayFilled } from "react-icons/tb";
 import {
   HOLD_DELAY_MS,
+  OutputTimes,
   PLAYBACK_SPEEDS,
   indexOfTime,
   nextTime,
@@ -17,6 +18,11 @@ import styles from "./TimeControls.module.css";
 interface TimeControlsProps {
   /** Range, grid and current time. */
   timeline: ITimeline;
+  /**
+   * The output times to step through (slider, playback, keys); until they
+   * load, the timeline's uniform grid.
+   */
+  outputs?: OutputTimes;
   onTimeChange: (time: number) => void;
   fps: number;
   onFpsChange: (fps: number) => void;
@@ -47,14 +53,16 @@ const stepKey = (event: KeyboardEvent): -1 | 1 | null => {
 };
 
 /**
- * A time slider with playback. Dragging only moves the label; the time is
- * applied (and plots re-render) when the slider is released. Playback moves
- * to the next output once `waiting` clears, at most `fps` frames per second;
+ * A time slider with playback, moving output by output (`outputs`).
+ * Dragging only moves the label; the time is applied (and plots re-render)
+ * when the slider is released. Playback moves to the next output once
+ * `waiting` clears, at most `fps` frames per second;
  * with `keyboard`, < and > step one output, and holding one repeats the same
  * way (after a short pause).
  */
 const TimeControls = ({
   timeline,
+  outputs,
   onTimeChange,
   fps,
   onFpsChange,
@@ -75,12 +83,12 @@ const TimeControls = ({
   useEffect(() => {
     if (!playing || waiting) return;
     const timer = setTimeout(() => {
-      const next = nextTime({ current, min, max, step: gridStep });
+      const next = nextTime({ current, min, max, step: gridStep }, outputs);
       if (next === null) setPlaying(false);
       else step(next);
     }, 1000 / fps);
     return () => clearTimeout(timer);
-  }, [current, fps, gridStep, max, min, playing, waiting]);
+  }, [current, fps, gridStep, max, min, outputs, playing, waiting]);
 
   // A held step key: its direction, and how often it has repeated.
   const [held, setHeld] = useState<{ delta: number; repeats: number } | null>(
@@ -93,6 +101,7 @@ const TimeControls = ({
         const next = steppedTime(
           { current, min, max, step: gridStep },
           held.delta,
+          outputs,
         );
         if (next === null) return setHeld(null);
         step(next);
@@ -101,10 +110,10 @@ const TimeControls = ({
       held.repeats === 0 ? HOLD_DELAY_MS : 1000 / Math.max(fps, 5),
     );
     return () => clearTimeout(timer);
-  }, [current, fps, gridStep, held, max, min, waiting]);
+  }, [current, fps, gridStep, held, max, min, outputs, waiting]);
 
   const moveBy = (delta: number) => {
-    const next = steppedTime(timeline, delta);
+    const next = steppedTime(timeline, delta, outputs);
     if (next === null) return;
     setPlaying(false);
     setDraft(null);
@@ -139,7 +148,9 @@ const TimeControls = ({
 
   const togglePlay = () => {
     // At the end: start over.
-    if (!playing && nextTime(timeline) === null) onTimeChange(timeline.min);
+    if (!playing && nextTime(timeline, outputs) === null) {
+      onTimeChange(timeAtIndex(timeline, 0, outputs));
+    }
     setPlaying((on) => !on);
   };
 
@@ -186,15 +197,18 @@ const TimeControls = ({
             className={styles.slider}
             type="range"
             aria-label="Time"
-            // Over grid indices: always a valid value, whatever the floats.
+            // Over output (or grid) indices: always a valid value, whatever
+            // the floats.
             min={0}
-            max={stepCount(timeline)}
+            max={stepCount(timeline, outputs)}
             step={1}
-            value={indexOfTime(timeline, value)}
+            value={indexOfTime(timeline, value, outputs)}
             aria-valuetext={formatNumber(value)}
             onChange={(event) => {
               setPlaying(false);
-              setDraft(timeAtIndex(timeline, Number(event.target.value)));
+              setDraft(
+                timeAtIndex(timeline, Number(event.target.value), outputs),
+              );
             }}
             onMouseUp={commit}
             onTouchEnd={commit}

@@ -29,10 +29,10 @@ export const reloadSimulation = (id: string) =>
   });
 
 /**
- * A simulation's first and last output times on the timeline's axis (`tp`
- * needs the transform of `t`).
+ * A simulation's output times on the timeline's axis, ascending (`tp` needs
+ * the transform of `t`).
  */
-export const fetchTimeSpan = (
+export const fetchOutputTimes = (
   id: string,
   transforms: Record<string, string>,
   timeAxis: TimeAxis,
@@ -41,8 +41,8 @@ export const fetchTimeSpan = (
     transforms: JSON.stringify(transforms),
     timeAxis,
   });
-  return requestJson<{ min: number; max: number }>(
-    `${simulationUrl(id, "span")}?${query}`,
+  return requestJson<{ times: number[] }>(
+    `${simulationUrl(id, "times")}?${query}`,
   );
 };
 

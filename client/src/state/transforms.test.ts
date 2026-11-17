@@ -11,6 +11,7 @@ import {
   metadataFrame,
   timeChanged,
   withTransforms,
+  withoutPrimed,
 } from "./transforms";
 
 const state = (): IUiState => ({
@@ -92,5 +93,90 @@ describe("primed coordinates", () => {
   it("drops t′ when time's transform is removed", () => {
     const next = withTransforms({ ...state(), timeAxis: "tp" }, { x: "x / 2" });
     expect(next.timeAxis).toBe("t");
+  });
+});
+
+describe("removing a transform", () => {
+  const primedPlots = (): IUiState => ({
+    ...state(),
+    coordinateTransforms: { x: "x / 2", y: "y * 3", t: "t * 10" },
+    plotters: {
+      line: {
+        plotType: PlotType.Line,
+        dataType: DataType.Fields,
+        lineConfig: {
+          quantities: ["Ex"],
+          axis: "xp",
+          slices: { y: 0.5 },
+          smoothing: { xp: 2 },
+        },
+        lineViewport: { min: 1, max: 2 },
+      },
+      image: {
+        plotType: PlotType.Pseudocolor,
+        dataType: DataType.Fields,
+        pseudocolorConfig: {
+          field: "Ex",
+          xCoordinate: "xp",
+          yCoordinate: "yp",
+          colorMap: "viridis",
+          smoothing: { xp: 1, yp: 4 },
+        },
+      },
+      phase: {
+        plotType: PlotType.Pseudocolor,
+        dataType: DataType.Particles,
+        particlePhaseConfig: {
+          x: { quantity: "xp", scale: "linear", min: 0, max: 5, bins: 64 },
+          y: { quantity: "ux", scale: "linear", min: -1, max: 1 },
+        },
+      },
+      untouched: {
+        plotType: PlotType.Line,
+        dataType: DataType.Fields,
+        lineConfig: { quantities: ["Ex"], axis: "z", slices: {} },
+      },
+    },
+  });
+
+  it("puts plots on its primed coordinate back on the original", () => {
+    const next = withTransforms(primedPlots(), { y: "y * 3", t: "t * 10" });
+    expect(next.plotters.line.lineConfig).toEqual({
+      quantities: ["Ex"],
+      axis: "x",
+      slices: { y: 0.5 },
+    });
+    expect(next.plotters.line.lineViewport).toBeNull();
+    // y′ is still there.
+    expect(next.plotters.image.pseudocolorConfig).toMatchObject({
+      xCoordinate: "x",
+      yCoordinate: "yp",
+      smoothing: { yp: 4 },
+    });
+    expect(next.plotters.phase.particlePhaseConfig).toEqual({
+      x: { quantity: "x", scale: "linear", bins: 64 },
+      y: { quantity: "ux", scale: "linear", min: -1, max: 1 },
+    });
+    expect(next.plotters.untouched).toEqual(primedPlots().plotters.untouched);
+    const untouched = primedPlots().plotters.untouched;
+    expect(withoutPrimed(untouched, ["xp"])).toBe(untouched);
+  });
+
+  it("keeps plots as they are when a transform only changes", () => {
+    const next = withTransforms(primedPlots(), {
+      x: "x / 4",
+      y: "y * 3",
+      t: "t * 10",
+    });
+    expect(next.plotters.line.lineConfig?.axis).toBe("xp");
+    expect(next.plotters.line.lineConfig?.smoothing).toEqual({ xp: 2 });
+    expect(next.plotters.image.pseudocolorConfig?.xCoordinate).toBe("xp");
+  });
+
+  it("removes every primed coordinate at once", () => {
+    const next = withTransforms(primedPlots(), {});
+    const image = next.plotters.image.pseudocolorConfig!;
+    expect([image.xCoordinate, image.yCoordinate]).toEqual(["x", "y"]);
+    expect(image.smoothing).toBeUndefined();
   });
 });

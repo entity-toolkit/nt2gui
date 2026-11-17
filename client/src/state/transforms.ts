@@ -6,7 +6,13 @@
  * names and labels, what a request sends, and what changes in the state when
  * transforms change. Pure.
  */
-import { IPlotter, ITimeline, IUiState, TimeAxis } from "./schema";
+import {
+  IParticleAxis,
+  IPlotter,
+  ITimeline,
+  IUiState,
+  TimeAxis,
+} from "./schema";
 
 /** Matches `TRANSFORMABLE` in nt2gui/session/schema.py. */
 export const TRANSFORMABLE = ["x", "y", "z", "r", "th", "ph", "t"];
@@ -83,6 +89,95 @@ const unzoomed = (plotter: IPlotter): IPlotter => ({
   ...(plotter.lineViewport !== undefined && { lineViewport: null }),
 });
 
+/** `smoothing` without the windows along `names` (empty: unset). */
+const withoutWindows = (
+  smoothing: Record<string, number> | undefined,
+  names: string[],
+) => {
+  if (!smoothing || !names.some((name) => name in smoothing)) return smoothing;
+  const rest = Object.fromEntries(
+    Object.entries(smoothing).filter(([name]) => !names.includes(name)),
+  );
+  return Object.keys(rest).length ? rest : undefined;
+};
+
+/** A particle axis on a removed primed coordinate, back on the original. */
+const unprimedAxis = (
+  axis: IParticleAxis,
+  removed: string[],
+): IParticleAxis => {
+  if (!removed.includes(axis.quantity)) return axis;
+  const { min: _min, max: _max, ...rest } = axis;
+  return { ...rest, quantity: baseOf(axis.quantity) };
+};
+
+/**
+ * A plot that used coordinates whose transform is gone (`removed`: the
+ * primed names, e.g. `xp`), back on the originals (`x`). Ranges and
+ * smoothing windows along them were in the transformed units, so they go
+ * (zooms are reset anyway). Expressions are left as they are.
+ */
+export const withoutPrimed = (
+  plotter: IPlotter,
+  removed: string[],
+): IPlotter => {
+  if (!removed.length) return plotter;
+  const gone = (name: string) => removed.includes(name);
+  // A removed primed name back to its original; others as they are.
+  const restored = (name: string) => (gone(name) ? baseOf(name) : name);
+  const next = { ...plotter };
+  const line = plotter.lineConfig;
+  if (
+    line &&
+    (gone(line.axis) || removed.some((n) => n in (line.smoothing ?? {})))
+  ) {
+    const { smoothing: _smoothing, ...rest } = line;
+    const smoothing = withoutWindows(line.smoothing, removed);
+    next.lineConfig = {
+      ...rest,
+      axis: restored(line.axis),
+      ...(smoothing && { smoothing }),
+    };
+  }
+  const image = plotter.pseudocolorConfig;
+  if (
+    image &&
+    (gone(image.xCoordinate) ||
+      gone(image.yCoordinate) ||
+      removed.some((n) => n in (image.smoothing ?? {})))
+  ) {
+    const { smoothing: _smoothing, ...rest } = image;
+    const smoothing = withoutWindows(image.smoothing, removed);
+    next.pseudocolorConfig = {
+      ...rest,
+      xCoordinate: restored(image.xCoordinate),
+      yCoordinate: restored(image.yCoordinate),
+      ...(smoothing && { smoothing }),
+    };
+  }
+  const histogram = plotter.particleHistogramConfig;
+  if (histogram && gone(histogram.x.quantity)) {
+    next.particleHistogramConfig = {
+      ...histogram,
+      x: unprimedAxis(histogram.x, removed),
+    };
+  }
+  const phase = plotter.particlePhaseConfig;
+  if (phase && (gone(phase.x.quantity) || gone(phase.y.quantity))) {
+    next.particlePhaseConfig = {
+      ...phase,
+      x: unprimedAxis(phase.x, removed),
+      y: unprimedAxis(phase.y, removed),
+    };
+  }
+  return next.lineConfig === line &&
+    next.pseudocolorConfig === image &&
+    next.particleHistogramConfig === histogram &&
+    next.particlePhaseConfig === phase
+    ? plotter
+    : next;
+};
+
 /**
  * The time axis the timeline should use with `transforms`: t′ only while
  * time is transformed.
@@ -109,7 +204,9 @@ export const timelineMoves = (
 
 /**
  * The state with new transforms (and time axis). Zooms may be on primed
- * coordinates, so they are reset when a spatial transform changes;
+ * coordinates, so they are reset when a spatial transform changes; plots on
+ * a primed coordinate whose transform is removed go back to the original
+ * (`withoutPrimed`);
  * `timeline` (from the server, see `api/simulations.ts:fetchTimeline`)
  * replaces the timeline when its values move (`timelineMoves`).
  */
@@ -122,6 +219,9 @@ export const withTransforms = (
   const previous = state.coordinateTransforms ?? {};
   const next = cleanTransforms(transforms);
   const spatialSame = same(previous, next, (name) => name !== TIME);
+  const removed = Object.keys(previous)
+    .filter((name) => name !== TIME && !(name in next))
+    .map(primed);
   return {
     ...state,
     coordinateTransforms: next,
@@ -133,7 +233,7 @@ export const withTransforms = (
       plotters: Object.fromEntries(
         Object.entries(state.plotters).map(([id, plotter]) => [
           id,
-          unzoomed(plotter),
+          unzoomed(withoutPrimed(plotter, removed)),
         ]),
       ),
     }),

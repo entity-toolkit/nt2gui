@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DataType, PlotType } from "../state/schema";
 import {
+  fractionTime,
   indexOfTime,
+  outputTicksPath,
+  timeFraction,
   mergeOutputTimes,
   nearestOutput,
   nextTime,
@@ -177,5 +180,25 @@ describe("mergeOutputTimes", () => {
       ]),
     ).toEqual([0, 0.5, 1, 2, 3]);
     expect(mergeOutputTimes([])).toEqual([]);
+  });
+});
+
+describe("track positions", () => {
+  it("are uniform in time, clamped to the track", () => {
+    expect(timeFraction(25, 0, 100)).toBe(0.25);
+    expect(timeFraction(-5, 0, 100)).toBe(0);
+    expect(timeFraction(500, 0, 100)).toBe(1);
+    expect(timeFraction(3, 3, 3)).toBe(0);
+    expect(fractionTime(0.25, 0, 100)).toBe(25);
+    expect(fractionTime(2, 0, 100)).toBe(100);
+  });
+
+  it("draws a tick per output inside the range, merging coincident ones", () => {
+    expect(outputTicksPath([0, 50, 100, 150], 0, 100)).toBe(
+      "M0 0V1M500 0V1M1000 0V1",
+    );
+    // 1e-6 apart: one line.
+    expect(outputTicksPath([10, 10.000001], 0, 100)).toBe("M100 0V1");
+    expect(outputTicksPath(null, 0, 100)).toBe("");
   });
 });

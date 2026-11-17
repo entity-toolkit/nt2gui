@@ -259,6 +259,9 @@ class UiState(_Schema):
     coordinate_transforms: dict[str, str] = {}
     # Which time the timeline runs in: the run's own (t) or transformed (tp).
     time_axis: Literal["t", "tp"] = "t"
+    # The simulation whose outputs the global timeline marks and steps
+    # through; unset: every loaded simulation's.
+    timeline_outputs_of: str | None = None
     # Named custom quantities shared by every plot (fields and particles apart).
     field_variables: list[Variable] = []
     particle_variables: list[Variable] = []

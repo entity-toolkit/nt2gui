@@ -157,4 +157,55 @@ describe("naming an expression", () => {
       variablesOf(withoutVariable(next, "fields", "edotb"), "fields"),
     ).toHaveLength(1);
   });
+
+  it("takes a removed variable off every plot of its kind", () => {
+    const start = state();
+    start.plotters.image.pseudocolorConfig!.field = "edotb";
+    const next = withoutVariable(start, "fields", "edotb");
+    // Selections go; expressions merely using it stay (and will say so).
+    expect(next.plotters.line.lineConfig?.quantities).toEqual([
+      "Ex*Bx + Ey*By",
+      "2*edotb",
+    ]);
+    expect(next.plotters.image.pseudocolorConfig?.field).toBe("");
+    // Particle axes are of the other kind.
+    expect(next.plotters.phase).toBe(start.plotters.phase);
+  });
+
+  it("puts particle axes showing a removed variable back on built-ins", () => {
+    const start = withVariable(state(), "particles", {
+      name: "edotb",
+      expression: "ux * uy",
+    });
+    start.plotters.phase.particlePhaseConfig!.x = {
+      quantity: "edotb",
+      scale: "power",
+      power: 0.3,
+      min: -1,
+      max: 1,
+      bins: 50,
+    };
+    start.plotters.histogram = {
+      plotType: PlotType.Line,
+      dataType: DataType.Particles,
+      particleHistogramConfig: {
+        x: { quantity: "edotb", scale: "linear" },
+        series: [],
+      },
+    };
+    const next = withoutVariable(start, "particles", "edotb");
+    expect(next.plotters.phase.particlePhaseConfig?.x).toEqual({
+      quantity: "x",
+      scale: "linear",
+      power: 0.3,
+      bins: 50,
+    });
+    expect(next.plotters.phase.particlePhaseConfig?.y.quantity).toBe("ux");
+    expect(next.plotters.histogram.particleHistogramConfig?.x).toEqual({
+      quantity: "gamma",
+      scale: "log",
+    });
+    // Field plots are of the other kind.
+    expect(next.plotters.line).toBe(start.plotters.line);
+  });
 });

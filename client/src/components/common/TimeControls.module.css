@@ -11,12 +11,6 @@
   min-width: 0;
 }
 
-.slider {
-  flex: 1;
-  min-width: 60px;
-  accent-color: var(--color-accent);
-}
-
 .labels {
   display: flex;
   justify-content: space-between;
@@ -32,6 +26,13 @@
   letter-spacing: 0.5px;
   color: #93c5fd;
   white-space: nowrap;
+}
+
+.position {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-muted);
 }
 
 .controls[data-variant="minimal"] .title {

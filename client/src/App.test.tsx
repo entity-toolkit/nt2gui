@@ -199,9 +199,9 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("checkbox", { name: "Sync time" }));
     const panelTimeline = await screen.findByLabelText("Panel timeline");
     const slider = within(panelTimeline).getByRole("slider");
-    // The slider moves over output indices: index 3 is t = 0.3.
-    fireEvent.change(slider, { target: { value: "3" } });
-    fireEvent.mouseUp(slider);
+    // Arrow keys step (here on the grid: no output times from this server).
+    for (let i = 0; i < 3; i++)
+      fireEvent.keyDown(slider, { key: "ArrowRight" });
 
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(puts.at(-1)?.plotters["panel-1"]).toMatchObject({
@@ -716,8 +716,11 @@ describe("App", () => {
       name: "Global timeline",
     });
     const slider = within(footer).getByRole("slider");
-    // One slider position per output.
-    await vi.waitFor(() => expect(slider.getAttribute("max")).toBe("5"));
+    // The track is uniform in time, with a tick per output.
+    await vi.waitFor(() =>
+      expect(slider.getAttribute("aria-valuetext")).toMatch(/output \d of 6/),
+    );
+    expect(slider.getAttribute("aria-valuemax")).toBe("100");
     const time = () =>
       Number(
         within(footer)
@@ -740,6 +743,67 @@ describe("App", () => {
     expect(time()).toBe(0.5);
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(renderedTimes.at(-1)).toBe(0.5);
+
+    // A click picks the output nearest the pointer: the track is 800 px
+    // wide (see beforeEach), so x = 300 is t = 37.5, nearest 50.
+    // (jsdom's pointer events have no position; React goes by the name.)
+    const pointer = (type: string, clientX: number) =>
+      fireEvent(slider, new MouseEvent(type, { clientX, bubbles: true }));
+    pointer("pointerdown", 300);
+    expect(time()).toBe(50);
+    pointer("pointerup", 300);
+    expect(slider.getAttribute("aria-valuetext")).toBe("50, output 5 of 6");
+    // End and Home jump to the last and first outputs.
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(time()).toBe(100);
+    fireEvent.keyDown(slider, { key: "Home" });
+    expect(time()).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("marks and steps through the outputs of the run picked for the timeline", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const saved = snapshot();
+    // Their own ids: output times are cached across tests.
+    saved.simulations = [
+      { id: "sim-fine", path: "/data/fine", name: "fine" },
+      { id: "sim-coarse", path: "/data/coarse", name: "coarse" },
+    ];
+    saved.state.timeline = { current: 0, min: 0, max: 50, step: 5 };
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const fake = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "api/state" && init?.method !== "PUT") return json(saved);
+      if (url.startsWith("api/simulations/sim-fine/times?")) {
+        return json({ times: [0, 10, 20, 30] });
+      }
+      if (url.startsWith("api/simulations/sim-coarse/times?")) {
+        return json({ times: [0, 25, 50] });
+      }
+      return fake(url, init);
+    });
+    render(<App />);
+    const footer = await screen.findByRole("contentinfo", {
+      name: "Global timeline",
+    });
+    const slider = within(footer).getByRole("slider");
+    // Both runs' outputs, merged.
+    await vi.waitFor(() =>
+      expect(slider.getAttribute("aria-valuetext")).toBe("0, output 1 of 6"),
+    );
+
+    fireEvent.change(within(footer).getByLabelText("Output marks"), {
+      target: { value: "sim-coarse" },
+    });
+    await vi.waitFor(() =>
+      expect(slider.getAttribute("aria-valuetext")).toBe("0, output 1 of 3"),
+    );
+    fireEvent.keyDown(window, { key: ">" });
+    fireEvent.keyUp(window, { key: ">" });
+    expect(slider.getAttribute("aria-valuenow")).toBe("25");
+
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(puts.at(-1)?.timelineOutputsOf).toBe("sim-coarse");
     vi.useRealTimers();
   });
 

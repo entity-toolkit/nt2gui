@@ -41,14 +41,18 @@ export const useOutputTimes = (simulationId: string | null) => {
 };
 
 /**
- * Every loaded simulation's output times as one list, for the global
- * timeline to step through (null until they load; simulations whose times
- * fail to load are left out).
+ * The output times the global timeline marks and steps through: those of
+ * the simulation chosen in `timelineOutputsOf` while it's loaded, else every
+ * loaded simulation's as one list (null until they load; simulations whose
+ * times fail to load are left out).
  */
 export const useTimelineOutputs = (): number[] | null => {
-  const { simulations } = useUi();
+  const { simulations, uiState } = useUi();
   const keyOf = useTimesKey();
-  const ids = simulations.map((simulation) => simulation.id);
+  const chosen = uiState.timelineOutputsOf;
+  const ids = simulations
+    .map((simulation) => simulation.id)
+    .filter((id, _, all) => !chosen || !all.includes(chosen) || id === chosen);
   const keys = ids.map(keyOf).join("\n");
   const versions = useSimulationVersions(ids);
   const [state, setState] = useState<{ keys: string; times: number[] } | null>(

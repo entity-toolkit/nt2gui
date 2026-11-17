@@ -233,7 +233,7 @@ def test_unloading_simulation_clears_references_and_resets_timeline(client):
     plotters = {
         "p1": {"plotType": "line", "dataType": "fields", "simulationId": sim_id}
     }
-    put_state(client, added["revision"], plotters=plotters)
+    put_state(client, added["revision"], plotters=plotters, timelineOutputsOf=sim_id)
 
     response = client.delete(f"/api/simulations/{sim_id}")
 
@@ -242,6 +242,8 @@ def test_unloading_simulation_clears_references_and_resets_timeline(client):
     assert body["simulations"] == []
     assert body["state"]["plotters"]["p1"] == {"plotType": "line", "dataType": "fields"}
     assert body["state"]["timeline"] == {"current": 0, "min": 0, "max": 100, "step": 1}
+    # The timeline no longer marks its outputs.
+    assert body["state"]["timelineOutputsOf"] is None
 
 
 def test_unknown_simulation_is_404(client):

@@ -195,5 +195,38 @@ export const steppedTime = (
   return timeAtIndex(timeline, index);
 };
 
+/**
+ * Where `time` sits on a track uniform in time from `min` to `max`: 0 at the
+ * start, 1 at the end (clamped; 0 for an empty range).
+ */
+export const timeFraction = (time: number, min: number, max: number) =>
+  max > min ? Math.min(Math.max((time - min) / (max - min), 0), 1) : 0;
+
+/** The time at `fraction` (0…1, clamped) of the track. */
+export const fractionTime = (fraction: number, min: number, max: number) =>
+  min + Math.min(Math.max(fraction, 0), 1) * (max - min);
+
+/** Width of the coordinate system output ticks are drawn in (an SVG viewBox). */
+export const TICK_SPACE = 1000;
+
+/**
+ * An SVG path with one vertical line per output inside [min, max], across
+ * a box `TICK_SPACE` wide and 1 high; outputs closer than a tenth of a unit
+ * share one line (thousands of outputs stay one cheap path).
+ */
+export const outputTicksPath = (
+  outputs: OutputTimes,
+  min: number,
+  max: number,
+): string => {
+  if (!hasOutputs(outputs)) return "";
+  const xs = new Set<number>();
+  for (const time of outputs) {
+    if (time < min || time > max) continue;
+    xs.add(Math.round(timeFraction(time, min, max) * TICK_SPACE * 10) / 10);
+  }
+  return [...xs].map((x) => `M${x} 0V1`).join("");
+};
+
 /** Holding a step button: the first repeat waits a little longer. */
 export const HOLD_DELAY_MS = 350;

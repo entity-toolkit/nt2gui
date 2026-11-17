@@ -7,13 +7,15 @@ import {
   OutputTimes,
   PLAYBACK_SPEEDS,
   indexOfTime,
+  nearestOutput,
+  nearestOutputIndex,
   nextTime,
-  stepCount,
   steppedTime,
   timeAtIndex,
 } from "../../lib/playback";
 import { ITimeline } from "../../state/schema";
 import styles from "./TimeControls.module.css";
+import TimeSlider from "./TimeSlider";
 
 interface TimeControlsProps {
   /** Range, grid and current time. */
@@ -53,9 +55,10 @@ const stepKey = (event: KeyboardEvent): -1 | 1 | null => {
 };
 
 /**
- * A time slider with playback, moving output by output (`outputs`).
- * Dragging only moves the label; the time is applied (and plots re-render)
- * when the slider is released. Playback moves to the next output once
+ * A time track with playback, moving output by output (`outputs`). The
+ * track is uniform in time with a tick per output (`TimeSlider`); dragging
+ * only moves the label, and the nearest output is applied (plots re-render)
+ * when it is released. Playback moves to the next output once
  * `waiting` clears, at most `fps` frames per second;
  * with `keyboard`, < and > step one output, and holding one repeats the same
  * way (after a short pause).
@@ -154,14 +157,27 @@ const TimeControls = ({
     setPlaying((on) => !on);
   };
 
-  const commit = () => {
-    if (draft !== null && draft !== timeline.current) onTimeChange(draft);
-    setDraft(null);
-  };
+  // A picked time goes to the nearest output (or, until outputs load, grid
+  // point): what the plots will show.
+  const snap = (time: number) =>
+    outputs?.length
+      ? nearestOutput(outputs, time)
+      : timeAtIndex(timeline, indexOfTime(timeline, time));
 
+  // Which output, of how many (full variant).
+  const position =
+    variant === "full" && outputs?.length
+      ? `${nearestOutputIndex(outputs, value) + 1} / ${outputs.length}`
+      : null;
   const timeLabel = (
     <span className={styles.title}>
       {label}: {formatNumber(value)}
+      {position && (
+        <span className={styles.position} title="Output, of the marked ones">
+          {" "}
+          · output {position}
+        </span>
+      )}
     </span>
   );
   // Keep a saved speed that isn't one of the presets selectable.
@@ -193,26 +209,24 @@ const TimeControls = ({
           )}
         </button>
         {variant !== "minimal" && (
-          <input
-            className={styles.slider}
-            type="range"
-            aria-label="Time"
-            // Over output (or grid) indices: always a valid value, whatever
-            // the floats.
-            min={0}
-            max={stepCount(timeline, outputs)}
-            step={1}
-            value={indexOfTime(timeline, value, outputs)}
-            aria-valuetext={formatNumber(value)}
-            onChange={(event) => {
+          <TimeSlider
+            min={timeline.min}
+            max={timeline.max}
+            value={value}
+            outputs={outputs}
+            snap={snap}
+            onDrag={(time) => {
               setPlaying(false);
-              setDraft(
-                timeAtIndex(timeline, Number(event.target.value), outputs),
-              );
+              setDraft(time);
             }}
-            onMouseUp={commit}
-            onTouchEnd={commit}
-            onKeyUp={commit}
+            onCommit={(time) => {
+              setPlaying(false);
+              setDraft(null);
+              if (time !== timeline.current) onTimeChange(time);
+            }}
+            onStep={moveBy}
+            format={formatNumber}
+            label={label}
           />
         )}
         {variant !== "full" && timeLabel}

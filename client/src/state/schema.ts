@@ -225,6 +225,11 @@ export interface IUiState {
   coordinateTransforms?: Record<string, string>;
   /** Which time the timeline runs in: the run's own (t, default) or t′ (tp). */
   timeAxis?: TimeAxis;
+  /**
+   * The simulation whose outputs the global timeline marks and steps
+   * through; unset (or null): every loaded simulation's.
+   */
+  timelineOutputsOf?: string | null;
   /** Named custom quantities shared by every plot of fields / of particles. */
   fieldVariables?: IVariable[];
   particleVariables?: IVariable[];

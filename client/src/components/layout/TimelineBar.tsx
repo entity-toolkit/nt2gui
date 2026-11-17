@@ -5,6 +5,7 @@ import { useTransforms } from "../../hooks/useTransforms";
 import { PRIMED_TIME, TIME, coordinateLabel } from "../../state/transforms";
 import TimeControls from "../common/TimeControls";
 import { DEFAULT_PLAYBACK_FPS, isTimeSynced } from "../../lib/playback";
+import { simulationName } from "../../lib/simulations";
 import { useRendersPending } from "../../state/renderActivity";
 import { useUi, useUiActions } from "../../state/UiContext";
 import styles from "./TimelineBar.module.css";
@@ -15,7 +16,7 @@ import styles from "./TimelineBar.module.css";
  * play button and the current time.
  */
 const TimelineBar = () => {
-  const { uiState } = useUi();
+  const { uiState, simulations } = useUi();
   const { updateUiState } = useUiActions();
   const { timeline, plotters } = uiState;
   const collapsed = uiState.timelineCollapsed ?? false;
@@ -50,6 +51,33 @@ const TimelineBar = () => {
     </span>
   ) : null;
 
+  // With several runs: whose outputs the track marks (and steps through).
+  const marked = simulations.some((s) => s.id === uiState.timelineOutputsOf)
+    ? uiState.timelineOutputsOf!
+    : "";
+  const marksPicker =
+    simulations.length > 1 && !collapsed ? (
+      <select
+        className={styles.marks}
+        aria-label="Output marks"
+        title="Whose outputs the timeline marks and steps through"
+        value={marked}
+        onChange={(event) =>
+          updateUiState((prev) => ({
+            ...prev,
+            timelineOutputsOf: event.target.value || null,
+          }))
+        }
+      >
+        <option value="">outputs: all runs</option>
+        {simulations.map((simulation) => (
+          <option key={simulation.id} value={simulation.id}>
+            outputs: {simulationName(simulation)}
+          </option>
+        ))}
+      </select>
+    ) : null;
+
   return (
     <footer
       className={styles.footer}
@@ -75,6 +103,7 @@ const TimelineBar = () => {
         keyboard
         trailing={
           <>
+            {marksPicker}
             {axisToggle}
             <button
               type="button"

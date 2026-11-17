@@ -274,6 +274,8 @@ def name_simulations(session: Session, sources: dict[str, SimulationSource]) -> 
 def forget_simulations(session: Session, ids: set[str]) -> None:
     """Drop simulations from the session and detach plots that used them."""
     session.simulations = [sim for sim in session.simulations if sim.id not in ids]
+    if session.state.timeline_outputs_of in ids:
+        session.state.timeline_outputs_of = None
     plotters = session.state.plotters
     for panel_id, plotter in plotters.items():
         if plotter.simulation_id in ids:
